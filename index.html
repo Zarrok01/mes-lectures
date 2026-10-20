@@ -109,6 +109,12 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 .top5 .rk{font-family:Georgia,serif;font-weight:bold;color:var(--accent);width:18px}
 .toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40;white-space:nowrap}
 .toast.show{opacity:.94}
+#scanOv{z-index:35}
+.cam{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam .aim{position:absolute;left:10%;right:10%;top:30%;bottom:30%;border:3px solid rgba(255,255,255,.9);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.cam .aim::after{content:"";position:absolute;left:4%;right:4%;top:50%;height:2px;background:#ff5a36;animation:sweep 1.6s ease-in-out infinite}
+@keyframes sweep{0%,100%{transform:translateY(-35px)}50%{transform:translateY(35px)}}
 .backup{background:var(--accent-soft);color:var(--ink);font-size:.85rem;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
 #print{display:none}
 @media print{
@@ -133,6 +139,13 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 <main class="wrap" id="main"><div class="empty">Chargement de tes livres…</div></main>
 <button class="fab" id="fab" title="Ajouter un livre" aria-label="Ajouter un livre">+</button>
 <div class="ov" id="ov"><div class="modal" id="modal" role="dialog"></div></div>
+<div class="ov" id="scanOv"><div class="modal">
+  <h2>Scanner le code-barres</h2>
+  <div class="cam"><video id="cam" playsinline muted autoplay></video><div class="aim"></div></div>
+  <p class="a" id="scanMsg">Vise le code-barres au dos du livre (celui qui commence par 978).</p>
+  <div class="mfoot"><button class="btn" id="scanPhoto" type="button">📷 Prendre une photo à la place</button><span class="sp"></span>
+    <button class="btn" id="scanClose" type="button">Annuler</button></div>
+</div></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="pick_cover" accept="image/*" hidden>
 <input type="file" id="pick_scan" accept="image/*" capture="environment" hidden>
@@ -225,6 +238,95 @@ function readings() {
   return out;
 }
 
+/* ---------- Recherche de livres en ligne ----------
+   ISBN (code-barres) : BnF + Open Library + Google Books en même temps.
+   Texte : Google Books + Open Library, puis BnF si rien trouvé. */
+function cleanIsbn(q) {
+  const s = String(q).replace(/[\s-]/g, '').toUpperCase();
+  return /^(97[89]\d{10}|\d{9}[\dX])$/.test(s) ? s : '';
+}
+function isbn10(i) {
+  if (i.length === 10) return i;
+  if (!i.startsWith('978')) return '';
+  const c = i.slice(3, 12); let s = 0;
+  for (let k = 0; k < 9; k++) s += (10 - k) * +c[k];
+  const r = (11 - s % 11) % 11;
+  return c + (r === 10 ? 'X' : r);
+}
+async function getJson(url, ms) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 8000);
+  try { const r = await fetch(url, {signal: ctl.signal}); if (!r.ok) throw new Error(r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+async function getText(url, ms) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 8000);
+  try { const r = await fetch(url, {signal: ctl.signal}); if (!r.ok) throw new Error(r.status); return await r.text(); }
+  finally { clearTimeout(t); }
+}
+async function fromGoogle(q) {
+  const j = await getJson('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent(q), 6000);
+  return (j.items || []).map(it => {
+    const v = it.volumeInfo || {}, l = v.imageLinks || {};
+    return {titre: v.title || '', auteur: (v.authors || []).join(', '), pagesTotal: v.pageCount || '',
+      couverture: (l.thumbnail || l.smallThumbnail || '').replace(/^http:/, 'https:').replace('&edge=curl', '')};
+  }).filter(b => b.titre);
+}
+async function fromOpenLibraryIsbn(i) {
+  const j = await getJson('https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:' + i);
+  const d = j['ISBN:' + i];
+  if (!d || !d.title) return [];
+  return [{titre: d.title, auteur: (d.authors || []).map(a => a.name).join(', '), pagesTotal: d.number_of_pages || '',
+    couverture: (d.cover && d.cover.medium) || ''}];
+}
+async function fromOpenLibrarySearch(q) {
+  const j = await getJson('https://openlibrary.org/search.json?limit=8&fields=title,author_name,number_of_pages_median,cover_i&q=' + encodeURIComponent(q));
+  return (j.docs || []).map(d => ({titre: d.title || '', auteur: (d.author_name || []).join(', '), pagesTotal: d.number_of_pages_median || '',
+    couverture: d.cover_i ? 'https://covers.openlibrary.org/b/id/' + d.cover_i + '-M.jpg' : ''})).filter(b => b.titre);
+}
+async function fromBnf(query, max) {
+  const x = await getText('https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&recordSchema=dublincore&maximumRecords=' +
+    (max || 5) + '&query=' + encodeURIComponent(query));
+  const doc = new DOMParser().parseFromString(x, 'application/xml');
+  const DC = 'http://purl.org/dc/elements/1.1/';
+  return [...doc.getElementsByTagNameNS('http://www.openarchives.org/OAI/2.0/oai_dc/', 'dc')].map(r => {
+    const get = n => [...r.getElementsByTagNameNS(DC, n)].map(e => e.textContent.trim());
+    // Auteur : « Camus, Albert (1913-1960). Auteur du texte » → « Albert Camus »
+    const auteurs = get('creator').map(c => c.replace(/\s*\(.*$/, '').replace(/\..*$/, '').split(', ').reverse().join(' ').trim()).filter(Boolean);
+    // Titre : « L'Étranger / Albert Camus » ou « Dune (Trad. revue) Frank Herbert ; traduit… »
+    let titre = (get('title')[0] || '').split(' / ')[0];
+    if (auteurs[0] && titre.includes(auteurs[0])) titre = titre.slice(0, titre.indexOf(auteurs[0]));
+    titre = titre.split(' ; ')[0].replace(/\s*\([^)]*\)\s*$/, '').replace(/[\s:;,.]+$/, '').trim();
+    const pages = (get('format').join(' ').match(/(\d+)\s*p\./) || [])[1] || '';
+    const isbn = cleanIsbn((get('identifier').find(s => /^ISBN/.test(s)) || '').replace(/^ISBN\s*/, ''));
+    return {titre, auteur: auteurs.join(', '), pagesTotal: pages,
+      couverture: isbn ? 'https://covers.openlibrary.org/b/isbn/' + isbn + '-M.jpg?default=false' : ''};
+  }).filter(b => b.titre);
+}
+async function searchOnline(q) {
+  const settle = ps => Promise.allSettled(ps).then(rs => rs.flatMap(r => r.status === 'fulfilled' ? r.value : []));
+  const i = cleanIsbn(q);
+  let out;
+  if (i) {
+    const i10 = isbn10(i);
+    out = await settle([
+      fromBnf(`bib.isbn adj "${i}"` + (i10 && i10 !== i ? ` or bib.isbn adj "${i10}"` : ''), 3),
+      fromOpenLibraryIsbn(i),
+      fromGoogle('isbn:' + i)
+    ]);
+    // Couverture par l'ISBN si une source n'en a pas
+    const cover = (out.find(b => b.couverture && !b.couverture.includes('default=false')) || {}).couverture ||
+      'https://covers.openlibrary.org/b/isbn/' + i + '-M.jpg?default=false';
+    out.forEach(b => { if (!b.couverture) b.couverture = cover; if (!b.pagesTotal) b.pagesTotal = (out.find(x => x.pagesTotal) || {}).pagesTotal || ''; });
+  } else {
+    out = await settle([fromGoogle(q), fromOpenLibrarySearch(q)]);
+    if (!out.length) out = await settle([fromBnf(`bib.anywhere all "${q.replace(/"/g, '')}"`, 8)]);
+  }
+  // Retire les doublons (même titre + même auteur)
+  const seen = new Set();
+  const key = b => (b.titre + '|' + b.auteur).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').split(String.fromCharCode(8217)).join("'");
+  return out.filter(b => { const k = key(b); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 10);
+}
+
 /* ---------- Stockage sur l'appareil ---------- */
 function call(fn, ...args) { return Promise.resolve().then(() => Local[fn](...args)); }
 const LS = 'mes-lectures-data';
@@ -239,20 +341,7 @@ const Local = {
   deleteBook(id) { const d = this.load(); d.books = d.books.filter(x => x.id !== id); this.store(d); return true; },
   setGoal(n) { const d = this.load(); d.goal = n; this.store(d); return n; },
   replaceAll(d) { this.store({books: d.books, goal: d.goal || 0}); return true; },
-  async searchBooks(q) {
-    const isbn = q.replace(/[\s-]/g, ''), isIsbn = /^(97[89])?\d{9}[\dX]$/i.test(isbn);
-    try {
-      const j = await (await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent(isIsbn ? 'isbn:' + isbn : q))).json();
-      const out = (j.items || []).map(it => { const v = it.volumeInfo || {}, l = v.imageLinks || {};
-        return {titre: v.title || '', auteur: (v.authors || []).join(', '), pagesTotal: v.pageCount || '',
-          couverture: (l.thumbnail || l.smallThumbnail || '').replace(/^http:/, 'https:').replace('&edge=curl', '')}; }).filter(b => b.titre);
-      if (out.length) return out;
-    } catch (e) {}
-    const j = await (await fetch('https://openlibrary.org/search.json?limit=8&fields=title,author_name,number_of_pages_median,cover_i' +
-      (isIsbn ? '&isbn=' + isbn : '&q=' + encodeURIComponent(q)))).json();
-    return (j.docs || []).map(d => ({titre: d.title || '', auteur: (d.author_name || []).join(', '), pagesTotal: d.number_of_pages_median || '',
-      couverture: d.cover_i ? 'https://covers.openlibrary.org/b/id/' + d.cover_i + '-M.jpg' : ''})).filter(b => b.titre);
-  }
+  searchBooks(q) { return searchOnline(q); }
 };
 
 /* ---------- Affichage ---------- */
@@ -629,7 +718,7 @@ function openForm(b, opts) {
   $('#f_note').onclick = e => { const n = +(e.target.dataset.n || 0); if (!n) return; form.note = form.note === n ? 0 : n; paintStars(); };
   $('#s_go').onclick = doSearch;
   $('#s_q').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } };
-  $('#s_scan').onclick = () => { $('#pick_scan').value = ''; $('#pick_scan').click(); };
+  $('#s_scan').onclick = openScanner;
   $('#s_res').onclick = e => {
     const btn = e.target.closest('[data-res]'); if (!btn) return;
     const x = lastRes[+btn.dataset.res];
@@ -714,7 +803,9 @@ async function doSearch() {
     lastRes = (await call('searchBooks', q)) || [];
     box.innerHTML = lastRes.length ? lastRes.map((x, i) =>
       `<button type="button" data-res="${i}">${coverHtml(x, 'rc')}<span><b>${esc(x.titre)}</b><br><span class="a">${esc(x.auteur || 'Auteur inconnu')}${x.pagesTotal ? ' · ' + esc(x.pagesTotal) + ' p.' : ''}</span></span></button>`).join('')
-      : '<div class="a">Rien trouvé. Tu peux remplir à la main.</div>';
+      : cleanIsbn(q)
+        ? `<div class="a">Code lu (<b>${esc(q)}</b>), mais ce livre n'est dans aucune base en ligne.<br>Tape plutôt son <b>titre</b> dans la recherche, ou remplis la fiche à la main.</div>`
+        : '<div class="a">Rien trouvé. Essaie avec moins de mots (juste le titre), ou remplis à la main.</div>';
   } catch (e) { box.innerHTML = '<div class="a">Recherche impossible pour l\'instant. Remplis à la main.</div>'; }
 }
 
@@ -765,6 +856,56 @@ $('#pick_scan').onchange = async e => {
   }
 };
 
+/* ---------- Scanner en direct avec la caméra ---------- */
+let scanStop = null;
+const isBookCode = c => /^97[89]\d{10}$/.test(c);
+function scanFound(code) {
+  closeScanner();
+  if (navigator.vibrate) navigator.vibrate(80);
+  $('#s_q').value = code; doSearch();
+}
+function scanSeen(code) {
+  if (isBookCode(code)) return scanFound(code);
+  $('#scanMsg').textContent = 'Ce code-barres n\'est pas celui du livre. Vise celui qui commence par 978 ou 979.';
+}
+async function openScanner() {
+  $('#scanOv').classList.add('show');
+  $('#scanMsg').textContent = 'Vise le code-barres au dos du livre (celui qui commence par 978).';
+  const video = $('#cam');
+  try {
+    if ('BarcodeDetector' in window) {
+      const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+      video.srcObject = stream; await video.play();
+      const det = new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a']});
+      let alive = true;
+      scanStop = () => { alive = false; stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
+      const loop = async () => {
+        if (!alive) return;
+        try { const r = await det.detect(video); if (r.length) { const c = r.find(x => isBookCode(x.rawValue)) || r[0]; scanSeen(c.rawValue); if (!alive) return; } } catch (e) {}
+        setTimeout(loop, 200);
+      };
+      loop();
+    } else {
+      $('#scanMsg').textContent = 'Préparation de la caméra…';
+      await loadZXing();
+      const reader = new ZXing.BrowserMultiFormatReader();
+      scanStop = () => reader.reset();
+      $('#scanMsg').textContent = 'Vise le code-barres au dos du livre (celui qui commence par 978).';
+      reader.decodeFromConstraints({video: {facingMode: 'environment'}}, video, res => { if (res && scanStop) scanSeen(res.getText()); });
+    }
+  } catch (err) {
+    closeScanner();
+    toast(err && err.name === 'NotAllowedError' ? 'Caméra refusée : autorise-la dans les réglages de Chrome' : 'Caméra indisponible : prends une photo');
+    $('#pick_scan').value = ''; $('#pick_scan').click();
+  }
+}
+function closeScanner() {
+  if (scanStop) { const s = scanStop; scanStop = null; try { s(); } catch (e) {} }
+  $('#scanOv').classList.remove('show');
+}
+$('#scanClose').onclick = closeScanner;
+$('#scanPhoto').onclick = () => { closeScanner(); $('#pick_scan').value = ''; $('#pick_scan').click(); };
+
 /* ---------- Clics et saisies ---------- */
 document.addEventListener('click', e => {
   const tab = e.target.closest('[data-tab]');
@@ -797,7 +938,11 @@ document.addEventListener('change', e => {
   if (e.target.id === 'sort') { ui.sort = e.target.value; renderCards(); }
   if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#ov').classList.contains('show')) closeM(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if ($('#scanOv').classList.contains('show')) closeScanner();
+  else if ($('#ov').classList.contains('show')) closeM();
+});
 $('#fab').onclick = () => openForm(null);
 
 /* ---------- Démarrage ---------- */

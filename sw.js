@@ -1,6 +1,6 @@
 // Permet à l'appli de s'ouvrir même sans internet.
 // Change ce numéro à chaque mise à jour de l'appli pour forcer le rafraîchissement.
-const CACHE = 'mes-lectures-v1';
+const CACHE = 'mes-lectures-v2';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

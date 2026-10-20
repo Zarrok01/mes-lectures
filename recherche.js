@@ -78,31 +78,34 @@ const Recherche = (() => {
     const host = new URL(url).hostname;
     if (pause[host] && Date.now() < pause[host]) { const e = new Error('en pause'); e.status = 503; throw e; }
     await gate(host);
+    // Le délai maximal couvre TOUTE la réponse (pas seulement son début) : une réponse qui arrive au compte-gouttes est coupée
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 10000);
+    let garder = false;
     try {
       const r = await fetch(url, {signal: ctl.signal});
-      if ((r.status === 429 || r.status === 503) && GAPS[host] && !retry) { await sleep(2000); return fetchT(url, ms, true); }
+      if ((r.status === 429 || r.status === 503) && GAPS[host] && !retry) { clearTimeout(t); await sleep(2000); return fetchT(url, ms, true); }
       echecs[host] = 0;
+      garder = true; r.finir = () => clearTimeout(t);
       return r;
     } catch (e) {
-      if (GAPS[host] && e.name !== 'AbortError') {
+      // (sans internet, ce n'est pas le catalogue qui refuse : on ne le met pas en pause)
+      if (GAPS[host] && e.name !== 'AbortError' && navigator.onLine !== false) {
         echecs[host] = (echecs[host] || 0) + 1;
         if (echecs[host] >= 3) { pause[host] = Date.now() + 5 * 60e3; echecs[host] = 0; }
         if (!retry && !(pause[host] > Date.now())) { await sleep(1500); return fetchT(url, ms, true); }
       }
       throw e;
-    } finally { clearTimeout(t); }
+    } finally { if (!garder) clearTimeout(t); }
   }
-  async function getJson(url, ms) {
+  async function lire(url, ms, json) {
     const r = await fetchT(url, ms);
-    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
-    return r.json();
+    try {
+      if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+      return await (json ? r.json() : r.text());
+    } finally { r.finir(); }
   }
-  async function getText(url, ms) {
-    const r = await fetchT(url, ms);
-    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
-    return r.text();
-  }
+  const getJson = (url, ms) => lire(url, ms, true);
+  const getText = (url, ms) => lire(url, ms, false);
   const xml = s => new DOMParser().parseFromString(s, 'application/xml');
   // Réponse du catalogue illisible (coupée, page d'erreur…) : c'est une panne, pas « aucun résultat »
   const xmlSru = s => {
@@ -685,7 +688,8 @@ const Recherche = (() => {
     {id: 'perso', nom: 'Développement perso', e: '🌱', prix: [], wd: [], bnf: 'développement personnel', apple: ['développement personnel'], rayon: /développement personnel|bien-être|psychologie|motivation/i, genre: 'Développement perso'},
     {id: 'social', nom: 'Éducation & social', e: '🤝', prix: [], wd: [], references: true, bnf: 'travail social', apple: ['éducation bienveillante', 'parentalité', 'travail social'], rayon: /éducation|enseignement|parentalité|famille|enfance|psychologie|travail social|sciences humaines/i, minAvis: 5, genre: 'Pro / VAE'},
     {id: 'romance', nom: 'Romance', e: '💞', prix: [], wd: ['Q858330', 'Q738473'], bnf: 'roman sentimental', apple: ['romance'], rayon: /romance|sentiment|amour/i, genre: 'Roman'},
-    {id: 'classique', nom: 'Classiques', e: '🏛️', prix: [], wd: [], classiques: true, bnf: '', apple: [], genre: 'Roman'}
+    {id: 'classique', nom: 'Classiques', e: '🏛️', prix: [], wd: [], classiques: true, bnf: '', apple: [], genre: 'Roman'},
+    {id: 'jeunesse', nom: 'Jeunesse', e: '🧸', prix: [], wd: [], bnf: '', apple: ['roman jeunesse', 'livre jeunesse'], rayon: /jeunesse|enfants|ado/i, minAvis: 10, genre: 'Jeunesse'}
   ];
   // Grands classiques (liste choisie : plus fiable et instantané)
   const CLASSIQUES = ['Les Misérables|Victor Hugo', 'Notre-Dame de Paris|Victor Hugo', 'Madame Bovary|Gustave Flaubert', 'L\'Éducation sentimentale|Gustave Flaubert',
@@ -781,6 +785,9 @@ const Recherche = (() => {
   // Tire au sort un livre à découvrir. exclude(livre) → true pour écarter (déjà dans ma liste, déjà proposé…)
   async function decouvrir(themeId, opts) {
     opts = opts || {};
+    // 🎁 Surprise : n'importe quel thème, catégories comprises
+    if (!themeId) themeId = THEMES_TIRAGE[Math.floor(Math.random() * THEMES_TIRAGE.length)].id;
+    if (themeId.startsWith('cat:')) return decouvrirCat(themeId.slice(4), opts);
     const t = THEMES.find(x => x.id === themeId) || THEMES[Math.floor(Math.random() * THEMES.length)];
     const srcs = opts.source && sourcesDe(t).includes(opts.source) ? [opts.source, ...shuffle(sourcesDe(t).filter(s => s !== opts.source))] : shuffle(sourcesDe(t));
     const exclude = opts.exclude || (() => false);
@@ -988,6 +995,34 @@ const Recherche = (() => {
   const BASE = ' and bib.language any "fre" and bib.recordtype any "mon" and bib.doctype any "a"';
   const parAnnee = (a, b) => (+b.annee || 0) - (+a.annee || 0);
 
+  /* ---------- Tirage au sort : tous les thèmes ---------- */
+  // Les 13 thèmes de découverte (prix, incontournables, coups de cœur…) + les catégories documentaires de la BnF
+  // qui n'ont pas déjà leur thème (id « cat:… »)
+  const CATS_TIRAGE = ['politique', 'histoire', 'philo', 'psycho', 'socio', 'eco', 'sciences', 'bio', 'education', 'social', 'art', 'droit', 'religion'];
+  const THEMES_TIRAGE = [...THEMES.map(t => ({id: t.id, nom: t.nom, e: t.e})),
+    ...CATS_TIRAGE.map(id => CATS.find(c => c.id === id)).map(c => ({id: 'cat:' + c.id, nom: c.id === 'social' ? 'Travail social (BnF)' : c.nom, e: c.e}))];
+  // Un livre d'une catégorie documentaire, tiré au hasard parmi les parutions récentes classées ainsi par la BnF
+  async function decouvrirCat(id, opts) {
+    const cat = CATS.find(c => c.id === id); if (!cat || !RECH[id]) return null;
+    const exclude = opts.exclude || (() => false);
+    for (const start of [1 + 50 * Math.floor(Math.random() * 6), 1]) {
+      const r = await parTheme({cat: id, max: 0}, {start});
+      if (r.erreur) return null;
+      let essais = 0;
+      for (const x of shuffle([...r.res, ...r.inconnus])) {
+        if (exclude(x)) continue;
+        if (++essais > 6) break;
+        const cov = await couverture(x.covers);
+        if (!cov) continue;   // une suggestion sans couverture donne moins envie
+        let txt = x.resume;
+        if (!txt) txt = (await resume(x).catch(() => ({}))).resume || '';
+        return {...x, resume: txt, couverture: cov, theme: 'cat:' + id, themeNom: cat.nom, themeE: cat.e, source: 'bnf', sourceNom: '🏛️ Catalogue BnF',
+          raison: 'Classé « ' + cat.nom + ' » d’après le classement de la BnF' + (x.annee ? ' · paru en ' + x.annee : '')};
+      }
+    }
+    return null;
+  }
+
   async function editionsFr(c) {
     const titre = clean(String(c.titre || '').replace(/["*?()]/g, ' ')).slice(0, 80), sn = surname(c.auteur), nt = norm(titre);
     if (!titre) return [];
@@ -1073,7 +1108,7 @@ const Recherche = (() => {
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
     CATS, THEMES_RECHERCHE, categories, themePourTexte, parTheme, classement, unirClassements, deweyCats,
     parIsbn, parTexte, completer, couverture, chercherCouvertures, isbnCovers, placeholder,
-    resume, decouvrir, selection, THEMES, SOURCES_DECOUVERTE,
+    resume, decouvrir, selection, THEMES, THEMES_TIRAGE, SOURCES_DECOUVERTE,
     setGoogleKey(k) { googleKey = k || ''; googleBlockedUntil = 0; },
     dernierStatut: {},
     _rank: rank, _parseUnimarc: parseUnimarc, _candBnf: candBnf, _candPrix: candPrix

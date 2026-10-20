@@ -247,6 +247,14 @@ header .icon{background:#262626;border-color:#333;color:#fff}
 @keyframes inL{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes inR{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-out}
+/* Lisibilité : contrastes suffisants (texte sur bouton vert, messages), y compris en mode sombre */
+:root{--accent:#0b7f45;--accent-soft:#e0f2e8;--green:#0b7f45;--on-accent:#fff}
+:root[data-theme=dark]{--on-accent:#04210f}
+.btn.pri,.seg button.on,.chipb.on,.tab.on .n,.notice .btn.pri,.fab{color:var(--on-accent)}
+.toast{white-space:normal;text-align:center;line-height:1.4;max-width:min(94vw,520px)}
+.toast button{background:var(--bg);color:var(--ink);border-radius:14px;padding:4px 12px;margin:4px 0 0 10px;min-height:32px}
+.starpick button{color:var(--muted);opacity:.45}
+.starpick button.on{color:var(--star);opacity:1}
 /* Catégories et recherche par thème */
 .catrow{width:100%;border:0;background:none;color:var(--ink);font:inherit;font-size:.88rem;text-align:left;padding:6px 0;cursor:pointer;grid-template-columns:minmax(110px,190px) 1fr auto;min-height:40px}
 .catrow:active{opacity:.6}
@@ -262,9 +270,10 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .sug.rq{margin-bottom:10px}
 .chip.pg{color:var(--ink);border-color:var(--ink)}
 .inconnus{margin-top:6px}
-#rq_cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-#rq_cats::-webkit-scrollbar{display:none}
-#rq_cats .chipb{flex:0 0 auto}
+.ailleurs{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-bottom:8px}
+#rq_cats,#dc_theme,#nx_theme,#nx_cat{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#rq_cats::-webkit-scrollbar,#dc_theme::-webkit-scrollbar,#nx_theme::-webkit-scrollbar,#nx_cat::-webkit-scrollbar{display:none}
+#rq_cats .chipb,#dc_theme .chipb,#nx_theme .chipb,#nx_cat .chipb{flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -332,9 +341,12 @@ const EMPTY = {
 
 let books = [], goal = 0, form = null, lastRes = [];
 const ui = {tab: 'en_cours', q: '', cq: '', genre: '', cat: '', own: '', sort: 'recent', year: new Date().getFullYear()};
+// Page de tests (index.html?tests) : elle travaille dans une mémoire à part, jamais sur les vrais livres
+const ESSAI = new URLSearchParams(location.search).has('tests');
+const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
 const prefs = Object.assign({view: 'liste', theme: 'auto', googleKey: '', bulkDest: 'a_lire'},
-  (() => { try { return JSON.parse(localStorage.getItem('mes-lectures-prefs')) || {}; } catch (e) { return {}; } })());
-function savePrefs() { try { localStorage.setItem('mes-lectures-prefs', JSON.stringify(prefs)); } catch (e) {} }
+  (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
+function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
 Recherche.setGoogleKey(prefs.googleKey);
 
 /* ---------- Petits outils ---------- */
@@ -345,7 +357,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const today = () => iso(new Date());
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
-function fdate(s) { if (!s) return ''; const d = new Date(s + 'T00:00'); return isNaN(d) ? s : d.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); }
+function fdate(s) { if (!s) return ''; const d = new Date(s + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); }
 function fdur(min) { min = Math.round(min); if (min < 60) return min + ' min'; const h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''); }
 // Note en pastille colorée : 5 = vert … 1 = rouge
 function scoreHtml(n, cls) { n = Math.round(n || 0); return n ? `<span class="score n${n} ${cls || ''}">${n}<small>/5</small></span>` : ''; }
@@ -405,10 +417,36 @@ window.coverOk = img => { if (Recherche.placeholder(img.naturalWidth, img.natura
 function counts() { const c = {en_cours: 0, a_lire: 0, lu: 0, abandon: 0}; books.forEach(b => { if (b.statut in c) c[b.statut]++; }); return c; }
 function allQuotes() { const out = []; books.forEach(b => (b.citations || []).forEach((q, i) => out.push({b, q, i}))); return out; }
 function parseList(v) { if (Array.isArray(v)) return v; try { const x = JSON.parse(v || '[]'); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
+// Remet chaque fiche en bon état (au démarrage et à la restauration d'une sauvegarde) : bons types, dates valides.
+// Une sauvegarde abîmée ou trafiquée ne peut ainsi ni bloquer l'appli, ni y glisser du code.
+const jour = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '';
+const entier = v => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 && n < 100000 ? n : ''; };
+const txt = v => typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
+const objets = v => parseList(v).filter(x => x && typeof x === 'object' && !Array.isArray(x));
+const mots = v => parseList(v).filter(x => typeof x === 'string');
 function norm(b) {
-  return {...b, note: +b.note || 0, epingle: b.epingle === true || b.epingle === 'true',
-    citations: parseList(b.citations), journal: parseList(b.journal), historique: parseList(b.historique), sessions: parseList(b.sessions),
-    format: b.format || 'papier', possession: b.possession || 'a_moi'};
+  b = b && typeof b === 'object' && !Array.isArray(b) ? b : {};
+  const out = {...b};
+  for (const f of ['id', 'titre', 'auteur', 'serie', 'genre', 'avis', 'resume', 'isbn', 'editeur', 'annee', 'pretNom', 'couverture', 'ajoute']) out[f] = txt(b[f]);
+  for (const f of ['dateDebut', 'dateFin', 'pretRetour']) out[f] = jour(b[f]);
+  for (const f of ['tome', 'pagesTotal', 'pageActuelle']) out[f] = entier(b[f]);
+  if (!out.id) out.id = newId();
+  if (!out.titre && b.aCompleter !== true) out.titre = 'Sans titre';
+  out.statut = b.statut in STATUT_UN ? b.statut : 'a_lire';
+  out.note = Math.min(5, Math.max(0, Math.round(+b.note || 0)));
+  out.epingle = b.epingle === true || b.epingle === 'true';
+  out.aCompleter = b.aCompleter === true;
+  out.format = b.format in FORMATS ? b.format : 'papier';
+  out.possession = b.possession in POSSESSION ? b.possession : 'a_moi';
+  out.citations = objets(b.citations).map(q => ({...q, texte: txt(q.texte), page: txt(q.page), date: jour(q.date)})).filter(q => q.texte);
+  out.journal = objets(b.journal).map(e => ({date: jour(e.date), page: +e.page || 0})).filter(e => e.date);
+  out.historique = objets(b.historique).map(h => ({debut: jour(h.debut), fin: jour(h.fin), note: Math.min(5, Math.max(0, +h.note || 0))}));
+  out.sessions = objets(b.sessions).map(x => ({...x, date: jour(x.date), min: Math.max(0, +x.min || 0)})).filter(x => x.date);
+  out.coversAlt = mots(b.coversAlt);
+  out.sujets = mots(b.sujets);
+  out.classements = objets(b.classements).filter(k => typeof k.l === 'string' && typeof k.c === 'string').map(k => ({c: k.c, l: k.l, ...(typeof k.s === 'string' ? {s: k.s} : {})}));
+  out.catNon = mots(b.catNon); out.catOui = mots(b.catOui);
+  return out;
 }
 const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : '';
 
@@ -425,37 +463,84 @@ applyTheme();
 const Store = {
   fallback: !('indexedDB' in window),
   queue: Promise.resolve(),
+  erreur: false,    // le dernier enregistrement a échoué : bandeau d'alerte jusqu'à ce que ça remarche
+  bloque: false,    // impossible de lire les livres au démarrage : on n'écrit plus rien (pour ne rien écraser)
   db() {
     if (!this._db) this._db = new Promise((res, rej) => {
-      const r = indexedDB.open('mes-lectures', 1);
+      const r = indexedDB.open(CLE, 1);
       r.onupgradeneeded = () => r.result.createObjectStore('kv');
-      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      r.onsuccess = () => {
+        const db = r.result;
+        // Connexion fermée par le système (manque de place, mise à jour…) : on la rouvrira à la prochaine opération
+        db.onclose = () => { this._db = null; };
+        db.onversionchange = () => { db.close(); this._db = null; };
+        res(db);
+      };
+      r.onerror = () => { this._db = null; rej(r.error); };
     });
     return this._db;
   },
-  async get(k) { const db = await this.db(); return new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
-  async set(k, v) { const db = await this.db(); return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); },
+  async get(k) {
+    const db = await this.db();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv'), q = t.objectStore('kv').get(k);
+      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+      t.onabort = () => rej(t.error || new Error('lecture interrompue'));
+    });
+  },
+  async set(k, v) {
+    const db = await this.db();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k);
+      t.oncomplete = () => res(); t.onerror = () => rej(t.error);
+      // (mémoire pleine, appli fermée… : sans ça, l'enregistrement pouvait rester bloqué sans rien dire)
+      t.onabort = () => rej(t.error || new Error('enregistrement interrompu'));
+    });
+  },
+  // Copie de secours : écrite seulement quand la mémoire principale refuse un enregistrement
+  secours() { try { return JSON.parse(localStorage.getItem(CLE + '-data')); } catch (e) { return null; } },
   async load() {
+    const secours = this.secours();
     if (!this.fallback) {
-      try {
-        const d = await this.get('data');
-        if (d) return d;
-        // Première ouverture de cette version : on reprend les livres de l'ancienne mémoire
-        let old = null; try { old = JSON.parse(localStorage.getItem('mes-lectures-data')); } catch (e) {}
-        const d2 = old || {books: [], goal: 0};
-        await this.set('data', d2);
-        if (old) { localStorage.setItem('mes-lectures-data-ancienne', localStorage.getItem('mes-lectures-data')); localStorage.removeItem('mes-lectures-data'); }
-        return d2;
-      } catch (e) { this.fallback = true; }
+      let d;
+      try { d = await this.get('data'); }
+      catch (e) {
+        // Mémoire principale illisible : surtout ne pas afficher (puis enregistrer) une bibliothèque vide
+        if (secours) { this.fallback = true; return secours; }
+        this.bloque = true; throw new Error('lecture impossible');
+      }
+      if (d) {
+        // Enregistrements faits pendant une panne : la copie de secours est plus récente, c'est elle la bonne
+        // (à égalité aussi : la copie de secours n'existe que si un enregistrement a échoué APRÈS le dernier réussi)
+        if (secours && (secours.savedAt || '') >= (d.savedAt || '')) return secours;
+        return d;
+      }
+      // Première ouverture de cette version : on reprend les livres de l'ancienne mémoire
+      const d2 = secours || {books: [], goal: 0};
+      await this.set('data', d2);
+      if (secours) { localStorage.setItem(CLE + '-data-ancienne', localStorage.getItem(CLE + '-data')); localStorage.removeItem(CLE + '-data'); }
+      return d2;
     }
-    try { return JSON.parse(localStorage.getItem('mes-lectures-data')) || {books: [], goal: 0}; } catch (e) { return {books: [], goal: 0}; }
+    return secours || {books: [], goal: 0};
   },
   persist() {
+    if (this.bloque) return Promise.resolve();
     this.queue = this.queue.then(async () => {
-      const snap = {books, goal};
-      if (!this.fallback) { try { await this.set('data', snap); return; } catch (e) { this.fallback = true; } }
-      localStorage.setItem('mes-lectures-data', JSON.stringify(snap));
-    }).catch(() => toast('Oups, pas enregistré : mémoire du téléphone pleine ?'));
+      const snap = {books, goal, savedAt: new Date().toISOString()};
+      let ok = false;
+      if (!this.fallback) {
+        try {
+          await this.set('data', snap); ok = true;
+          // La mémoire principale remarche : la copie de secours ne sert plus
+          if (localStorage.getItem(CLE + '-data')) localStorage.removeItem(CLE + '-data');
+        } catch (e) {}
+      }
+      if (!ok) localStorage.setItem(CLE + '-data', JSON.stringify(snap));   // peut échouer aussi (mémoire pleine)
+      if (this.erreur) { this.erreur = false; paintNotice(); }
+    }).catch(() => {
+      this.erreur = true; paintNotice();
+      toast('⚠️ Pas enregistré : mémoire du téléphone pleine ?');
+    });
     return this.queue;
   }
 };
@@ -507,7 +592,7 @@ function render() {
   const sel = prefs.selection, neuf = sel && sel.items && sel.items.length && !sel.vu;
   $('#tabs').innerHTML = Object.keys(STATUTS).map(k =>
     `<button class="tab ${ui.tab === k ? 'on' : ''}" data-tab="${k}">${STATUTS[k]}<span class="n">${c[k]}</span></button>` +
-    (k === 'a_lire' ? `<button class="tab ${ui.tab === 'decouvrir' ? 'on' : ''}" data-tab="decouvrir">✨ Découvrir${neuf ? '<span class="n" style="background:var(--accent);color:#fff">' + sel.items.length + '</span>' : ''}</button>` : '')).join('') +
+    (k === 'a_lire' ? `<button class="tab ${ui.tab === 'decouvrir' ? 'on' : ''}" data-tab="decouvrir">✨ Découvrir${neuf ? '<span class="n" style="background:var(--accent);color:var(--on-accent)">' + sel.items.length + '</span>' : ''}</button>` : '')).join('') +
     `<button class="tab ${ui.tab === 'citations' ? 'on' : ''}" data-tab="citations">Citations<span class="n">${nq}</span></button>` +
     `<button class="tab ${ui.tab === 'stats' ? 'on' : ''}" data-tab="stats">Stats</button>`;
   const on = $('#tabs .on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
@@ -545,7 +630,10 @@ function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.
 function renderCards() {
   const q = Recherche.norm(ui.q);
   let l = books.filter(b => b.statut === ui.tab);
-  if (q) l = l.filter(b => Recherche.norm([b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom, ...catsDe(b).map(c => c.nom)].join(' ')).includes(q));
+  const trouve = b => Recherche.norm([b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom, b.resume, ...(b.sujets || []), ...catsDe(b).map(c => c.nom)].join(' ')).includes(q);
+  if (q) l = l.filter(trouve);
+  // La recherche regarde aussi les autres onglets : on dit où se trouvent les autres livres qui correspondent
+  const ailleurs = q ? Object.keys(STATUTS).filter(k => k !== ui.tab).map(k => [k, books.filter(b => b.statut === k && trouve(b)).length]).filter(x => x[1]) : [];
   if (ui.genre) l = l.filter(b => b.genre === ui.genre);
   if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : catsDe(b).some(c => c.id === ui.cat));
   if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
@@ -559,8 +647,9 @@ function renderCards() {
     pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
   };
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
-  $('#list').innerHTML = l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
-    `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond.' : EMPTY[ui.tab]}</div>`;
+  $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs">Aussi dans ${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
+    (l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
+    `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond dans cet onglet.' : EMPTY[ui.tab]}</div>`);
 }
 
 function progress(b) {
@@ -613,6 +702,11 @@ function gcard(b) {
 /* ---------- Bandeau d'alerte (retours de prêt, sauvegarde) ---------- */
 function paintNotice() {
   const bar = $('#notice');
+  if (Store.erreur) {
+    bar.innerHTML = `⚠️ <b>Tes dernières modifications ne sont pas enregistrées</b> (mémoire du téléphone pleine ?). Libère de la place, puis réessaie. Par précaution, fais une sauvegarde.
+      <button class="btn small" type="button" data-resave>Réessayer</button><button class="btn pri small" data-export="backup">Sauvegarder</button>`;
+    bar.hidden = false; return;
+  }
   const due = books.filter(b => b.possession === 'emprunte' && b.pretRetour && b.pretRetour <= addDays(3)).sort((a, b) => a.pretRetour.localeCompare(b.pretRetour))[0];
   const last = prefs.lastBackup, late = books.length >= 3 && (!last || Date.now() - new Date(last) > 30 * 864e5);
   if (due) {
@@ -866,9 +960,9 @@ function toastLater(msg, delay) {
 }
 
 /* ---------- 🎲 Que lire ensuite ? (dans ma liste, ou en ligne) ---------- */
-const pick = {len: '', genre: '', dispo: false, last: '', mode: 'liste', theme: ''};
+const pick = {len: '', genre: '', cat: '', dispo: false, last: '', mode: 'liste', theme: ''};
 function themeChips(id, current) {
-  return `<div class="chips" id="${id}"><button type="button" data-v="" class="chipb ${!current ? 'on' : ''}">🎁 Surprise</button>${Recherche.THEMES.map(t =>
+  return `<div class="chips" id="${id}"><button type="button" data-v="" class="chipb ${!current ? 'on' : ''}">🎁 Surprise</button>${Recherche.THEMES_TIRAGE.map(t =>
     `<button type="button" data-v="${t.id}" class="chipb ${current === t.id ? 'on' : ''}">${t.e} ${esc(t.nom)}</button>`).join('')}</div>`;
 }
 function openNext() {
@@ -876,6 +970,10 @@ function openNext() {
   if (!pool.length && pick.mode === 'liste') pick.mode = 'ligne';
   const genres = [...new Set(pool.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   if (pick.genre && !genres.includes(pick.genre)) pick.genre = '';
+  // Catégories de mes livres « à lire » (d'après les classements des catalogues)
+  const nCat = {}; pool.forEach(b => catsDe(b).forEach(c => nCat[c.id] = (nCat[c.id] || 0) + 1));
+  const cats = Recherche.CATS.filter(c => nCat[c.id]);
+  if (pick.cat && !nCat[pick.cat]) pick.cat = '';
   const lens = [['', 'Peu importe'], ['court', 'Court'], ['moyen', 'Moyen'], ['long', 'Long']];
   const enLigne = pick.mode === 'ligne';
   $('#modal').innerHTML = `<h2>🎲 Que lire ensuite ?</h2>
@@ -885,6 +983,7 @@ function openNext() {
       <div class="lbl" style="margin-bottom:4px">Longueur <span class="a" style="font-weight:400">(court : moins de 250 p. · long : plus de 450 p.)</span></div>
       <div class="seg" id="nx_len">${lens.map(([k, v]) => `<button type="button" data-v="${k}" class="${pick.len === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${genres.length > 1 ? `<div class="lbl" style="margin-bottom:4px">Genre</div><div class="chips" id="nx_genre"><button type="button" data-v="" class="chipb ${!pick.genre ? 'on' : ''}">Peu importe</button>${genres.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.genre === g ? 'on' : ''}">${esc(g)}</button>`).join('')}</div>` : ''}
+      ${cats.length ? `<div class="lbl" style="margin-bottom:4px">Catégorie</div><div class="chips" id="nx_cat"><button type="button" data-v="" class="chipb ${!pick.cat ? 'on' : ''}">Peu importe</button>${cats.map(c => `<button type="button" data-v="${c.id}" class="chipb ${pick.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)} (${nCat[c.id]})</button>`).join('')}</div>` : ''}
       <label class="check"><input type="checkbox" id="nx_dispo" ${pick.dispo ? 'checked' : ''}> Seulement ceux que j'ai sous la main</label>`}
     <div id="nx_res"></div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button><button class="btn pri" id="nx_go" type="button">🎲 Tirer au sort</button></div>`;
@@ -893,6 +992,7 @@ function openNext() {
   choix('#nx_mode', v => { pick.mode = v; openNext(); });
   choix('#nx_len', v => { pick.len = v; });
   choix('#nx_genre', v => { pick.genre = v; });
+  choix('#nx_cat', v => { pick.cat = v; });
   choix('#nx_theme', v => { pick.theme = v; });
   const d = $('#nx_dispo'); if (d) d.onchange = e => { pick.dispo = e.target.checked; };
   $('#nx_go').onclick = () => enLigne ? drawOnline(pick.theme, $('#nx_res'), $('#nx_go')) : drawNext();
@@ -904,6 +1004,7 @@ function nextCandidates() {
     if (pick.len === 'moyen' && !(p >= 250 && p <= 450)) return false;
     if (pick.len === 'long' && !(p > 450)) return false;
     if (pick.genre && b.genre !== pick.genre) return false;
+    if (pick.cat && !catsDe(b).some(c => c.id === pick.cat)) return false;
     if (pick.dispo && !['a_moi', 'emprunte'].includes(b.possession)) return false;
     return true;
   });
@@ -922,7 +1023,7 @@ async function drawNext() {
   pick.last = b.id;
   const v = speed();
   const why = [b.epingle ? '📌 épinglé' : '', b.possession === 'emprunte' && b.pretRetour ? '📥 à rendre le ' + fdate(b.pretRetour) : '',
-    b.pagesTotal ? b.pagesTotal + ' pages' + (v ? ' (≈ ' + fdur(b.pagesTotal / v * 60) + ')' : '') : ''].filter(Boolean).join(' · ');
+    b.pagesTotal ? (+b.pagesTotal || 0) + ' pages' + (v ? ' (≈ ' + fdur(b.pagesTotal / v * 60) + ')' : '') : ''].filter(Boolean).join(' · ');
   box.innerHTML = `<div class="nxcard">${coverHtml(b, 'big')}<div style="min-width:0"><div class="t">${esc(b.titre)}</div><div class="a">${esc(b.auteur || '')}</div>
     ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}<div class="a" style="font-size:.85rem;margin-top:4px">${why}</div>
     <div class="acts"><button class="btn pri" id="nx_start" type="button">📖 Je commence</button><button class="btn" id="nx_again" type="button">Un autre</button></div></div></div>`;
@@ -949,7 +1050,7 @@ function sugCard(x, ctx, i) {
     <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
       <div style="min-width:0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
         <div class="meta" style="margin-top:4px"><span class="chip">${x.themeE} ${esc(x.themeNom)}</span><span class="chip">${esc(x.sourceNom)}</span></div>
-        <div class="a" style="font-size:.82rem;margin-top:3px">${esc(x.raison || '')}${x.pagesTotal ? ' · ' + x.pagesTotal + ' p.' : ''}</div></div></div>
+        <div class="a" style="font-size:.82rem;margin-top:3px">${esc(x.raison || '')}${x.pagesTotal ? ' · ' + (+x.pagesTotal || 0) + ' p.' : ''}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
     <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
       <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener">🛒 En librairie</a>
@@ -970,7 +1071,7 @@ function addSuggestion(x) {
 }
 async function drawOnline(themeId, box, btn) {
   if (btn) btn.disabled = true;
-  const t = Recherche.THEMES.find(x => x.id === themeId);
+  const t = Recherche.THEMES_TIRAGE.find(x => x.id === themeId);
   box.innerHTML = `<div class="nxspin">🌍 Je fouille ${t ? 'le thème ' + t.e + ' ' + esc(t.nom) : 'tous les thèmes'}…</div>`;
   const x = await Recherche.decouvrir(themeId || '', {exclude: dejaVu}).catch(() => null);
   if (btn) btn.disabled = false;
@@ -1059,7 +1160,7 @@ function rechCard(x, ctx, i) {
   const own = findOwned(x);
   const ids = catsDe(x).map(c => c.id);
   if (x.theme && !ids.includes(x.theme)) ids.unshift(x.theme);
-  const pages = x.pagesTotal ? (x.pagesEnviron ? 'environ ' : '') + x.pagesTotal + ' p.' : 'pages : inconnu';
+  const pages = x.pagesTotal ? (x.pagesEnviron ? 'environ ' : '') + (+x.pagesTotal || 0) + ' p.' : 'pages : inconnu';
   const edition = [x.editeur, x.annee].filter(Boolean).join(', ');
   const autres = x.autresEditions ? ` ; d'autres éditions font de ${x.autresEditions[0]} à ${x.autresEditions[1]} p.` : '';
   return `<article class="sug rq" data-ctx="${ctx}" data-i="${i}">
@@ -1339,10 +1440,12 @@ function download(name, content, type) {
 }
 function backupInfo() {
   const last = prefs.lastBackup;
-  if (!last) return '<b>Aucune sauvegarde pour l\'instant.</b>';
+  if (!last) return '<b>Aucune sauvegarde pour l\'instant.</b>' + copieRestauration();
   const days = Math.floor((Date.now() - new Date(last)) / 864e5);
-  return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.`;
+  return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.` + copieRestauration();
 }
+// Après une restauration : bouton pour revenir à la bibliothèque d'avant
+const copieRestauration = () => prefs.avantRestauration ? `<br><button class="btn small" type="button" data-undorestore style="margin-top:8px">↩️ Revenir à ma bibliothèque d'avant (copie du ${fdate(iso(new Date(prefs.avantRestauration)))})</button>` : '';
 function doExport(kind) {
   if (kind === 'excel') {
     const rows = [['Titre', 'Auteur', 'Série', 'Tome', 'Statut', 'Genre', 'Catégories', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Éditeur', 'Année', 'ISBN', 'Format', 'Possession', 'Mon avis']]
@@ -1372,19 +1475,50 @@ function doExport(kind) {
 $('#pick_backup').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   let d;
-  try { d = JSON.parse(await f.text()); if (d.app !== 'mes-lectures' || !Array.isArray(d.books)) throw 0; }
+  try { d = JSON.parse(await f.text()); if (!d || d.app !== 'mes-lectures' || !Array.isArray(d.books)) throw 0; }
   catch (err) { return toast('Ce fichier n\'est pas une sauvegarde de l\'appli'); }
+  // Chaque fiche est vérifiée et remise en bon état ; les entrées illisibles sont écartées (et comptées)
+  const recues = d.books.filter(b => b && typeof b === 'object' && !Array.isArray(b) && (typeof b.titre === 'string' || b.aCompleter === true));
+  const vus = new Set();
+  const propres = recues.map(norm).map(b => { if (vus.has(b.id)) b = {...b, id: newId()}; vus.add(b.id); return b; });
+  const ecartes = d.books.length - propres.length;
+  const dateSauv = d.date && !isNaN(new Date(d.date)) ? fdate(iso(new Date(d.date))) : 'date inconnue';
   $('#modal').innerHTML = `<h2>Restaurer la sauvegarde ?</h2>
-    <p>Le fichier contient <b>${plural(d.books.length, 'livre')}</b> (sauvegarde du ${fdate((d.date || '').slice(0, 10))}).</p>
-    ${books.length ? `<p class="a">${books.length > 1 ? `Les ${books.length} livres actuellement dans l'appli seront <b>remplacés</b>` : `Le livre actuellement dans l'appli sera <b>remplacé</b>`}.</p>` : ''}
-    <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="r_ok">Remplacer</button></div>`;
+    <p>Le fichier contient <b>${plural(propres.length, 'livre')}</b> (sauvegarde du ${esc(dateSauv)}).</p>
+    ${ecartes ? `<p class="a">⚠️ ${plural(ecartes, 'entrée')} illisible${ecartes > 1 ? 's' : ''} ser${ecartes > 1 ? 'ont' : 'a'} ignorée${ecartes > 1 ? 's' : ''}.</p>` : ''}
+    ${+d.version > 2 ? '<p class="a">⚠️ Cette sauvegarde vient d\'une version plus récente de l\'appli : mets l\'appli à jour d\'abord si possible.</p>' : ''}
+    ${books.length ? `<p class="a">${books.length > 1 ? `Les ${books.length} livres actuellement dans l'appli seront <b>remplacés</b>` : `Le livre actuellement dans l'appli sera <b>remplacé</b>`}.
+      Une copie de sécurité est gardée : tu pourras <b>revenir en arrière</b>.</p>` : ''}
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="r_ok" ${propres.length ? '' : 'disabled'}>Remplacer</button></div>`;
   showM();
   $('#r_ok').onclick = async () => {
     closeM();
-    books = d.books.map(norm); goal = +d.goal || 0;
-    await Store.persist(); render(); toast('Livres restaurés ✓');
+    // Copie de sécurité de la bibliothèque actuelle AVANT de la remplacer (sinon on ne remplace rien)
+    if (books.length) {
+      try { await Store.set('avant-restauration', {books, goal, date: new Date().toISOString()}); }
+      catch (err) { return toast('Restauration annulée : impossible de garder une copie de tes livres actuels (mémoire pleine ?)'); }
+      prefs.avantRestauration = new Date().toISOString(); savePrefs();
+    }
+    fillStop = true;   // « Compléter mes livres » en cours : on l'arrête (il travaillait sur les anciens livres)
+    books = propres; goal = entier(d.goal) || 0;
+    await Store.persist(); render();
+    toast('Livres restaurés ✓', prefs.avantRestauration ? {label: 'Annuler', fn: annulerRestauration} : null);
   };
 };
+// Revenir à la bibliothèque d'avant la dernière restauration
+async function annulerRestauration() {
+  let c = null;
+  try { c = await Store.get('avant-restauration'); } catch (e) {}
+  if (!c || !Array.isArray(c.books)) return toast('Pas de copie de sécurité disponible');
+  // Échange : la bibliothèque actuelle devient à son tour la copie (on peut donc toujours revenir en arrière)
+  try { await Store.set('avant-restauration', {books, goal, date: new Date().toISOString()}); }
+  catch (e) { return toast('Impossible pour l\'instant (mémoire pleine ?)'); }
+  fillStop = true;
+  books = c.books.map(norm); goal = entier(c.goal) || 0;
+  await Store.persist();
+  prefs.avantRestauration = new Date().toISOString(); savePrefs();
+  render(); toast('Bibliothèque précédente remise ✓', {label: 'Annuler', fn: annulerRestauration});
+}
 
 /* ---------- Enregistrer / supprimer ---------- */
 function save(b, msg, action) {
@@ -1446,7 +1580,7 @@ function addNextTome(serie, n) {
 }
 
 /* ---------- Fenêtres ---------- */
-function showM() { $('#ov').classList.add('show'); $('#modal').scrollTop = 0; }
+function showM() { $('#ov').classList.add('show'); $('#modal').scrollTop = 0; modalModifie = false; }
 function closeM() { $('#ov').classList.remove('show'); form = null; }
 
 function openPage(b) {
@@ -1798,17 +1932,18 @@ function resultHtml(x, i) {
 }
 async function doSearch(auto) {
   const q = $('#s_q').value.trim(); if (!q) return;
-  const box = $('#s_res'), tok = (doSearch.tok = (doSearch.tok || 0) + 1);
+  // (la fiche ouverte au moment de la recherche : si elle a été fermée ou remplacée entre-temps, on ne touche à rien)
+  const box = $('#s_res'), tok = (doSearch.tok = (doSearch.tok || 0) + 1), f = form;
   const isbn = Recherche.toIsbn13(q);
   if (!isbn && Recherche.looksLikeIsbn(q) && !/[a-z]/i.test(q.replace(/isbn/i, ''))) {
     box.innerHTML = '<div class="hint">⚠️ Ce numéro ISBN n\'est pas valide : un chiffre est sûrement faux. Vérifie les chiffres sous le code-barres.</div>';
     $('#s_st').innerHTML = ''; return;
   }
   box.innerHTML = '<div class="a">Recherche dans les catalogues…</div>';
-  const onSt = st => { if (tok === doSearch.tok && $('#s_st')) $('#s_st').innerHTML = statusHtml(st); };
+  const onSt = st => { if (tok === doSearch.tok && form === f && $('#s_st')) $('#s_st').innerHTML = statusHtml(st); };
   let res = [];
   try { res = isbn ? await Recherche.parIsbn(isbn, onSt) : await Recherche.parTexte(q, onSt); } catch (e) {}
-  if (tok !== doSearch.tok || !form) return;
+  if (tok !== doSearch.tok || !form || form !== f || !$('#s_res')) return;
   lastRes = res;
   if (res.length) {
     box.innerHTML = res.map(resultHtml).join('');
@@ -1839,9 +1974,11 @@ function pickResult(i) {
 }
 function fillFrom(x) {
   const f = form;
-  $('#f_titre').value = x.titre; $('#f_auteur').value = x.auteur || '';
+  modalModifie = true;   // la fiche a été remplie : la fermer par erreur ferait perdre ces infos
+  // (une information absente du catalogue n'efface jamais ce qui est déjà dans la fiche)
+  $('#f_titre').value = x.titre; if (x.auteur) $('#f_auteur').value = x.auteur;
   if (x.pagesTotal) $('#f_total').value = x.pagesTotal;
-  $('#f_serie').value = x.serie || ''; $('#f_tome').value = x.tome || '';
+  if (x.serie) { $('#f_serie').value = x.serie; $('#f_tome').value = x.tome || ''; }
   if (x.isbn) $('#f_isbn').value = x.isbn;
   if (x.editeur) $('#f_edit').value = x.editeur;
   if (x.annee) $('#f_annee').value = x.annee;
@@ -1898,7 +2035,7 @@ async function decodeBarcode(file) {
   const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
   URL.revokeObjectURL(img.src);
-  if ('BarcodeDetector' in window) {
+  if (await lecteurIntegre()) {
     try { const r = await new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e']}).detect(c); if (r.length) return r[0].rawValue; } catch (e) {}
   }
   await loadZXing();
@@ -1922,9 +2059,19 @@ $('#pick_scan').onchange = async e => {
 };
 
 /* ---------- Caméra : lecture du code-barres en direct ---------- */
+// Le lecteur intégré à Chrome existe parfois sans pouvoir lire (téléphones sans services Google) :
+// on vérifie qu'il sait lire les codes de livres, sinon on prend le lecteur de secours (ZXing)
+let lecteurOk = null;
+async function lecteurIntegre() {
+  if (lecteurOk === null) {
+    try { lecteurOk = 'BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).includes('ean_13'); }
+    catch (e) { lecteurOk = false; }
+  }
+  return lecteurOk;
+}
 // Un code n'est accepté que s'il est lu 2 fois de suite et que son chiffre de contrôle est bon.
 async function startCamera(video, onCode) {
-  if ('BarcodeDetector' in window) {
+  if (await lecteurIntegre()) {
     const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
     video.srcObject = stream; await video.play();
     const det = new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a']});
@@ -2021,9 +2168,13 @@ async function bulkCode(c) {
     if (!b.couverture) autoCover(b.id);
     if (x.resume) { b.resume = x.resume; b.sujets = x.sujets || []; b.resumeTente = true; Store.persist(); } else autoResume(b.id);
   } else {
+    // Pas de réponse des catalogues (pas d'internet, réseau coupé) : ce n'est pas « introuvable », on réessaiera
+    const st = Recherche.dernierStatut || {}, vals = Object.values(st);
+    const panne = navigator.onLine === false || (vals.length > 0 && vals.every(v => v === 'erreur' || v === 'quota'));
     const b = {...blankBook(dest), id: newId(), titre: 'Livre ' + isbn, isbn, aCompleter: true};
     books.push(b); bulkAdded++; render(); Store.persist();
-    row(`<span class="grow">⚠️ ${esc(isbn)} introuvable : ajouté « à compléter »</span>`);
+    row(panne ? `<span class="grow">📶 ${esc(isbn)} : pas de connexion. Ajouté « à compléter », je le compléterai quand internet reviendra.</span>`
+      : `<span class="grow">⚠️ ${esc(isbn)} introuvable : ajouté « à compléter »</span>`);
   }
   $('#bulkCount').textContent = plural(bulkAdded, 'livre') + ' ajouté' + (bulkAdded > 1 ? 's' : '');
 }
@@ -2115,13 +2266,14 @@ function openSettings() {
     keep();
     const btn = $('#st_fill'); btn.disabled = true;
     const r = await fillAll(txt => { if ($('#st_fillres')) $('#st_fillres').textContent = txt; });
+    if (r.deja) { btn.disabled = false; return toast('C\'est déjà en cours…'); }
     if ($('#st_fillres')) $('#st_fillres').textContent = `Terminé : ${plural(r.ok, 'livre')} complété${r.ok > 1 ? 's' : ''}${r.ko ? `, ${r.ko} non trouvé${r.ko > 1 ? 's' : ''} (à compléter à la main)` : ''}.`;
     btn.disabled = false;
   };
 }
 
 /* ---------- Compléter automatiquement les fiches existantes ---------- */
-const needsFill = b => !b.aCompleter && b.titre && (!b.couverture || brokenCovers.has(b.id) || !b.pagesTotal || (!b.resume && !b.resumeTente) ||
+const needsFill = b => (b.aCompleter && !!Recherche.toIsbn13(b.isbn || '')) || !b.aCompleter && b.titre && (!b.couverture || brokenCovers.has(b.id) || !b.pagesTotal || (!b.resume && !b.resumeTente) ||
   (!b.classTente && !(b.classements || []).length));
 // Résumé, thèmes et genre (une seule tentative par livre)
 async function fillResume(b) {
@@ -2136,7 +2288,35 @@ async function fillResume(b) {
   books[i] = nb;
   return !!r.resume;
 }
+// Livre scanné « à compléter » : on réessaie par son ISBN (utile après un scan sans internet)
+async function completerScan(b) {
+  const isbn = Recherche.toIsbn13(b.isbn || ''); if (!isbn) return false;
+  const x = (await Recherche.parIsbn(isbn).catch(() => []))[0]; if (!x) return false;
+  const u = await Recherche.couverture(x.covers || []).catch(() => '');
+  const i = books.findIndex(z => z.id === b.id);
+  if (i < 0 || !books[i].aCompleter) return false;   // complété à la main entre-temps : on n'y touche pas
+  const o = books[i], nb = {...o, titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '', aCompleter: false};
+  for (const f of ['pagesTotal', 'editeur', 'annee', 'genre', 'resume']) if (!nb[f] && x[f]) nb[f] = x[f];
+  if (!(nb.sujets || []).length && (x.sujets || []).length) nb.sujets = x.sujets;
+  if ((x.classements || []).length) { nb.classements = Recherche.unirClassements([nb.classements, x.classements]); nb.classTente = true; }
+  if (!nb.couverture && u) setCovers(nb, u, x.covers);
+  books[i] = nb;
+  return true;
+}
+let reprisesEnCours = false;
+async function reprendreScans() {
+  if (reprisesEnCours || navigator.onLine === false || Store.bloque) return;
+  const todo = books.filter(b => b.aCompleter && Recherche.toIsbn13(b.isbn || ''));
+  if (!todo.length) return;
+  reprisesEnCours = true;
+  let ok = 0;
+  for (const b of todo) { if (await completerScan(b).catch(() => false)) ok++; await new Promise(r => setTimeout(r, 700)); }
+  reprisesEnCours = false;
+  if (ok) { await Store.persist(); render(); toast(`📶 Internet est revenu : ${plural(ok, 'livre scanné')} complété${ok > 1 ? 's' : ''} ✓`); }
+}
+window.addEventListener('online', () => setTimeout(reprendreScans, 1500));
 async function fillOne(b) {
+  if (b.aCompleter) return completerScan(b);
   const actuel = () => books.find(z => z.id === b.id) || b;
   let changed = false;
   // Fiche (couverture, pages…) seulement s'il en manque : sinon, pas besoin de tout rechercher
@@ -2147,6 +2327,16 @@ async function fillOne(b) {
   if (!c.classTente && !(c.classements || []).length) changed = (await fillClass(c).catch(() => false)) || changed;
   return changed;
 }
+// Applique ce qu'on a trouvé sur la fiche LA PLUS RÉCENTE du livre, seulement dans les cases encore vides :
+// une modification faite pendant la recherche (ou une restauration) n'est jamais écrasée
+function appliquer(id, patch, couv) {
+  const i = books.findIndex(z => z.id === id); if (i < 0) return false;
+  const nb = {...books[i]}; let change = false;
+  for (const [f, v] of Object.entries(patch)) if (v && !nb[f]) { nb[f] = v; change = true; }
+  if (couv && couv.u && (!nb.couverture || brokenCovers.has(id))) { setCovers(nb, couv.u, couv.list); brokenCovers.delete(id); change = true; }
+  if (change) books[i] = nb;
+  return change;
+}
 async function fillFiche(b) {
   const n = Recherche.norm, sn = Recherche.surname;
   let res = [], byIsbn = false;
@@ -2156,40 +2346,47 @@ async function fillFiche(b) {
   const same = res.filter(r => (n(r.titre) === n(b.titre) || (b.serie && r.serie && n(r.serie) === n(b.serie) && String(r.tome) === String(b.tome)))
     && (!sn(b.auteur) || sn(r.auteur) === sn(b.auteur)) && (!b.tome || !r.tome || String(r.tome) === String(b.tome)));
   const x = same.find(r => r.langue === 'fre') || same[0];
-  const nb = {...books.find(z => z.id === b.id)};
-  const coverMissing = !nb.couverture || brokenCovers.has(b.id);
+  const coverMissing = !b.couverture || brokenCovers.has(b.id);
   if (!x) {
     // Fiche introuvable : on peut au moins chercher une couverture
     if (!coverMissing) return false;
-    const l = await Recherche.chercherCouvertures(nb, 5).catch(() => []);
-    if (!l.length) return false;
-    setCovers(nb, l[0], l); brokenCovers.delete(b.id);
-    const i = books.findIndex(z => z.id === b.id); if (i >= 0) books[i] = nb;
-    return true;
+    const l = await Recherche.chercherCouvertures(b, 5).catch(() => []);
+    return l.length ? appliquer(b.id, {}, {u: l[0], list: l}) : false;
   }
   const y = (!x.pagesTotal || !x.isbn) ? await Recherche.completer(x) : x;
+  const patch = {};
   // Trouvé par le titre : on ne connaît pas l'édition exacte → pas d'ISBN ni d'éditeur (ce serait peut-être faux)
-  for (const f of byIsbn ? ['auteur', 'pagesTotal', 'isbn', 'editeur', 'annee', 'genre'] : ['auteur', 'pagesTotal', 'genre']) if (!nb[f] && y[f]) nb[f] = y[f];
+  for (const f of byIsbn ? ['auteur', 'pagesTotal', 'isbn', 'editeur', 'annee', 'genre'] : ['auteur', 'pagesTotal', 'genre']) if (y[f]) patch[f] = y[f];
   // Série : seulement si le livre n'en a pas, que la fiche vient d'un catalogue (BnF/Sudoc) et que le titre colle
-  if (!nb.serie && x.serie && x.tome && (x.sources || []).some(s => s === 'BnF' || s === 'Sudoc') && n(x.titre) === n(b.titre)) { nb.serie = x.serie; nb.tome = x.tome; }
+  const serieOk = !b.serie && x.serie && x.tome && (x.sources || []).some(s => s === 'BnF' || s === 'Sudoc') && n(x.titre) === n(b.titre);
+  let couv = null;
   if (coverMissing) {
     let u = await Recherche.couverture(y.covers), list = y.covers;
-    if (!u) { list = await Recherche.chercherCouvertures(nb, 5).catch(() => []); u = list[0] || ''; }
-    if (u) { setCovers(nb, u, list); brokenCovers.delete(b.id); }
+    if (!u) { list = await Recherche.chercherCouvertures(b, 5).catch(() => []); u = list[0] || ''; }
+    couv = {u, list};
   }
-  const i = books.findIndex(z => z.id === b.id); if (i >= 0) books[i] = nb;
+  const i = books.findIndex(z => z.id === b.id);
+  if (serieOk && i >= 0 && !books[i].serie) { books[i] = {...books[i], serie: x.serie, tome: x.tome}; }
+  appliquer(b.id, patch, couv);
   return true;
 }
+let fillBusy = false, fillStop = false;
 async function fillAll(onProgress) {
+  // Une seule fois à la fois (deux boutons touchés = un seul travail)
+  if (fillBusy) return {ok: 0, ko: 0, deja: true};
+  fillBusy = true; fillStop = false;
   // Un livre à la fois, avec une petite pause : les catalogues publics n'aiment pas être bombardés
   const todo = books.filter(needsFill);
   let ok = 0, ko = 0;
   for (const b of todo) {
+    if (fillStop) break;   // (une restauration a remplacé les livres : on s'arrête)
+    if (!books.some(z => z.id === b.id)) continue;
     onProgress(`Recherche ${ok + ko + 1} / ${todo.length} : ${b.titre}…`);
     (await fillOne(b).catch(() => false)) ? ok++ : ko++;
     if ((ok + ko) % 5 === 0) { await Store.persist(); render(); }
     await new Promise(r => setTimeout(r, 600));
   }
+  fillBusy = false;
   await Store.persist(); render();
   return {ok, ko};
 }
@@ -2199,12 +2396,15 @@ $('#settingsBtn').onclick = openSettings;
 document.addEventListener('click', e => {
   const tab = e.target.closest('[data-tab]');
   if (tab) { ui.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
-  if (e.target.closest('[data-close]') || e.target.id === 'ov') return closeM();
+  if (e.target.closest('[data-close]')) return closeM();
+  if (e.target.id === 'ov') return fermerFenetre();   // toucher le fond grisé : on demande si la fiche a été modifiée
   if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
   if (e.target.closest('#dice')) return openNext();
   const ct = e.target.closest('[data-cat]'); if (ct) return openCategorie(ct.dataset.cat);
   if (e.target.closest('#catfill')) return fillCategories();
+  if (e.target.closest('[data-undorestore]')) return annulerRestauration();
+  if (e.target.closest('[data-resave]')) return Store.persist().then(() => { if (!Store.erreur) toast('Enregistré ✓'); });
   if (e.target.closest('[data-more], [data-sug]')) return onSuggestion(e);
   const day = e.target.closest('[data-day]'); if (day) return dayInfo(day.dataset.day);
   const sh = e.target.closest('[data-share]'); if (sh) return shareBilan(+sh.dataset.share);
@@ -2240,13 +2440,41 @@ document.addEventListener('change', e => {
   if (e.target.id === 'sort') { ui.sort = e.target.value; renderCards(); }
   if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }
 });
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if ($('#scanOv').classList.contains('show')) closeScanner();
-  else if ($('#bulkOv').classList.contains('show')) closeBulk();
-  else if ($('#timerOv').classList.contains('show')) { $('#timerOv').classList.remove('show'); paintTimerPill(); }
-  else if ($('#ov').classList.contains('show')) closeM();
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerDessus(); });
+
+/* ---------- Touche « retour » d'Android : ferme la fenêtre ouverte (et non toute l'appli) ---------- */
+// Quand une fenêtre s'ouvre, on ajoute une étape dans l'historique : « retour » la consomme et ferme la fenêtre.
+const FENETRES = ['#scanOv', '#bulkOv', '#timerOv', '#ov'];
+let modalModifie = false, retourPose = false, retourIgnore = 0;
+const fenetreOuverte = () => FENETRES.find(sel => $(sel).classList.contains('show'));
+function syncRetour() {
+  const o = !!fenetreOuverte();
+  if (o && !retourPose) { history.pushState({fenetre: true}, ''); retourPose = true; }
+  else if (!o && retourPose) { retourPose = false; retourIgnore++; history.back(); }
+}
+// Fiche en cours de saisie : on demande avant de perdre ce qui a été écrit
+function fermerFenetre() {
+  if (modalModifie && form && !confirm('Fermer sans enregistrer ? Ce que tu as écrit sera perdu.')) return false;
+  closeM(); return true;
+}
+function fermerDessus() {
+  const o = fenetreOuverte(); if (!o) return false;
+  if (o === '#scanOv') closeScanner();
+  else if (o === '#bulkOv') closeBulk();
+  else if (o === '#timerOv') { $('#timerOv').classList.remove('show'); paintTimerPill(); }
+  else fermerFenetre();
+  return true;
+}
+window.addEventListener('popstate', () => {
+  if (retourIgnore) { retourIgnore--; return; }
+  retourPose = false;
+  fermerDessus();
+  syncRetour();   // une fenêtre reste ouverte (ou la fermeture a été refusée) : on remet l'étape
 });
+const surveille = new MutationObserver(syncRetour);
+FENETRES.forEach(sel => surveille.observe($(sel), {attributes: true, attributeFilter: ['class']}));
+document.addEventListener('input', e => { if (e.target.closest && e.target.closest('#modal')) modalModifie = true; }, true);
+document.addEventListener('change', e => { if (e.target.closest && e.target.closest('#modal')) modalModifie = true; }, true);
 $('#fab').onclick = () => openForm(null);
 
 /* ---------- Glisser le doigt à gauche / à droite pour changer d'onglet ---------- */
@@ -2287,13 +2515,18 @@ function goTab(dir) {
     checkBadges(true);
     if (!prefs.astuceGlisser && ('ontouchstart' in window)) { prefs.astuceGlisser = true; savePrefs(); toastLater('👆 Astuce : glisse à gauche ou à droite pour changer d\'onglet', 2500); }
     // Une fois par mois : préparer la sélection de 5 livres (en arrière-plan, s'il y a internet)
-    if (navigator.onLine !== false) setTimeout(() => genSelection(), 4000);
+    if (navigator.onLine !== false && !ESSAI) { setTimeout(() => genSelection(), 4000); setTimeout(reprendreScans, 8000); }
     if (prefs.timer) paintTimerPill();
   } catch (e) {
-    $('#main').innerHTML = `<div class="empty">Impossible de charger tes livres.<br><small>${esc(e.message || e)}</small></div>`;
+    $('#fab').hidden = true;
+    $('#main').innerHTML = `<div class="empty">⚠️ <b>Impossible de lire tes livres pour l'instant.</b><br>Ils ne sont <b>pas effacés</b> :
+      ferme complètement l'appli puis rouvre-la. Si ça continue, redémarre le téléphone.<br><small>(${esc(e.message || e)})</small><br><br>
+      <button class="btn pri" type="button" onclick="location.reload()">🔄 Réessayer</button></div>`;
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:' && !ESSAI) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Page de tests : index.html?tests (mémoire séparée)
+  if (ESSAI) { const t = document.createElement('script'); t.src = 'tests-appli.js?' + Date.now(); document.body.appendChild(t); }
 })();
 </script>
 </body>

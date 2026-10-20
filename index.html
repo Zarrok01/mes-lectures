@@ -247,6 +247,24 @@ header .icon{background:#262626;border-color:#333;color:#fff}
 @keyframes inL{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes inR{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-out}
+/* Catégories et recherche par thème */
+.catrow{width:100%;border:0;background:none;color:var(--ink);font:inherit;font-size:.88rem;text-align:left;padding:6px 0;cursor:pointer;grid-template-columns:minmax(110px,190px) 1fr auto;min-height:40px}
+.catrow:active{opacity:.6}
+.catline{display:flex;gap:10px;align-items:center;width:100%;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:.9rem;text-align:left;padding:10px 0;cursor:pointer}
+.catline .grow{flex:1;min-width:0}
+.catline .chip{display:inline-block;margin-top:3px}
+.catchip{display:inline-flex;align-items:center;gap:2px}
+.catchip button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;min-width:32px;min-height:32px;padding:0 4px}
+.pourquoi{font-size:.84rem;margin-top:8px}
+.pourquoi ul{margin:6px 0;padding-left:18px}
+.pourquoi summary,.inconnus summary{cursor:pointer;color:var(--muted);font-weight:600;padding:6px 0}
+#f_catadd{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);max-width:100%}
+.sug.rq{margin-bottom:10px}
+.chip.pg{color:var(--ink);border-color:var(--ink)}
+.inconnus{margin-top:6px}
+#rq_cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#rq_cats::-webkit-scrollbar{display:none}
+#rq_cats .chipb{flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -313,7 +331,7 @@ const EMPTY = {
 };
 
 let books = [], goal = 0, form = null, lastRes = [];
-const ui = {tab: 'en_cours', q: '', cq: '', genre: '', own: '', sort: 'recent', year: new Date().getFullYear()};
+const ui = {tab: 'en_cours', q: '', cq: '', genre: '', cat: '', own: '', sort: 'recent', year: new Date().getFullYear()};
 const prefs = Object.assign({view: 'liste', theme: 'auto', googleKey: '', bulkDest: 'a_lire'},
   (() => { try { return JSON.parse(localStorage.getItem('mes-lectures-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem('mes-lectures-prefs', JSON.stringify(prefs)); } catch (e) {} }
@@ -501,12 +519,19 @@ function render() {
   if (ui.tab === 'decouvrir') return renderDecouvrir();
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
-  const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note']];
+  // Catégories présentes dans cet onglet (un livre peut compter dans plusieurs)
+  const nCat = {}; let sansCat = 0;
+  books.filter(b => b.statut === ui.tab).forEach(b => { const cs = catsDe(b); if (!cs.length) sansCat++; cs.forEach(c => nCat[c.id] = (nCat[c.id] || 0) + 1); });
+  const cats = Recherche.CATS.filter(c => nCat[c.id]);
+  if (ui.cat && ui.cat !== '_aucune' && !nCat[ui.cat]) ui.cat = '';
+  if (ui.cat === '_aucune' && !sansCat) ui.cat = '';
+  const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note'], ['pages', 'Les plus courts']];
   const owns = [['', 'Tous les livres'], ['a_moi', 'Ceux que j\'ai'], ['emprunte', 'Empruntés'], ['prete', 'Prêtés'], ['numerique', 'Numériques'], ['audio', 'Audio'], ['completer', 'À compléter']];
   const grid = prefs.view === 'grille';
   $('#main').innerHTML = `<div class="tools">
       <input id="q" type="search" placeholder="Chercher dans mes livres…" value="${esc(ui.q)}">
       <select id="genre"><option value="">Tous les genres</option>${genres.map(g => `<option value="${esc(g)}" ${g === ui.genre ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
+      ${cats.length ? `<select id="cat" aria-label="Catégorie"><option value="">Toutes les catégories</option>${cats.map(c => `<option value="${c.id}" ${c.id === ui.cat ? 'selected' : ''}>${c.e} ${esc(c.nom)} (${nCat[c.id]})</option>`).join('')}${sansCat ? `<option value="_aucune" ${ui.cat === '_aucune' ? 'selected' : ''}>❔ Sans catégorie (${sansCat})</option>` : ''}</select>` : ''}
       <select id="own">${owns.map(([v, t]) => `<option value="${v}" ${v === ui.own ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="sort">${sorts.map(([v, t]) => `<option value="${v}" ${v === ui.sort ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? '☰' : '▦'}</button>
@@ -520,19 +545,22 @@ function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.
 function renderCards() {
   const q = Recherche.norm(ui.q);
   let l = books.filter(b => b.statut === ui.tab);
-  if (q) l = l.filter(b => Recherche.norm([b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom].join(' ')).includes(q));
+  if (q) l = l.filter(b => Recherche.norm([b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom, ...catsDe(b).map(c => c.nom)].join(' ')).includes(q));
   if (ui.genre) l = l.filter(b => b.genre === ui.genre);
+  if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : catsDe(b).some(c => c.id === ui.cat));
   if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
   const by = {
     recent: (a, b) => dateKey(b).localeCompare(dateKey(a)),
     titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
     auteur: (a, b) => (a.auteur || '').localeCompare(b.auteur || '', 'fr'),
     serie: (a, b) => (a.serie || '~').localeCompare(b.serie || '~', 'fr') || (+a.tome || 0) - (+b.tome || 0) || a.titre.localeCompare(b.titre, 'fr'),
-    note: (a, b) => (b.note || 0) - (a.note || 0)
+    note: (a, b) => (b.note || 0) - (a.note || 0),
+    // (les livres dont on ne connaît pas le nombre de pages à la fin)
+    pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
   };
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
   $('#list').innerHTML = l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
-    `<div class="empty">${q || ui.genre || ui.own ? 'Aucun livre ne correspond.' : EMPTY[ui.tab]}</div>`;
+    `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond.' : EMPTY[ui.tab]}</div>`;
 }
 
 function progress(b) {
@@ -667,6 +695,7 @@ function renderStats() {
     <div class="panel"><h3>Par genre</h3>${gl.length ? gl.map(([k, n]) =>
       `<div class="hb"><span>${esc(k)}</span><div class="bar"><i style="width:${n / gl[0][1] * 100}%"></i></div><span>${n}</span></div>`).join('')
       : `<div class="a">Aucun livre fini en ${y}.</div>`}</div>
+    ${categoriesPanel()}
     ${seriesPanel()}
     ${loansPanel()}
     ${bilan(y, ly)}
@@ -678,6 +707,75 @@ function renderStats() {
   // Calendrier : on fait défiler jusqu'à aujourd'hui
   const cal = $('#cal'), now = $('#cal .now');
   if (cal && now) cal.scrollLeft = now.offsetLeft - cal.clientWidth + 60;
+}
+
+/* ---------- 🏷️ Ma bibliothèque par catégorie ---------- */
+// Catégories déduites des classements des catalogues (BnF, Sudoc…) : un livre peut en avoir plusieurs
+const catsDe = b => Recherche.categories(b);
+const sansClassement = () => books.filter(b => !b.aCompleter && b.titre && !b.classTente && !(b.classements || []).length);
+function categoriesPanel() {
+  if (!books.length) return '';
+  const n = {}, lus = {}; let sans = 0;
+  books.forEach(b => { const cs = catsDe(b); if (!cs.length) sans++; cs.forEach(c => { n[c.id] = (n[c.id] || 0) + 1; if (b.statut === 'lu') lus[c.id] = (lus[c.id] || 0) + 1; }); });
+  const l = Recherche.CATS.filter(c => n[c.id]).sort((a, b) => n[b.id] - n[a.id]);
+  const total = l.reduce((s, c) => s + n[c.id], 0), classes = books.length - sans, top = Math.max(1, ...l.map(c => n[c.id]));
+  const aChercher = sansClassement().length;
+  return `<div class="panel"><h3>🏷️ Mes livres par catégorie</h3>
+    <div class="a" style="margin:-4px 0 8px;font-size:.85rem">D'après les classements des catalogues (BnF, Sudoc…). Touche une catégorie pour voir ses livres.</div>
+    ${l.map(c => `<button type="button" class="hb catrow" data-cat="${c.id}"><span>${c.e} ${esc(c.nom)}</span><div class="bar"><i style="width:${n[c.id] / top * 100}%"></i></div><span>${n[c.id]}${lus[c.id] ? ` <small class="a">(${lus[c.id]} lu${lus[c.id] > 1 ? 's' : ''})</small>` : ''}</span></button>`).join('')
+      || '<div class="a">Aucun livre classé pour l\'instant.</div>'}
+    ${sans ? `<button type="button" class="hb catrow" data-cat="_aucune"><span>❔ Sans catégorie</span><div class="bar"></div><span>${sans}</span></button>` : ''}
+    ${total > classes ? `<div class="a" style="font-size:.78rem;margin-top:6px">Un livre peut avoir plusieurs catégories : le total (${total}) dépasse le nombre de livres classés (${classes}).</div>` : ''}
+    ${aChercher ? `<div class="acts" style="margin-top:8px"><button class="btn small" type="button" id="catfill">🔄 Chercher les catégories de ${plural(aChercher, 'livre')}</button></div><div class="a" style="font-size:.82rem" id="catfillres"></div>` : ''}</div>`;
+}
+const catView = {sort: 'titre'};
+function openCategorie(id) {
+  const cat = Recherche.CATS.find(c => c.id === id);
+  const l = books.filter(b => id === '_aucune' ? !catsDe(b).length : catsDe(b).some(c => c.id === id));
+  const by = {
+    titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
+    auteur: (a, b) => (a.auteur || '~').localeCompare(b.auteur || '~', 'fr') || a.titre.localeCompare(b.titre, 'fr'),
+    pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
+  };
+  l.sort(by[catView.sort]);
+  $('#modal').innerHTML = `<h2>${cat ? cat.e + ' ' + esc(cat.nom) : '❔ Sans catégorie'} <span class="a" style="font-weight:400">(${plural(l.length, 'livre')})</span></h2>
+    <div class="lbl" style="margin-bottom:4px">Trier par</div>
+    <div class="seg" id="cv_sort">${[['titre', 'Titre'], ['auteur', 'Auteur'], ['pages', 'Pages']].map(([k, v]) => `<button type="button" data-v="${k}" class="${catView.sort === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+    ${id === '_aucune' ? '<div class="hint">Les catalogues ne donnent pas (encore) de classement pour ces livres. Ouvre un livre → 🏷️ Catégories pour lui en ajouter une à la main.</div>' : ''}
+    <div class="catlist">${l.map(b => `<button type="button" class="catline" data-open="${esc(b.id)}">${coverHtml(b, 'mini')}<span class="grow"><b>${esc(b.titre)}</b><br>
+      <span class="a">${esc(b.auteur || 'Auteur inconnu')}${b.pagesTotal ? ' · ' + esc(b.pagesTotal) + ' p.' : ''}</span><br>
+      <span class="chip">${STATUT_UN[b.statut] || ''}</span> ${catsDe(b).filter(c => c.id !== id).map(c => `<span class="chip">${c.e} ${esc(c.nom)}</span>`).join(' ')}</span></button>`).join('')}</div>
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
+  showM();
+  $('#cv_sort').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; catView.sort = b.dataset.v; openCategorie(id); };
+}
+// Classements d'un livre déjà enregistré (une seule tentative réussie par livre ; en cas de panne réseau, on réessaiera)
+async function fillClass(b) {
+  const r = await Recherche.classement(b);
+  const i = books.findIndex(z => z.id === b.id); if (i < 0) return false;
+  const nb = {...books[i], classTente: true};
+  if (r.classements.length) nb.classements = Recherche.unirClassements([nb.classements, r.classements]);
+  books[i] = nb;
+  return r.classements.length > 0;
+}
+let catFillBusy = false;
+async function fillCategories() {
+  if (catFillBusy) return;
+  if (navigator.onLine === false) return toast('Pas de connexion internet');
+  catFillBusy = true;
+  const todo = sansClassement();
+  let ok = 0, k = 0, pannes = 0;
+  for (const b of todo) {
+    const el = $('#catfillres'), bt = $('#catfill');
+    if (el) el.textContent = `Recherche ${++k} / ${todo.length} : ${b.titre}…`; else k++;
+    if (bt) bt.disabled = true;
+    try { if (await fillClass(b)) ok++; pannes = 0; } catch (e) { if (++pannes >= 3) break; }
+    if (k % 5 === 0) await Store.persist();
+    await new Promise(r => setTimeout(r, 700));
+  }
+  await Store.persist(); catFillBusy = false;
+  if (ui.tab === 'stats') renderStats();
+  toast(pannes >= 3 ? 'Les catalogues ne répondent pas : réessaie plus tard' : `Catégories trouvées pour ${plural(ok, 'livre')} sur ${todo.length}`);
 }
 
 /* ---------- 🗓️ Calendrier de lecture (une case par jour) ---------- */
@@ -863,6 +961,12 @@ function addSuggestion(x) {
   b.id = newId(); setCovers(b, x.couverture, x.covers || []);
   Object.assign(b, {resume: x.resume || '', sujets: x.sujets || [], genre: x.genre || b.genre, possession: 'non', resumeTente: true});
   save(b, '＋ Ajouté à « À lire » 📚');
+  // Pas encore de couverture vérifiée (recherche par thème) : on garde la première qui existe vraiment
+  if (!b.couverture && (x.covers || []).length) Recherche.couverture(x.covers).then(u => {
+    const i = books.findIndex(z => z.id === b.id);
+    if (u && i >= 0 && !books[i].couverture) { books[i] = {...books[i]}; setCovers(books[i], u, x.covers); Store.persist(); }
+  });
+  if (!b.classTente && !(b.classements || []).length) autoClass(b.id);
 }
 async function drawOnline(themeId, box, btn) {
   if (btn) btn.disabled = true;
@@ -909,6 +1013,7 @@ function renderDecouvrir() {
         : actuelle ? `<div class="sugs" id="selRow">${s.items.map((x, i) => sugCard(x, 'sel', i)).join('')}</div><div class="dots" id="selDots">${s.items.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>`
         : `${selProgress === '' && s && s.mois !== moisCle() ? '' : ''}<button class="btn pri" id="selgo" type="button">📬 Préparer ma sélection</button>`}
     </div>
+    ${rechPanel()}
     <div class="panel"><h3>🎲 Tirage au sort en ligne</h3>
       <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Choisis un thème (ou laisse faire le hasard) : je te trouve un livre que tu n'as pas encore.</div>
       ${themeChips('dc_theme', pick.theme)}
@@ -918,6 +1023,7 @@ function renderDecouvrir() {
   ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
   $('#dc_go').onclick = () => drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
   const go = $('#selgo'); if (go) go.onclick = () => genSelection(true);
+  wireRechPanel();
   // Points sous la rangée : montrent quel livre de la sélection est affiché
   const row = $('#selRow');
   if (row && row.firstElementChild) row.onscroll = () => {
@@ -925,14 +1031,160 @@ function renderDecouvrir() {
     document.querySelectorAll('#selDots i').forEach((d, k) => d.classList.toggle('on', k === i));
   };
 }
+/* ---------- 🔎 Chercher par thème, avec une longueur maximale ---------- */
+// (les livres dont le nombre de pages n'est pas connu ne sont jamais mêlés aux résultats quand il y a une limite)
+const rech = {cat: prefs.rechCat || '', texte: '', max: +prefs.rechMax || 0, etat: '', res: [], inconnus: [], trop: 0, examines: 0, enCours: 0,
+  fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastMax: 0};
+const LIMITES = [[100, '100 p.'], [200, '200 p.'], [300, '300 p.'], [500, '500 p.'], [0, 'Sans limite']];
+const catNom = id => { const c = Recherche.CATS.find(z => z.id === id); return c ? c.e + ' ' + c.nom : ''; };
+function rechChips() {
+  const n = Recherche.norm(rech.texte), l = Recherche.THEMES_RECHERCHE;
+  const vis = n && !rech.cat ? l.filter(c => Recherche.norm(c.nom + ' ' + c.mots.join(' ')).includes(n)) : l;
+  return vis.map(c => `<button type="button" data-v="${c.id}" class="chipb ${rech.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)}</button>`).join('')
+    || '<span class="a" style="font-size:.85rem">Pas de thème de la liste à ce nom : je chercherai ce sujet dans le catalogue de la BnF.</span>';
+}
+function rechPanel() {
+  const filtres = rech.cat || rech.texte || rech.max;
+  return `<div class="panel" id="rechPanel"><h3>🔎 Chercher par thème</h3>
+    <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Choisis un thème ou écris un sujet, puis une longueur maximale : je cherche des livres en français dans le catalogue de la BnF.</div>
+    <div class="search"><input id="rq" type="search" enterkeyhint="search" placeholder="Un sujet : géopolitique, écologie, féminisme…" value="${esc(rech.texte)}" aria-label="Thème ou sujet"></div>
+    <div class="chips" id="rq_cats" style="margin-top:8px">${rechChips()}</div>
+    <div class="lbl" style="margin-bottom:4px">Longueur maximale</div>
+    <div class="seg" id="rq_max">${LIMITES.map(([v, t]) => `<button type="button" data-v="${v}" class="${rech.max === v ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="rq_go" type="button">🔎 Chercher</button>
+      ${filtres ? '<button class="btn" id="rq_clear" type="button">✕ Effacer les filtres</button>' : ''}</div>
+    <div id="rq_res">${rechResultats()}</div></div>`;
+}
+function rechCard(x, ctx, i) {
+  const own = findOwned(x);
+  const ids = catsDe(x).map(c => c.id);
+  if (x.theme && !ids.includes(x.theme)) ids.unshift(x.theme);
+  const pages = x.pagesTotal ? (x.pagesEnviron ? 'environ ' : '') + x.pagesTotal + ' p.' : 'pages : inconnu';
+  const edition = [x.editeur, x.annee].filter(Boolean).join(', ');
+  const autres = x.autresEditions ? ` ; d'autres éditions font de ${x.autresEditions[0]} à ${x.autresEditions[1]} p.` : '';
+  return `<article class="sug rq" data-ctx="${ctx}" data-i="${i}">
+    <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
+      <div style="min-width:0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || 'Auteur inconnu')}</div>
+        <div class="meta" style="margin-top:4px"><span class="chip pg">📄 ${pages}</span>${ids.slice(0, 3).map(id => `<span class="chip">${esc(catNom(id))}</span>`).join('')}</div>
+        <div class="a" style="font-size:.8rem;margin-top:3px">${edition ? 'Édition ' + esc(edition) : 'Édition inconnue'}${x.pagesTotal ? ' (pages de cette édition' + autres + ')' : ''} · BnF${x.raison ? '<br>' + esc(x.raison) : ''}</div></div></div>
+    ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
+    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
+      <button class="btn small" type="button" data-sug="fiche">📄 Fiche</button>
+      <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener">🛒 En librairie</a></div></article>`;
+}
+function rechResultats() {
+  if (!rech.etat) return '';
+  const quoi = rech.lastCat ? `« ${catNom(rech.lastCat)} »` : `sur « ${esc(rech.lastTexte)} »`;
+  const lim = rech.lastMax ? ` de ${rech.lastMax} pages ou moins` : '';
+  const vus = rech.examines + rech.enCours;
+  let h = '';
+  if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a" style="font-size:.82rem;margin-bottom:6px">Pour les romans, le sujet écrit n\'est pas pris en compte (les catalogues ne classent pas les romans par sujet).</div>';
+  h += rech.res.map((x, i) => rechCard(x, 'rech', i)).join('');
+  if (rech.etat === 'busy') {
+    h += `<div class="nxspin" id="rq_prog">🔎 Je cherche${vus ? ` (${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''})` : ''}…</div>
+      <div class="acts"><button class="btn small" id="rq_stop" type="button">Arrêter</button></div>`;
+  } else if (rech.erreur) {
+    h += `<div class="hint">${rech.erreur === 'hors' ? '📶 Pas de connexion internet : la recherche par thème en a besoin.'
+      : rech.erreur === 'pause' ? '⏸️ La BnF demande de patienter (beaucoup de recherches d\'un coup). Réessaie dans 5 minutes.'
+      : rech.erreur === 'requete' ? '⚠️ Le catalogue n\'a pas compris cette recherche. Essaie avec d\'autres mots.'
+      : '⚠️ Les catalogues ne répondent pas pour l\'instant.'}
+      <div class="acts"><button class="btn small" type="button" id="rq_retry">🔄 Réessayer</button></div></div>`;
+  } else if (!rech.res.length) {
+    const plus = LIMITES.filter(([v]) => rech.lastMax && (v === 0 || v > rech.lastMax)).slice(0, 2);
+    h += `<div class="hint">Aucun livre ${quoi}${lim} trouvé parmi ${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''}${rech.trop ? ` : ${rech.trop} étai${rech.trop > 1 ? 'ent' : 't'} plus long${rech.trop > 1 ? 's' : ''}` : ''}${rech.inconnus.length ? `, ${rech.inconnus.length} sans nombre de pages connu` : ''}.
+      ${plus.length || !rech.fin ? `<div class="acts">${plus.map(([v, t]) => `<button class="btn small" type="button" data-rqmax="${v}">${v ? 'Jusqu\'à ' + t : 'Sans limite'}</button>`).join('')}${!rech.fin ? '<button class="btn small" type="button" id="rq_more">Chercher plus loin</button>' : ''}</div>` : ''}</div>`;
+  } else {
+    h += `<div class="a" style="font-size:.82rem;margin:8px 0">${plural(rech.res.length, 'livre')}${lim}${rech.trop ? ` · ${plural(rech.trop, 'livre')} plus long${rech.trop > 1 ? 's' : ''} écarté${rech.trop > 1 ? 's' : ''}` : ''} · les doublons entre éditions sont regroupés.</div>
+      ${!rech.fin ? '<div class="acts"><button class="btn" type="button" id="rq_more">Plus de résultats</button></div>' : ''}`;
+  }
+  if (rech.inconnus.length) h += `<details class="inconnus"><summary>❔ ${plural(rech.inconnus.length, 'livre')} dont le nombre de pages n'est pas connu</summary>
+    <div class="a" style="font-size:.82rem;margin:6px 0">Le catalogue n'indique pas leur nombre de pages : ils ne sont pas comptés dans la limite.</div>
+    ${rech.inconnus.map((x, i) => rechCard(x, 'rechx', i)).join('')}</details>`;
+  return h;
+}
+const RECH_ROMANS = ['litterature', 'fantasy', 'sf', 'polar', 'bd'];
+function paintRech() {
+  const box = $('#rq_res'); if (!box) return;
+  box.innerHTML = rechResultats();
+  const on = (id, f) => { const el = $(id); if (el) el.onclick = f; };
+  on('#rq_stop', () => { rech.stop = true; });
+  on('#rq_retry', () => lancerRech(rech.res.length > 0 || rech.inconnus.length > 0));
+  on('#rq_more', () => lancerRech(true));
+  box.querySelectorAll('[data-rqmax]').forEach(b => b.onclick = () => { rech.max = +b.dataset.rqmax; renderDecouvrir(); lancerRech(); });
+}
+async function lancerRech(suite) {
+  if (!suite) {
+    let cat = rech.cat, texte = rech.texte.trim();
+    // « philo », « polar », « manga »… écrits à la main → le thème correspondant
+    if (!cat && texte) { const t = Recherche.themePourTexte(texte); if (t && Recherche.THEMES_RECHERCHE.includes(t)) { cat = rech.cat = t.id; texte = rech.texte = ''; renderDecouvrir(); } }
+    if (!cat && !texte) return toast('Choisis un thème ou écris un sujet');
+    Object.assign(rech, {lastCat: cat, lastTexte: texte, lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
+    prefs.rechCat = cat; prefs.rechMax = rech.max; savePrefs();
+  }
+  const tok = ++rech.tok;
+  Object.assign(rech, {etat: 'busy', erreur: '', stop: false, enCours: 0});
+  if (navigator.onLine === false) { Object.assign(rech, {etat: 'fini', erreur: 'hors'}); return paintRech(); }
+  paintRech();
+  // Les livres trouvés s'affichent au fur et à mesure
+  let nr = 0, ni = 0;
+  const absorbe = o => {
+    const neufs = o.res.length - nr + o.inconnus.length - ni;
+    rech.res.push(...o.res.slice(nr)); nr = o.res.length;
+    rech.inconnus.push(...o.inconnus.slice(ni)); ni = o.inconnus.length;
+    rech.enCours = o.examines;
+    return neufs;
+  };
+  const r = await Recherche.parTheme({cat: rech.lastCat, texte: rech.lastTexte, max: rech.lastMax, stop: () => rech.stop || tok !== rech.tok}, rech.cur, o => {
+    if (tok !== rech.tok) return;
+    if (absorbe(o)) paintRech();
+    else { const p = $('#rq_prog'); if (p) p.textContent = `🔎 Je cherche (${plural(rech.examines + o.examines, 'livre')} regardé${rech.examines + o.examines > 1 ? 's' : ''})…`; }
+  });
+  if (tok !== rech.tok) return;
+  absorbe(r);
+  Object.assign(rech, {examines: rech.examines + r.examines, enCours: 0, trop: rech.trop + r.trop, fin: r.fin, erreur: r.erreur, etat: 'fini'});
+  paintRech();
+}
+function wireRechPanel() {
+  const q = $('#rq'); if (!q) return;
+  q.oninput = () => { rech.texte = q.value; $('#rq_cats').innerHTML = rechChips(); };
+  q.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); q.blur(); lancerRech(); } };
+  // Changer de thème ou de limite relance la recherche (sans avoir à tout recommencer)
+  $('#rq_cats').onclick = e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    rech.cat = rech.cat === b.dataset.v ? '' : b.dataset.v;
+    if (rech.cat && Recherche.themePourTexte(rech.texte)) rech.texte = '';
+    renderDecouvrir();
+    if (rech.etat && rech.cat) lancerRech();
+  };
+  $('#rq_max').onclick = e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    rech.max = +b.dataset.v; renderDecouvrir();
+    if (rech.etat && (rech.lastCat || rech.lastTexte)) lancerRech();
+  };
+  $('#rq_go').onclick = () => lancerRech();
+  const choisi = $('#rq_cats .on'); if (choisi) $('#rq_cats').scrollLeft = choisi.offsetLeft - 40;
+  const clr = $('#rq_clear');
+  if (clr) clr.onclick = () => { rech.tok++; Object.assign(rech, {cat: '', texte: '', max: 0, etat: '', res: [], inconnus: [], erreur: ''}); prefs.rechCat = ''; prefs.rechMax = 0; savePrefs(); renderDecouvrir(); };
+  paintRech();
+}
+// Ouvrir la fiche d'un livre trouvé (pré-remplie) : on vérifie, puis on enregistre
+function ficheDepuis(x) {
+  const own = findOwned(x); if (own) return openForm(own);
+  openForm(null, {statut: 'a_lire'});
+  form.possession = 'non'; $('#f_pos').value = 'non';
+  fillFrom(x);
+}
+
 // Clic sur une suggestion : ajouter, refuser (remplacée par une autre), lire le résumé en entier
 async function onSuggestion(e) {
   const more = e.target.closest('[data-more]'); if (more) { more.classList.toggle('open'); return true; }
   const a = e.target.closest('[data-sug]'); if (!a) return false;
   const card = a.closest('.sug'), ctx = card.dataset.ctx, i = +card.dataset.i;
-  const items = ctx === 'sel' ? prefs.selection.items : [lastOnline];
+  const items = ctx === 'sel' ? prefs.selection.items : ctx === 'rech' ? rech.res : ctx === 'rechx' ? rech.inconnus : [lastOnline];
   const x = items[i]; if (!x) return true;
-  if (a.dataset.sug === 'add') { addSuggestion(x); card.outerHTML = sugCard(x, ctx, i); return true; }
+  const carte = ctx === 'rech' || ctx === 'rechx' ? rechCard : sugCard;
+  if (a.dataset.sug === 'fiche') { ficheDepuis(x); return true; }
+  if (a.dataset.sug === 'add') { addSuggestion(x); card.outerHTML = carte(x, ctx, i); return true; }
   if (a.dataset.sug === 'non') {
     prefs.nonMerci = [...(prefs.nonMerci || []), Recherche.norm(x.titre)].slice(-300); savePrefs();
     card.innerHTML = '<div class="nxspin">Je cherche un autre livre…</div>';
@@ -1093,10 +1345,10 @@ function backupInfo() {
 }
 function doExport(kind) {
   if (kind === 'excel') {
-    const rows = [['Titre', 'Auteur', 'Série', 'Tome', 'Statut', 'Genre', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Éditeur', 'Année', 'ISBN', 'Format', 'Possession', 'Mon avis']]
-      .concat(sortedBooks().map(b => [b.titre, b.auteur, b.serie, b.tome, STATUT_UN[b.statut], b.genre, b.note || '', fdShort(b.dateDebut), fdShort(b.dateFin),
+    const rows = [['Titre', 'Auteur', 'Série', 'Tome', 'Statut', 'Genre', 'Catégories', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Éditeur', 'Année', 'ISBN', 'Format', 'Possession', 'Mon avis']]
+      .concat(sortedBooks().map(b => [b.titre, b.auteur, b.serie, b.tome, STATUT_UN[b.statut], b.genre, catsDe(b).map(c => c.nom).join(', '), b.note || '', fdShort(b.dateDebut), fdShort(b.dateFin),
         b.pagesTotal, b.editeur, b.annee, b.isbn, (FORMATS[b.format] || '').slice(3), POSSESSION[b.possession] + (b.pretNom ? ' : ' + b.pretNom : ''), b.avis]));
-    const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/^([=+\-@])/, "'$1").replace(/"/g, '""') + '"').join(';')).join('\r\n');
     download('mes-lectures.csv', csv, 'text/csv;charset=utf-8');
     toast('Fichier Excel téléchargé');
   } else if (kind === 'pdf') {
@@ -1155,7 +1407,9 @@ function blankBook(statut) {
 }
 function bookFrom(x, statut) {
   const b = {...blankBook(statut), titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '',
-    pagesTotal: x.pagesTotal || '', isbn: x.isbn || '', editeur: x.editeur || '', annee: x.annee || '', genre: x.genre || '', possession: 'a_moi'};
+    pagesTotal: x.pagesTotal || '', isbn: x.isbn || '', editeur: x.editeur || '', annee: x.annee || '', genre: x.genre || '', possession: 'a_moi',
+    sujets: x.sujets || [], classements: x.classements || []};
+  if (b.classements.length) b.classTente = true;
   if (statut === 'en_cours') { b.dateDebut = today(); logPage(b, 0); }
   return b;
 }
@@ -1276,6 +1530,7 @@ function openForm(b, opts) {
       <div class="f"><textarea id="f_resume" rows="5" placeholder="Le résumé s'ajoute tout seul quand l'appli trouve le livre.">${esc(form.resume)}</textarea></div>
       <div class="meta" id="f_sujets" style="margin:-4px 0 8px">${(form.sujets || []).map(s => `<span class="chip">${esc(s)}</span>`).join('')}</div>
       <button class="btn small" id="f_getres" type="button" style="margin-bottom:10px">🔄 Chercher le résumé</button></details>
+    <details id="catBox"><summary>🏷️ Catégories <span id="f_catsn"></span></summary><div id="f_cats" style="margin:4px 0 10px"></div></details>
     <div class="f"><label for="f_avis">Mon avis / mes notes</label><textarea id="f_avis" rows="3" placeholder="Ce que j'en retiens…">${esc(form.avis)}</textarea></div>
     <div class="f"><span class="lbl">Citations</span><div class="qlist" id="f_quotes"></div>
       <textarea id="f_qt" rows="2" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
@@ -1299,7 +1554,21 @@ function openForm(b, opts) {
       ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button">🔁 Relire</button>' : ''}<span class="sp"></span>
       <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
   showM();
-  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan();
+  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan(); paintCats();
+  $('#f_cats').onclick = e => {
+    const x = e.target.closest('[data-catnon]'); if (!x) return;
+    const id = x.dataset.catnon;
+    form.catOui = (form.catOui || []).filter(c => c !== id);
+    if (Recherche.categories({...form}).some(c => c.id === id)) form.catNon = [...new Set([...(form.catNon || []), id])];
+    paintCats();
+  };
+  $('#f_cats').onchange = e => {
+    if (e.target.id !== 'f_catadd' || !e.target.value) return;
+    const id = e.target.value;
+    form.catNon = (form.catNon || []).filter(c => c !== id);
+    if (!Recherche.categories({...form}).some(c => c.id === id)) form.catOui = [...new Set([...(form.catOui || []), id])];
+    paintCats();
+  };
 
   $('#f_statut').onchange = () => {
     const s = $('#f_statut').value;
@@ -1350,6 +1619,7 @@ function openForm(b, opts) {
     if (f.couverture) brokenCovers.delete(f.id);
     if (!f.couverture) autoCover(f.id);
     if (!f.resume && !f.resumeTente) autoResume(f.id);
+    else if (!f.classTente && !(f.classements || []).length) autoClass(f.id);
     if (f.statut === 'lu' && orig.statut !== 'lu') afterFinish(f);
   };
   const del = $('#f_del');
@@ -1415,6 +1685,21 @@ function paintPrev() {
   const x = $('#f_nocov'); if (x) x.onclick = () => { setCovers(form, '', []); form._covers = null; paintPrev(); };
 }
 
+// Catégories dans la fiche ouverte : celles déduites des catalogues (avec leur raison) + corrections à la main
+const CHAMP = {'606': 'sujet', '607': 'lieu', '608': 'forme', '676': 'Dewey', '686': 'classement'};
+function paintCats() {
+  const box = $('#f_cats'); if (!box || !form) return;
+  const cs = Recherche.categories({...form}), cl = form.classements || [];
+  $('#f_catsn').textContent = cs.length ? '(' + cs.length + ')' : '';
+  const autres = Recherche.CATS.filter(c => !cs.some(x => x.id === c.id));
+  box.innerHTML = (cs.length ? `<div class="meta">${cs.map(c => `<span class="chip catchip">${c.e} ${esc(c.nom)}<button type="button" data-catnon="${c.id}" aria-label="Retirer ${esc(c.nom)}" title="Retirer">✕</button></span>`).join('')}</div>`
+      : `<div class="a" style="font-size:.85rem">${form.classTente ? 'Les catalogues ne donnent pas de classement pour ce livre.' : 'Pas encore de catégorie : l\'appli cherche le classement du livre dans les catalogues quand tu l\'ajoutes (ou avec Stats → 🏷️ Mes livres par catégorie).'} Tu peux en ajouter une à la main.</div>`) +
+    `<select id="f_catadd" aria-label="Ajouter une catégorie" style="margin-top:8px"><option value="">＋ Ajouter une catégorie…</option>${autres.map(c => `<option value="${c.id}">${c.e} ${esc(c.nom)}</option>`).join('')}</select>` +
+    (cs.length || cl.length ? `<details class="pourquoi"><summary>D'où viennent ces catégories ?</summary>
+      ${cs.length ? `<ul>${cs.map(c => `<li><b>${c.e} ${esc(c.nom)}</b> : ${c.raisons.map(esc).join(' ; ')}</li>`).join('')}</ul>` : ''}
+      ${cl.length ? `<div class="lbl" style="margin-top:6px">Classements d'origine des catalogues</div><ul>${cl.map(k => `<li>${esc(k.s || 'Catalogue')} · ${CHAMP[k.c] || k.c} : ${esc(k.l)}</li>`).join('')}</ul>` : ''}
+      <div class="a" style="font-size:.78rem">Les catégories sont des regroupements faits par l'appli ; les codes et sujets officiels des catalogues sont gardés tels quels ci-dessus.</div></details>` : '');
+}
 // Résumé dans la fiche ouverte
 function showResume(resume, sujets) {
   if (!form || !$('#f_resume')) return;
@@ -1423,6 +1708,7 @@ function showResume(resume, sujets) {
   $('#f_sujets').innerHTML = form.sujets.map(s => `<span class="chip">${esc(s)}</span>`).join('');
   if (resume) $('#resBox').open = true;
   form.resumeTente = true;
+  paintCats();
 }
 async function fetchResume(x, bouton) {
   const f = form;
@@ -1430,8 +1716,10 @@ async function fetchResume(x, bouton) {
   const r = await Recherche.resume(x).catch(() => ({}));
   if (form !== f) return;
   if (bouton) { bouton.disabled = false; bouton.textContent = '🔄 Chercher le résumé'; }
+  if ((r.classements || []).length) { f.classements = Recherche.unirClassements([f.classements, r.classements]); f.classTente = true; }
   if (r.resume) showResume(r.resume, r.sujets);
   else if (bouton) toast('Pas de résumé trouvé pour ce livre');
+  paintCats();
   if (!$('#f_genre').value && r.genre) $('#f_genre').value = r.genre;
   f.resumeTente = true;
 }
@@ -1451,11 +1739,31 @@ function autoResume(id) {
       const nb = {...books[i], resumeTente: true};
       if (r.resume) nb.resume = r.resume;
       if (r.sujets && r.sujets.length && !(nb.sujets || []).length) nb.sujets = r.sujets;
+      if ((r.classements || []).length && !(nb.classements || []).length) { nb.classements = r.classements; nb.classTente = true; }
       if (!nb.genre && r.genre) nb.genre = r.genre;
       books[i] = nb; Store.persist(); if (r.resume && ui.tab === nb.statut) renderCards();
+      if (!(nb.classements || []).length && !nb.classTente) autoClass(nb.id);
       await new Promise(res => setTimeout(res, 800));
     }
     resumeBusy = false;
+  })();
+}
+
+// En arrière-plan, un livre à la fois : classement des catalogues (catégories) des livres qui n'en ont pas
+const classQueue = [];
+let classBusy = false;
+function autoClass(id) {
+  if (!classQueue.includes(id)) classQueue.push(id);
+  if (classBusy || navigator.onLine === false) return;
+  classBusy = true;
+  (async () => {
+    while (classQueue.length) {
+      const b = books.find(x => x.id === classQueue.shift());
+      if (!b || b.aCompleter || b.classTente || (b.classements || []).length) continue;
+      try { await fillClass(b); Store.persist(); } catch (e) {}
+      await new Promise(res => setTimeout(res, 800));
+    }
+    classBusy = false;
   })();
 }
 
@@ -1540,6 +1848,10 @@ function fillFrom(x) {
   if (x.resume && !$('#f_resume').value.trim()) showResume(x.resume, x.sujets);
   else if (!$('#f_resume').value.trim()) fetchResume(x);
   if (!$('#f_genre').value && x.genre) $('#f_genre').value = x.genre;
+  // Classements du catalogue (pour ranger le livre par catégorie)
+  if ((x.classements || []).length) { f.classements = Recherche.unirClassements([f.classements, x.classements]); f.classTente = true; }
+  if ((x.sujets || []).length && !(f.sujets || []).length) f.sujets = x.sujets;
+  paintCats();
   if (!f.couverture || f.aCompleter) { f.couverture = ''; f._covers = x.covers || []; paintPrev(); }
   $('#s_res').innerHTML = ''; $('#s_st').innerHTML = '';
   $('#modal details').open = false;
@@ -1809,7 +2121,8 @@ function openSettings() {
 }
 
 /* ---------- Compléter automatiquement les fiches existantes ---------- */
-const needsFill = b => !b.aCompleter && b.titre && (!b.couverture || brokenCovers.has(b.id) || !b.pagesTotal || (!b.resume && !b.resumeTente));
+const needsFill = b => !b.aCompleter && b.titre && (!b.couverture || brokenCovers.has(b.id) || !b.pagesTotal || (!b.resume && !b.resumeTente) ||
+  (!b.classTente && !(b.classements || []).length));
 // Résumé, thèmes et genre (une seule tentative par livre)
 async function fillResume(b) {
   if (b.resume) return false;
@@ -1818,16 +2131,21 @@ async function fillResume(b) {
   const nb = {...books[i], resumeTente: true};
   if (r.resume) nb.resume = r.resume;
   if (r.sujets && r.sujets.length && !(nb.sujets || []).length) nb.sujets = r.sujets;
+  if ((r.classements || []).length && !(nb.classements || []).length) { nb.classements = r.classements; nb.classTente = true; }
   if (!nb.genre && r.genre) nb.genre = r.genre;
   books[i] = nb;
   return !!r.resume;
 }
 async function fillOne(b) {
-  // Il ne manque que le résumé : pas besoin de tout rechercher
-  if (b.couverture && !brokenCovers.has(b.id) && b.pagesTotal) return fillResume(b);
-  const changed = await fillFiche(b);
-  const apres = books.find(z => z.id === b.id) || b;
-  return (await fillResume(apres)) || changed;
+  const actuel = () => books.find(z => z.id === b.id) || b;
+  let changed = false;
+  // Fiche (couverture, pages…) seulement s'il en manque : sinon, pas besoin de tout rechercher
+  if (!(b.couverture && !brokenCovers.has(b.id) && b.pagesTotal)) changed = await fillFiche(b);
+  changed = (await fillResume(actuel())) || changed;
+  // Classement des catalogues (pour ranger le livre par catégorie)
+  const c = actuel();
+  if (!c.classTente && !(c.classements || []).length) changed = (await fillClass(c).catch(() => false)) || changed;
+  return changed;
 }
 async function fillFiche(b) {
   const n = Recherche.norm, sn = Recherche.surname;
@@ -1885,6 +2203,8 @@ document.addEventListener('click', e => {
   if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
   if (e.target.closest('#dice')) return openNext();
+  const ct = e.target.closest('[data-cat]'); if (ct) return openCategorie(ct.dataset.cat);
+  if (e.target.closest('#catfill')) return fillCategories();
   if (e.target.closest('[data-more], [data-sug]')) return onSuggestion(e);
   const day = e.target.closest('[data-day]'); if (day) return dayInfo(day.dataset.day);
   const sh = e.target.closest('[data-share]'); if (sh) return shareBilan(+sh.dataset.share);
@@ -1915,6 +2235,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   if (e.target.id === 'genre') { ui.genre = e.target.value; renderCards(); }
+  if (e.target.id === 'cat') { ui.cat = e.target.value; renderCards(); }
   if (e.target.id === 'own') { ui.own = e.target.value; renderCards(); }
   if (e.target.id === 'sort') { ui.sort = e.target.value; renderCards(); }
   if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }

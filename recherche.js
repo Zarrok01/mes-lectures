@@ -104,6 +104,12 @@ const Recherche = (() => {
     return r.text();
   }
   const xml = s => new DOMParser().parseFromString(s, 'application/xml');
+  // Réponse du catalogue illisible (coupée, page d'erreur…) : c'est une panne, pas « aucun résultat »
+  const xmlSru = s => {
+    const doc = xml(s);
+    if (doc.getElementsByTagName('parsererror').length || !doc.getElementsByTagNameNS(NS_SRW, 'numberOfRecords').length) { const e = new Error('réponse illisible'); e.status = 502; throw e; }
+    return doc;
+  };
 
   /* ---------- Fiches UNIMARC (BnF et Sudoc) ---------- */
   function romanToInt(s) {
@@ -182,34 +188,64 @@ const Recherche = (() => {
     if (mention && mention.length < 80 && (!auteurs.length || norm(mention).includes(surname(auteurs[0])))) auteur = mention.replace(/\s+et\s+/g, ', ');
     if (!auteur) for (const p of F['710'] || []) { const n = clean((p.a || [''])[0]); if (n) { auteur = n; break; } }
 
-    const pages = +((first('215', 'a').match(/\[?(\d+)\]?\s*(?:p\b|p\.|pages)/) || [])[1] || 0);
+    // Pages de CETTE édition (« 1 vol. (254 p.) », « 1 volume (217 pages) », « non paginé [ca 168] p. », « 1 vol. (185) »)
+    const ext = first('215', 'a');
+    const pages = +((ext.match(/\[?(?:ca\.?\s*)?(\d+)\]?\s*(?:p\b|p\.|pages)/) || ext.match(/vol(?:\.|ume)?\s*\((\d+)\)/) || [])[1] || 0);
+    const pagesEnviron = /non pagin|\[ca/i.test(ext);
     const pub = [...(F['214'] || []), ...(F['210'] || [])];
     const editeur = clean(((pub.find(x => x.c) || {}).c || [''])[0]);
     const annee = (pub.map(x => (x.d || [''])[0]).join(' ').match(/\d{4}/) || [''])[0];
     const collections = (F['225'] || []).map(x => (x.a || [''])[0]).filter(Boolean);
     // Résumé de l'éditeur (330) et sujets (606 : sujets, 608 : forme du texte, sans les mentions techniques)
     const resume = cleanResume(first('330', 'a'));
-    const sujets = [...(F['606'] || []), ...(F['608'] || [])].map(x => clean((x.a || [''])[0]))
-      .filter(s => s && !/enregistrement|édition phonographique|édition commerciale|édition de poche|^lecture$|texte imprimé|ressource|livre numérique|^oeuvre d'origine|^ouvrages? pour/i.test(s));
+    // (seulement les vocabulaires documentaires : RAMEAU, MeSH… pas les étiquettes internes d'une bibliothèque, comme « ND-12.2023 »)
+    const documentaire = x => !x['2'] || /rameau|fmesh/i.test(x['2'][0]);
+    const technique = s => /enregistrement|édition phonographique|édition commerciale|édition de poche|^lecture$|texte imprimé|ressource|livre numérique|^oeuvre d'origine|^ouvrages? pour/i.test(s);
+    const sujets = [...(F['606'] || []), ...(F['608'] || [])].filter(documentaire).map(x => clean((x.a || [''])[0]))
+      .filter(s => s && !technique(s));
+    // Classements du catalogue, gardés tels quels : sujets RAMEAU (606, 607, 608, avec leurs subdivisions),
+    // indice Dewey (676) et cadre de classement de la Bibliographie nationale française (686)
+    const classements = [];
+    const ajoute = (c, l) => { l = clean(l); if (l && !technique(l) && !classements.some(k => k.c === c && k.l === l)) classements.push({c, l}); };
+    for (const tag of ['606', '607', '608']) for (const x of F[tag] || []) if (documentaire(x)) ajoute(tag, [x.a, x.x, x.y, x.z].flatMap(v => v || []).join(' -- '));
+    for (const x of F['676'] || []) ajoute('676', (x.a || [''])[0]);
+    for (const x of F['686'] || []) if (!x['2'] || /cadre de classement|bnf/i.test(x['2'][0])) ajoute('686', (x.a || [''])[0]);
     return {
       titre: clean(titre), sousTitre: clean(sousTitre), serie: cleanSerie(serie), tome,
-      auteur, pagesTotal: pages > 0 && pages < 5000 ? pages : '',
+      auteur, pagesTotal: pages > 0 && pages < 5000 ? pages : '', pagesEnviron: pages > 0 && pagesEnviron,
       editeur, annee, langue: first('101', 'a'), isbn: toIsbn13(first('010', 'a')),
-      resume, sujets: [...new Set(sujets)].slice(0, 6),
+      resume, sujets: [...new Set(sujets)].slice(0, 6), classements: classements.slice(0, 14),
       indices: [...collections, ...sujets]
     };
   }
 
   /* ---------- Sources ---------- */
+  // Chaque classement garde sa provenance (s : le catalogue qui l'a donné)
+  const provenance = (b, s) => { b.classements = (b.classements || []).map(k => ({...k, s})); return b; };
+  // Réunit les classements de plusieurs fiches sans doublon (même champ, même libellé, même catalogue)
+  function unirClassements(listes) {
+    const out = [];
+    for (const l of listes) for (const k of l || []) if (k && k.l && !out.some(z => z.c === k.c && z.l === k.l && z.s === k.s)) out.push(k);
+    return out.slice(0, 20);
+  }
+  function bnfRecord(r) {
+    const ark = ((r.getElementsByTagNameNS(NS_SRW, 'recordIdentifier')[0] || {}).textContent || '').trim();
+    const b = provenance(parseUnimarc(r), 'BnF');
+    b.source = 'BnF';
+    b.covers = ark ? ['https://catalogue.bnf.fr/couverture?&appName=NE&idArk=' + ark + '&couverture=1'] : [];
+    return b;
+  }
   async function bnf(query, n) {
-    const doc = xml(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&query=' + encodeURIComponent(query)));
-    return [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(r => {
-      const ark = ((r.getElementsByTagNameNS(NS_SRW, 'recordIdentifier')[0] || {}).textContent || '').trim();
-      const b = parseUnimarc(r);
-      b.source = 'BnF';
-      b.covers = ark ? ['https://catalogue.bnf.fr/couverture?&appName=NE&idArk=' + ark + '&couverture=1'] : [];
-      return b;
-    }).filter(b => b.titre);
+    const doc = xmlSru(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&query=' + encodeURIComponent(query)));
+    return [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(bnfRecord).filter(b => b.titre);
+  }
+  // Un « paquet » de fiches à partir d'une position (pour feuilleter de grands résultats)
+  async function bnfLot(query, start, n) {
+    const doc = xmlSru(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&startRecord=' + start + '&query=' + encodeURIComponent(query), 25000));
+    const diag = doc.getElementsByTagNameNS('*', 'diagnostic')[0];
+    if (diag && !doc.getElementsByTagNameNS(NS_SRW, 'record').length) { const e = new Error('BnF : requête refusée'); e.status = 400; throw e; }
+    const total = +((doc.getElementsByTagNameNS(NS_SRW, 'numberOfRecords')[0] || {}).textContent || 0);
+    return {total, recs: [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(bnfRecord)};
   }
 
   async function sudoc(isbn) {
@@ -221,7 +257,7 @@ const Recherche = (() => {
     const ppns = [].concat(res).map(r => r.ppn).filter(Boolean).slice(0, 2);
     const recs = await Promise.all(ppns.map(p => getText('https://www.sudoc.fr/' + p + '.xml')
       .then(x => parseUnimarc(xml(x).documentElement)).catch(() => null)));
-    return recs.filter(r => r && r.titre).map(r => Object.assign(r, {source: 'Sudoc', covers: []}));
+    return recs.filter(r => r && r.titre).map(r => Object.assign(provenance(r, 'Sudoc'), {source: 'Sudoc', covers: []}));
   }
 
   async function openLibraryIsbn(isbn) {
@@ -355,6 +391,11 @@ const Recherche = (() => {
       (r.indices || []).forEach(c => m.indices.push(c));
     });
     m.sujets = [...new Set(sorted.flatMap(r => r.sujets || []))].slice(0, 6);
+    // Classements : seulement ceux de l'édition retenue (une édition jeunesse ou une étude du livre a d'autres codes)
+    const avecCl = sorted.filter(r => (r.classements || []).length);
+    const memeEd = avecCl.filter(r => m.isbn && r.isbn === m.isbn);
+    m.classements = unirClassements((memeEd.length ? memeEd : avecCl.slice(0, 1)).map(r => r.classements));
+    m.pagesEnviron = !!(sorted.find(r => r.pagesTotal) || {}).pagesEnviron;
     m.genre = guessGenre(m.indices);
     return m;
   }
@@ -610,7 +651,24 @@ const Recherche = (() => {
     const bnfFr = okB.find(r => r.langue === 'fre') || okB[0];
     const r = bnfFr || okA[0];
     const sujets = [...new Set([...(bnfFr ? bnfFr.sujets : []), ...(okA[0] ? okA[0].sujets : [])])].slice(0, 6);
-    return {resume: r ? r.resume : '', sujets, genre: guessGenre([...sujets, ...(okA[0] ? okA[0].indices : [])])};
+    return {resume: r ? r.resume : '', sujets, classements: bnfFr ? bnfFr.classements || [] : [],
+      genre: guessGenre([...sujets, ...(okA[0] ? okA[0].indices : [])])};
+  }
+
+  // Classements documentaires d'un livre déjà enregistré : par son ISBN (BnF + Sudoc), sinon par titre + auteur (BnF)
+  async function classement(b) {
+    const isbn = toIsbn13(b.isbn || '');
+    let recs = [];
+    if (isbn) {
+      const [bn, su] = await Promise.all([bnf('bib.isbn adj "' + isbn + '"', 2).catch(() => []), sudoc(isbn).catch(() => [])]);
+      recs = [...bn, ...su].filter(r => !r.isbn || r.isbn === isbn);
+    }
+    if (!recs.length && b.titre) {
+      const titre = clean(String(b.titre).replace(/["*?]/g, ' ')), sn = surname(b.auteur), nt = norm(titre);
+      const bn = await bnf('bib.title all "' + titre + '"' + (sn ? ' and bib.author all "' + sn + '"' : '') + ' and bib.doctype any "a"', 6);
+      recs = bn.filter(r => norm(r.titre) === nt && (!sn || norm(r.auteur).includes(sn)) && (r.langue === 'fre' || !r.langue));
+    }
+    return {classements: unirClassements(recs.map(r => r.classements)), trouve: recs.length > 0};
   }
 
   /* ---------- Découverte : des livres à découvrir, par thème ---------- */
@@ -777,8 +835,243 @@ const Recherche = (() => {
     return out;
   }
 
+  /* ---------- Catégories : ranger les livres d'après les classements des catalogues ---------- */
+  // Catégories de l'appli. Chacune est DÉDUITE de données réelles (code de classement, indice Dewey, sujet du catalogue),
+  // et garde la liste de ses raisons : rien n'est inventé, et la donnée d'origine reste visible.
+  const CATS = [
+    {id: 'politique', nom: 'Politique', e: '🏛️', mots: ['politique', 'politiques', 'science politique', 'sciences politiques', 'politics']},
+    {id: 'histoire', nom: 'Histoire', e: '📜', mots: ['histoire', 'history']},
+    {id: 'philo', nom: 'Philosophie', e: '🤔', mots: ['philo', 'philosophie']},
+    {id: 'psycho', nom: 'Psychologie', e: '🧠', mots: ['psycho', 'psychologie']},
+    {id: 'socio', nom: 'Sociologie', e: '👥', mots: ['socio', 'sociologie']},
+    {id: 'eco', nom: 'Économie', e: '💶', mots: ['eco', 'économie']},
+    {id: 'sciences', nom: 'Sciences', e: '🔬', mots: ['science', 'sciences', 'vulgarisation', 'vulgarisation scientifique']},
+    {id: 'litterature', nom: 'Littérature', e: '📖', mots: ['littérature', 'roman', 'romans', 'classique', 'classiques']},
+    {id: 'fantasy', nom: 'Fantasy', e: '🐉', mots: ['fantasy']},
+    {id: 'sf', nom: 'Science-fiction', e: '🚀', mots: ['sf', 'science-fiction']},
+    {id: 'polar', nom: 'Policier & thriller', e: '🔍', mots: ['polar', 'polars', 'policier', 'thriller', 'thrillers']},
+    {id: 'bio', nom: 'Biographies', e: '👤', mots: ['biographie', 'biographies', 'autobiographie']},
+    {id: 'education', nom: 'Éducation & pédagogie', e: '🎓', mots: ['éducation', 'pédagogie']},
+    {id: 'social', nom: 'Travail social', e: '🤝', mots: ['travail social', 'social']},
+    {id: 'perso', nom: 'Développement personnel', e: '🌱', mots: ['développement perso', 'dev perso']},
+    {id: 'art', nom: 'Art & culture', e: '🎨', mots: ['art', 'arts', 'culture']},
+    {id: 'bd', nom: 'BD & mangas', e: '💬', mots: ['bd', 'manga', 'mangas', 'bande dessinée', 'bandes dessinées']},
+    {id: 'droit', nom: 'Droit', e: '⚖️', mots: ['droit']},
+    {id: 'religion', nom: 'Religions & spiritualité', e: '🕊️', mots: ['religion', 'religions', 'spiritualité']},
+    {id: 'jeunesse', nom: 'Jeunesse', e: '🧸', mots: ['jeunesse']}
+  ];
+  // Indice Dewey (676) → catégorie(s). « 092 » à la fin = biographie (subdivision standard)
+  function deweyCats(code) {
+    const s = String(code || '').replace(/\s+/g, ''), m = s.match(/^(\d{3})(?:\.(\d+))?/);
+    if (!m) return [];
+    const n = +m[1], dec = m[2] || '', out = [];
+    if (n >= 100 && n < 200) out.push(n >= 130 && n < 140 ? '' : n >= 150 && n < 160 ? (n === 158 && dec.startsWith('1') ? 'perso' : 'psycho') : 'philo');
+    else if (n >= 200 && n < 300) out.push('religion');
+    else if (n >= 300 && n < 308) out.push('socio');
+    else if ((n >= 320 && n < 330) || (n >= 350 && n < 355)) out.push('politique');
+    else if (n >= 330 && n < 340) out.push('eco');
+    else if (n >= 340 && n < 350) out.push('droit');
+    else if (n >= 360 && n < 363) out.push('social');
+    else if (n >= 370 && n < 380) out.push('education');
+    else if ((n >= 500 && n < 600) || (n >= 610 && n < 620)) out.push('sciences');
+    else if (n === 741 && dec.startsWith('5')) out.push('bd');
+    else if (n >= 700 && n < 790) out.push('art');
+    else if (n >= 800 && n < 900) out.push('litterature');
+    else if (n >= 920 && n < 930) out.push('bio');
+    else if ((n >= 900 && n < 910) || (n >= 930 && n < 1000)) out.push('histoire');
+    if (n !== 920 && dec.length > 2 && /092\d?$/.test(dec)) out.push('bio');
+    return out.filter(Boolean);
+  }
+  // Cadre de classement de la Bibliographie nationale française (686) : libellés officiels de la BnF
+  const CADRE_NOM = {'100': 'Philosophie', '150': 'Psychologie, psychanalyse', '200': 'Religion', '300': 'Sciences sociales', '320': 'Sciences politiques',
+    '330': 'Économie', '340': 'Droit', '350': 'Administration publique', '360': 'Problèmes et services sociaux', '370': 'Éducation et enseignement',
+    '500': 'Sciences', '610': 'Sciences médicales', '700': 'Arts', '740': 'Dessin, arts décoratifs', '800': 'Histoire et critique littéraires', '801': 'Poésie',
+    '802': 'Théâtre', '803': 'Romans', '804': 'Essais littéraires', '805': 'Bandes dessinées', '809': 'Livres pour la jeunesse', '920': 'Biographies',
+    '930': 'Histoire', '940': 'Histoire', '944': 'Histoire de France'};
+  const CADRE_SPECIAL = {'1': 'philo', '37': 'education', '360': 'social', '805': 'bd', '809': 'jeunesse', '920': 'bio'};
+  // (anciennes fiches : codes à 2 chiffres, « 32 » = 320)
+  const cadreCat = code => { const c = String(code || '').trim(); return CADRE_SPECIAL[c] || (/^\d{3}$/.test(c) ? deweyCats(c)[0] || '' : /^\d{2}$/.test(c) ? deweyCats(c + '0')[0] || '' : ''); };
+  // Mots des sujets (RAMEAU, Apple Books, Google, Open Library…), en français et en anglais (texte sans accents ni ponctuation)
+  const MOTS = [
+    ['bd', /\b(bandes? dessinees?|bd|comics?|mangas?|romans? graphiques?|graphic novels?|seinen|shonen|shojo|webtoons?)\b/],
+    ['sf', /\b(science fiction|anticipation|space opera|cyberpunk)\b|\bdystopi/],
+    ['fantasy', /\bfantasy\b/],
+    ['polar', /\b(romans? policiers?|policiers?|polars?|thrillers?|suspense|romans? noirs?|detective|crime fiction|mystery|espionnage)\b/],
+    ['bio', /\b(biographies?|autobiographies?|memoires|memoirs|recits personnels|temoignages?)\b/],
+    ['perso', /\b(developpement personnel|self help|realisation de soi|bien etre|psychologie positive|confiance en soi|motivation)\b/],
+    ['social', /\b(travail social|social work|travailleurs sociaux|action sociale|aide sociale|protection de l enfance|enfants places|medico social|educateurs? specialises?|intervention sociale|services sociaux)\b/],
+    ['education', /\b(education|pedagogie|enseignement|teaching|parentalite|parenting)\b/],
+    ['philo', /\b(philosophie|philosophy|ethique|ethics)\b/],
+    ['psycho', /\b(psychologie(?! positive)|psychology|psychanalyse|psychoanalysis|psychiatrie)\b/],
+    ['socio', /\b(sociologie|sociology|sciences sociales|social sciences)\b/],
+    ['eco', /\b(economie|economics|finances?|business)\b/],
+    ['histoire', /\b(histoire|history)\b(?! et critique)/],
+    ['sciences', /(?<!(political|social|computer) )\bsciences?\b(?! (fiction|politiques?|sociales|humaines|de l education|economiques))|\b(vulgarisation|popular works|physique|biologie|astronomie|mathematiques|chimie|neurosciences|medecine|ecologie)\b/],
+    ['art', /\barts?\b(?! de vivre| martiaux)|\b(beaux arts|peinture|painting|musique|music|cinema|photographie|photography|architecture|sculpture|danse)\b/],
+    ['litterature', /\b(romans?|litterature|literature|novels?|poesie|poetry|theatre|nouvelles|contes)\b|(?<!non )\bfiction\b/],
+    ['droit', /\b(droit|droits|law|jurisprudence)\b/],
+    ['religion', /\b(religions?|spiritualite|spirituality|theologie|christianisme|islam|bouddhisme|judaisme|bible)\b/],
+    ['jeunesse', /\b(jeunesse|juvenile fiction|livres? pour enfants|albums? pour enfants)\b/]
+  ];
+  // Politique : les mots « forts » suffisent ; « politique » tout seul (« Politique et gouvernement ») se trouve aussi
+  // sur des livres d'histoire ou des mémoires → il ne compte que si le catalogue ne donne aucun code de classement
+  const POL_FORT = /\b(sciences? politiques?|political science|philosophie politique|political philosophy|sociologie politique|relations internationales|international relations|geopolitique|geopolitics|idees politiques|political ideas|politiques? publiques?|public policy|partis politiques|political parties|vie politique|communication en politique|democratie|democracy|ideologies? politiques?)\b/;
+  const POL_FAIBLE = /\b(politique|politics)\b/;
+  const memoCat = new WeakMap();
+  function categories(b) {
+    if (!b || typeof b !== 'object') return [];
+    const liste = v => Array.isArray(v) ? v : [];
+    const cl = liste(b.classements).filter(k => k && k.l);
+    const sig = cl.length + '|' + liste(b.sujets).join('¦') + '|' + liste(b.catNon).join() + '|' + liste(b.catOui).join();
+    const m = memoCat.get(b); if (m && m.sig === sig) return m.res;
+    const out = new Map();
+    const add = (id, raison, officiel) => {
+      const c = CATS.find(x => x.id === id); if (!c) return;
+      let x = out.get(id); if (!x) out.set(id, x = {id, nom: c.nom, e: c.e, raisons: [], officiel: false});
+      if (!x.raisons.includes(raison)) x.raisons.push(raison);
+      x.officiel = x.officiel || officiel;
+    };
+    // 1. Les codes de classement (les plus sûrs)
+    for (const k of cl) if (k.c === '686') { const id = cadreCat(k.l); if (id) add(id, (k.s || 'Catalogue') + ' : classement ' + k.l + (CADRE_NOM[k.l] ? ' (' + CADRE_NOM[k.l] + ')' : ''), true); }
+    for (const k of cl) if (k.c === '676') deweyCats(k.l).forEach(id => add(id, (k.s || 'Catalogue') + ' : indice Dewey ' + k.l, true));
+    const codes = out.size > 0;
+    // 2. Les sujets (avec leur provenance quand on la connaît)
+    const libelles = cl.filter(k => /^60/.test(k.c)).map(k => [k.l, (k.s || 'Catalogue') + ' : sujet « ' + k.l + ' »']);
+    // Rayons des librairies en ligne (Apple, Google…) : si le catalogue donne un code officiel, ils ne servent qu'à préciser
+    // le genre d'un roman (la BnF range tous les romans ensemble : SF, fantasy, polar…), pas à ajouter un sujet
+    const enLigne = new Set(), GENRES_ROMAN = ['litterature', 'sf', 'fantasy', 'polar', 'bd'];
+    for (const s of liste(b.sujets)) if (s && !cl.some(k => norm(k.l).startsWith(norm(s)))) { libelles.push([s, 'Thème trouvé en ligne : « ' + s + ' »']); enLigne.add(s); }
+    for (const [l, raison] of libelles) {
+      // Quand le livre a déjà un code officiel, on ne regarde pas les précisions entre parenthèses
+      // (« Innocence (théologie) » ne fait pas d'un conte un livre de religion)
+      const n = norm(codes ? l.replace(/\([^)]*\)/g, ' ') : l);
+      const precisionSeule = codes && enLigne.has(l);
+      for (const [id, re] of MOTS) if (re.test(n) && !(id === 'litterature' && /\bromans? graphiques?\b/.test(n)) && (!precisionSeule || GENRES_ROMAN.includes(id))) add(id, raison, false);
+      if (precisionSeule) continue;
+      if (POL_FORT.test(n) || (!codes && POL_FAIBLE.test(n) && !/\beconomie politique\b/.test(n))) add('politique', raison, false);
+    }
+    // 3. Les corrections faites à la main (réversibles : les données du catalogue ne sont pas touchées)
+    liste(b.catNon).forEach(id => out.delete(id));
+    liste(b.catOui).forEach(id => add(id, 'Ajoutée par toi', false));
+    const res = [...out.values()].sort((x, y) => CATS.findIndex(c => c.id === x.id) - CATS.findIndex(c => c.id === y.id));
+    memoCat.set(b, {sig, res});
+    return res;
+  }
+  // « philo » → Philosophie, « polar » → Policier & thriller…
+  const themePourTexte = t => { const n = norm(t); return n ? CATS.find(c => [c.nom, ...c.mots].some(x => norm(x) === n)) || null : null; };
+
+  /* ---------- Recherche par thème, avec une longueur maximale ---------- */
+  const DW = (...l) => l.map(d => 'bib.dewey all "' + d + '"');
+  const SUJ = (...l) => l.map(s => 'bib.subject adj "' + s + '"');
+  // Livres « documentaires » : la BnF permet de chercher par indice Dewey et par sujet ; chaque fiche est ensuite revérifiée
+  // (son classement doit vraiment correspondre au thème : pas de livre de droit ou d'économie dans « Politique »)
+  const RECH = {
+    politique: [...DW('320', '321', '322', '323', '324', '325', '327', '328', '351'), ...SUJ('science politique', 'philosophie politique', 'sociologie politique', 'relations internationales', 'géopolitique', 'idées politiques')],
+    histoire: DW('900', '904', '909', '930', '937', '940', '943', '944', '945', '946', '947', '950', '956', '960', '970', '973', '980'),
+    philo: [...DW('100', '109', '110', '111', '121', '128', '140', '160', '170', '172', '177', '179', '180', '190', '194'), ...SUJ('philosophie')],
+    psycho: [...DW('150', '152', '153', '155', '156'), ...SUJ('psychologie', 'psychanalyse')],
+    socio: [...DW('301', '302', '303', '304', '305', '306', '307'), ...SUJ('sociologie')],
+    eco: [...DW('330', '331', '332', '333', '336', '337', '338', '339'), ...SUJ('économie politique')],
+    sciences: [...DW('500', '509', '510', '520', '523', '530', '539', '540', '550', '551', '560', '570', '576', '577', '580', '590', '591', '599', '612'), ...SUJ('ouvrages de vulgarisation')],
+    education: [...DW('370', '371', '372', '373', '374', '379'), ...SUJ('pédagogie', 'sciences de l\'éducation')],
+    social: [...DW('361', '362'), ...SUJ('travail social', 'travailleurs sociaux', 'protection de l\'enfance', 'action sociale', 'enfants placés')],
+    perso: SUJ('réalisation de soi', 'développement personnel', 'bien-être', 'confiance en soi'),
+    bio: [...DW('920'), ...SUJ('biographies', 'autobiographie', 'récits personnels', 'mémoires')],
+    art: [...DW('700', '701', '709', '720', '730', '750', '759', '770', '780', '781', '791', '792'), ...SUJ('art', 'peinture', 'musique', 'cinéma')],
+    droit: [...DW('340', '342', '344', '345', '346'), ...SUJ('droit')],
+    religion: [...DW('200', '220', '230', '270', '290', '294', '296', '297'), ...SUJ('religion', 'spiritualité')]
+  };
+  // Romans de genre : la BnF les range tous dans « romans » (on ne peut pas y chercher « fantasy »).
+  // On part donc de livres connus du genre (rayons d'Apple Books, prix, Wikipédia), puis on cherche leurs éditions françaises à la BnF.
+  const RECH_FICTION = {litterature: ['roman', 'classique'], fantasy: ['fantasy'], sf: ['sf'], polar: ['polar'], bd: ['bd', 'manga']};
+  const THEMES_RECHERCHE = CATS.filter(c => RECH[c.id] || RECH_FICTION[c.id]);
+  const BASE = ' and bib.language any "fre" and bib.recordtype any "mon" and bib.doctype any "a"';
+  const parAnnee = (a, b) => (+b.annee || 0) - (+a.annee || 0);
+
+  async function editionsFr(c) {
+    const titre = clean(String(c.titre || '').replace(/["*?()]/g, ' ')).slice(0, 80), sn = surname(c.auteur), nt = norm(titre);
+    if (!titre) return [];
+    const recs = await bnf('bib.title all "' + titre + '"' + (sn ? ' and bib.author all "' + sn + '"' : '') + BASE, 12);
+    return recs.filter(r => r.titre && !JUNK.test(r.titre) && (!sn || norm(r.auteur).includes(sn)) &&
+      (norm(r.titre) === nt || norm(r.titre).startsWith(nt + ' ') || (norm(r.titre).length > 6 && nt.startsWith(norm(r.titre)))));
+  }
+  const versResultat = (r, extra) => ({...r, sources: [r.source || 'BnF'], genre: guessGenre(r.indices),
+    covers: [...new Set([...isbnCovers(r.isbn).slice(0, 2), ...(r.covers || [])])], ...extra});
+
+  // o : {cat, texte, max (0 = sans limite), exclude(livre), stop()} — cur : où on en est (pour « Plus de résultats »)
+  // Résultat : res (pages connues et ≤ max), inconnus (nombre de pages inconnu : jamais mélangés aux autres quand il y a une limite),
+  // trop (trouvés mais plus longs), examines (fiches regardées), fin (plus rien à chercher), erreur
+  async function parTheme(o, cur, onProgress) {
+    const max = +o.max || 0, out = {res: [], inconnus: [], trop: 0, examines: 0, fin: false, erreur: ''};
+    const vus = cur.vus || (cur.vus = new Set());
+    const stop = () => !!(o.stop && o.stop());
+    const cat = CATS.find(c => c.id === o.cat) || null;
+    const texte = clean(String(o.texte || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
+    // Même livre (même ISBN, ou même titre + même auteur) vu deux fois : on ne le montre qu'une fois
+    const garder = (r, extra) => {
+      const k = norm(r.titre) + '|' + surname(r.auteur);
+      if (vus.has(k) || (r.isbn && vus.has(r.isbn))) return;
+      if (r.pagesTotal && max && r.pagesTotal > max) { out.trop++; return; }
+      vus.add(k); if (r.isbn) vus.add(r.isbn);
+      (!r.pagesTotal && max ? out.inconnus : out.res).push(versResultat(r, extra));
+    };
+    try {
+      if (cat && RECH_FICTION[cat.id]) {
+        if (!cur.cands) {
+          const ts = RECH_FICTION[cat.id].map(id => THEMES.find(t => t.id === id)).filter(Boolean);
+          const listes = await Promise.all(ts.flatMap(t => [t.apple.length ? candApple(t) : null, (t.wd.length || t.classiques) ? candGenre(t) : null,
+            t.prix.length ? candPrix(t) : null]).filter(Boolean).map(p => p.catch(() => [])));
+          const deja = new Set();
+          cur.cands = shuffle(listes.flat()).filter(c => c.titre && c.auteur && !deja.has(norm(c.titre)) && deja.add(norm(c.titre)));
+          cur.ci = 0;
+          if (!cur.cands.length) { out.erreur = 'reseau'; return out; }
+        }
+        let essais = 0, echecs = 0;
+        while (cur.ci < cur.cands.length && out.res.length < 6 && essais < 16 && !stop()) {
+          const c = cur.cands[cur.ci++]; essais++;
+          if (o.exclude && o.exclude(c)) continue;
+          let eds;
+          try { eds = await editionsFr(c); echecs = 0; }
+          catch (e) { if (e.status === 503 || ++echecs >= 3) throw e; continue; }
+          out.examines++;
+          const avecPages = eds.filter(r => r.pagesTotal).sort(parAnnee), p = avecPages.map(r => +r.pagesTotal);
+          const ok = avecPages.filter(r => !max || r.pagesTotal <= max);
+          const extra = {raison: c.raison || '', theme: cat.id, autresEditions: p.length > 1 && Math.min(...p) !== Math.max(...p) ? [Math.min(...p), Math.max(...p)] : null};
+          if (ok.length) garder(ok[0], extra);
+          else if (avecPages.length) out.trop++;
+          else if (eds.length) garder(eds.sort(parAnnee)[0], extra);
+          if (onProgress) onProgress(out);
+        }
+        out.fin = cur.ci >= cur.cands.length;
+      } else {
+        if (!cat && !texte) { out.fin = true; return out; }
+        let q = cat ? '(' + RECH[cat.id].join(' or ') + ')' : 'bib.subject adj "' + texte + '"';
+        if (cat && texte) q += ' and bib.subject all "' + texte + '"';
+        // Les plus récents d'abord (livres qu'on trouve encore en librairie), sans les annonces de livres pas encore parus
+        q += BASE + ' and bib.publicationdate <= "' + new Date().getFullYear() + '" sortBy Dat/sort.descending';
+        cur.start = cur.start || 1;
+        let lots = 0;
+        while (out.res.length < 10 && lots < 4 && !stop()) {
+          const {total, recs} = await bnfLot(q, cur.start, 50);
+          lots++; cur.start += 50; cur.total = total;
+          for (const r of recs) {
+            out.examines++;
+            if (!r.titre || !r.isbn || JUNK.test(r.titre) || (r.langue && r.langue !== 'fre')) continue;
+            // Revérification : le classement de la fiche doit correspondre au thème
+            if (cat && !categories(r).some(c => c.id === cat.id)) continue;
+            garder(r, {theme: cat ? cat.id : ''});
+          }
+          if (onProgress) onProgress(out);
+          if (cur.start > total) { out.fin = true; break; }
+        }
+      }
+    } catch (e) { out.erreur = e.status === 503 ? 'pause' : e.status === 400 ? 'requete' : 'reseau'; }
+    return out;
+  }
+
   const api = {
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
+    CATS, THEMES_RECHERCHE, categories, themePourTexte, parTheme, classement, unirClassements, deweyCats,
     parIsbn, parTexte, completer, couverture, chercherCouvertures, isbnCovers, placeholder,
     resume, decouvrir, selection, THEMES, SOURCES_DECOUVERTE,
     setGoogleKey(k) { googleKey = k || ''; googleBlockedUntil = 0; },

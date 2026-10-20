@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#b5562f">
+<meta name="theme-color" content="#141414">
 <style>
 :root{--bg:#f7f3ec;--card:#fffdf9;--field:#fff;--ink:#2b2622;--muted:#7a6f66;--line:#e6ddd0;--accent:#b5562f;--accent-soft:#f3e2d8;--green:#4f7a52;--star:#e0a526;--red:#c0392b;--radius:14px;--shadow:0 1px 3px rgba(60,40,20,.08),0 4px 14px rgba(60,40,20,.06);color-scheme:light}
 :root[data-theme=dark]{--bg:#1b1815;--card:#26221e;--field:#2f2a25;--ink:#efe7dd;--muted:#a99d90;--line:#3d362e;--accent:#dd7a4c;--accent-soft:#3e2a20;--green:#82b082;--red:#e3735f;--shadow:0 1px 3px rgba(0,0,0,.35);color-scheme:dark}
@@ -182,6 +182,71 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
   #print table{width:100%;border-collapse:collapse}#print td,#print th{text-align:left;padding:4px 6px;border-bottom:1px solid #ddd;vertical-align:top}
   #print blockquote{margin:0 0 8px;font-style:italic}
 }
+
+/* =====================================================================
+   Style « critique culturelle » (inspiré de SensCritique) :
+   barre sombre, contenu clair et aéré, typo grasse, couvertures façon affiches,
+   notes en pastilles colorées, rangées qui défilent, accent vert.
+   ===================================================================== */
+:root{--bg:#f2f2f0;--card:#fff;--field:#f6f6f4;--ink:#141414;--muted:#6e6e6e;--line:#e4e4e0;--accent:#11a05a;--accent-soft:#e2f4ea;--green:#11a05a;--star:#f5b301;--red:#d64541;--radius:12px;--shadow:0 1px 2px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.06);--bar:#141414}
+:root[data-theme=dark]{--bg:#0d0d0d;--card:#191919;--field:#222;--ink:#f1f1f1;--muted:#9b9b9b;--line:#2b2b2b;--accent:#2ecc71;--accent-soft:#143022;--green:#2ecc71;--shadow:0 1px 3px rgba(0,0,0,.5);--bar:#000}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;letter-spacing:-.005em}
+h1,.modal h2,.tile b,.clock,.quote p,.top5 .rk,.nxspin,.ph{font-family:inherit}
+header{background:var(--bar);border-bottom:0;box-shadow:0 2px 10px rgba(0,0,0,.25);padding-top:env(safe-area-inset-top)}
+header h1{color:#fff;font-size:1.35rem;font-weight:800;letter-spacing:-.02em}
+header .icon{background:#262626;border-color:#333;color:#fff}
+.flame{background:#262626;color:#ffb23e}
+.tabs{gap:0;padding-bottom:2px}
+.tab{color:#a8a8a8;font-weight:600;font-size:.92rem;padding:11px 10px 10px;border-bottom-width:3px;transition:color .15s}
+.tab.on{color:#fff;border-color:var(--accent)}
+.tab .n{background:#2c2c2c;color:#ddd;font-weight:700}
+.tab.on .n{background:var(--accent);color:#fff}
+.notice{background:#1f1f1f;color:#eee}
+.notice .btn{background:#2c2c2c;border-color:#3a3a3a;color:#fff}.notice .btn.pri{background:var(--accent);border-color:var(--accent)}
+.tools input,.tools select{background:var(--card);border-color:var(--line);border-radius:22px;padding:9px 14px}
+.icon{border-radius:50%}
+.card{border-radius:var(--radius);padding:12px;gap:14px;border:1px solid var(--line);box-shadow:none}
+.cover{width:72px;height:108px;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.big{border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.ph{font-weight:800}
+.t{font-weight:750;font-size:1.02rem;letter-spacing:-.01em}
+.chip{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;border-radius:6px;padding:1px 7px}
+.chip.warn{background:#fff4d6;border-color:#f3d27a;color:#8a5a00}
+.chip.late{background:var(--red);border-color:var(--red);color:#fff}
+.btn{border-radius:20px;font-weight:600}
+.btn.pri{box-shadow:0 2px 8px rgba(17,160,90,.25)}
+.fab{background:var(--accent);box-shadow:0 8px 22px rgba(17,160,90,.4)}
+.fab2{border-radius:23px;font-weight:600}
+.panel{border-radius:var(--radius);border:1px solid var(--line);box-shadow:none}
+.panel h3,.lbl{text-transform:uppercase;letter-spacing:.06em;font-size:.76rem;font-weight:800;color:var(--muted)}
+.panel h3{color:var(--ink)}
+.tile{border:1px solid var(--line);box-shadow:none}
+.tile b{font-weight:800;letter-spacing:-.02em}
+.modal{border-radius:20px 20px 0 0}
+.modal h2{font-weight:800;letter-spacing:-.02em}
+.bar>i{background:var(--accent)}
+.chart i{background:var(--ink)}.chart.green i{background:var(--accent)}
+.hb .bar>i{background:var(--ink)}
+.quote{border:1px solid var(--line);box-shadow:none;border-left:4px solid var(--accent)}
+.q{background:var(--field);border-left-color:var(--accent)}
+/* Notes en pastille colorée (vert = coup de cœur … rouge = déçu) */
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;padding:0 6px;border-radius:6px;font-weight:800;font-size:.85rem;color:#fff;background:#9a9a9a}
+.score small{font-size:.65rem;opacity:.85;margin-left:1px}
+.n5{background:#11a05a}.n4{background:#5cb85c}.n3{background:#e5a50a}.n2{background:#e67e22}.n1{background:#d64541}
+.gcard .ph{border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.gcard .gscore{position:absolute;left:6px;top:6px;z-index:2}
+.list.grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:16px 12px}
+/* Sélection du mois : rangée de livres qui défile à l'horizontale */
+.sugs{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;margin:0 -2px;scrollbar-width:none}
+.sugs::-webkit-scrollbar{display:none}
+.sugs .sug{flex:0 0 86%;scroll-snap-align:start}
+.sug{border-radius:var(--radius)}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:2px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}.dots i.on{background:var(--accent)}
+/* Glisser entre onglets : petite animation */
+@keyframes inL{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes inR{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-out}
 </style>
 </head>
 <body>
@@ -264,6 +329,8 @@ const today = () => iso(new Date());
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
 function fdate(s) { if (!s) return ''; const d = new Date(s + 'T00:00'); return isNaN(d) ? s : d.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); }
 function fdur(min) { min = Math.round(min); if (min < 60) return min + ' min'; const h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''); }
+// Note en pastille colorée : 5 = vert … 1 = rouge
+function scoreHtml(n, cls) { n = Math.round(n || 0); return n ? `<span class="score n${n} ${cls || ''}">${n}<small>/5</small></span>` : ''; }
 function stars(n) { n = Math.round(n || 0); return n ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''; }
 function hue(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
 function plural(n, w) { return n + ' ' + w + (n > 1 ? 's' : ''); }
@@ -494,7 +561,7 @@ function card(b) {
       (b.resume ? `<div class="a resum">${esc(b.resume)}</div>` : '');
     acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut">📌 ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
   } else if (b.statut === 'lu') {
-    extra = `<div class="meta">${b.note ? `<span class="stars">${stars(b.note)}</span>` : ''}${b.dateFin ? `<span>Fini le ${fdate(b.dateFin)}</span>` : ''}${fois ? `<span class="chip">Lu ${fois + 1} fois</span>` : ''}</div>` +
+    extra = `<div class="meta">${scoreHtml(b.note)}${b.dateFin ? `<span>Fini le ${fdate(b.dateFin)}</span>` : ''}${fois ? `<span class="chip">Lu ${fois + 1} fois</span>` : ''}</div>` +
       (b.avis ? `<div class="a avis">${esc(b.avis)}</div>` : '');
   } else {
     const p = progress(b);
@@ -511,8 +578,7 @@ function card(b) {
 function gcard(b) {
   let extra = '';
   if (b.statut === 'en_cours') { const p = progress(b); if (p.tot) extra = `<div class="bar"><i style="width:${p.pct}%"></i></div>`; }
-  if (b.statut === 'lu' && b.note) extra = `<div class="stars" style="font-size:.8rem">${stars(b.note)}</div>`;
-  return `<article class="gcard" data-id="${esc(b.id)}">${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
+  return `<article class="gcard" data-id="${esc(b.id)}">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
     <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${extra}</article>`;
 }
 
@@ -840,7 +906,7 @@ function renderDecouvrir() {
       <div class="a" style="margin:-4px 0 10px;font-size:.88rem">5 livres pour toi, dans 5 thèmes différents, trouvés à des endroits différents :
         prix littéraires, incontournables, nouveautés et coups de cœur des lecteurs. Une nouvelle sélection arrive chaque mois.</div>
       ${selEnCours ? `<div class="nxspin" id="selprog">${esc(selProgress)}</div>`
-        : actuelle ? `<div class="sugs">${s.items.map((x, i) => sugCard(x, 'sel', i)).join('')}</div>`
+        : actuelle ? `<div class="sugs" id="selRow">${s.items.map((x, i) => sugCard(x, 'sel', i)).join('')}</div><div class="dots" id="selDots">${s.items.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>`
         : `${selProgress === '' && s && s.mois !== moisCle() ? '' : ''}<button class="btn pri" id="selgo" type="button">📬 Préparer ma sélection</button>`}
     </div>
     <div class="panel"><h3>🎲 Tirage au sort en ligne</h3>
@@ -852,6 +918,12 @@ function renderDecouvrir() {
   ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
   $('#dc_go').onclick = () => drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
   const go = $('#selgo'); if (go) go.onclick = () => genSelection(true);
+  // Points sous la rangée : montrent quel livre de la sélection est affiché
+  const row = $('#selRow');
+  if (row && row.firstElementChild) row.onscroll = () => {
+    const i = Math.round(row.scrollLeft / (row.firstElementChild.offsetWidth + 12));
+    document.querySelectorAll('#selDots i').forEach((d, k) => d.classList.toggle('on', k === i));
+  };
 }
 // Clic sur une suggestion : ajouter, refuser (remplacée par une autre), lire le résumé en entier
 async function onSuggestion(e) {
@@ -894,13 +966,13 @@ async function shareBilan(y) {
   if (!ly.length) return toast('Aucun livre fini cette année');
   const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, '#c0623a'); grad.addColorStop(1, '#4a2213');
+  const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, '#1d1d1d'); grad.addColorStop(1, '#0b4a2c');
   g.fillStyle = grad; g.fillRect(0, 0, W, H);
   g.fillStyle = 'rgba(255,255,255,.06)'; [[180, 120, 260], [950, 1250, 320], [1000, 300, 160]].forEach(([x, yy, r]) => { g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill(); });
   const fit = (t, max) => { t = String(t); while (g.measureText(t).width > max && t.length > 3) t = t.slice(0, -2).trim() + '…'; return t; };
   g.textAlign = 'center'; g.fillStyle = '#fff';
   g.font = '600 46px Georgia, serif'; g.fillText('📚 Mon année lecture', W / 2, 135);
-  g.font = 'bold 130px Georgia, serif'; g.fillText(Y, W / 2, 275);
+  g.font = '800 130px system-ui, sans-serif'; g.fillText(Y, W / 2, 275);
   const pages = ly.reduce((s, r) => s + (+r.b.pagesTotal || 0), 0);
   const minY = allSessions().filter(s => (s.date || '').startsWith(Y)).reduce((s, x) => s + (+x.min || 0), 0);
   const act = activity(), actY = {}; Object.keys(act).filter(k => k.startsWith(Y)).forEach(k => actY[k] = act[k]);
@@ -1856,6 +1928,32 @@ document.addEventListener('keydown', e => {
 });
 $('#fab').onclick = () => openForm(null);
 
+/* ---------- Glisser le doigt à gauche / à droite pour changer d'onglet ---------- */
+const TAB_ORDER = ['en_cours', 'a_lire', 'decouvrir', 'lu', 'abandon', 'citations', 'stats'];
+function goTab(dir) {
+  const i = TAB_ORDER.indexOf(ui.tab), j = i + dir;
+  if (i < 0 || j < 0 || j >= TAB_ORDER.length) return false;
+  ui.tab = TAB_ORDER[j]; render(); window.scrollTo(0, 0);
+  const m = $('#main'); m.classList.remove('slide-l', 'slide-r'); void m.offsetWidth; m.classList.add(dir > 0 ? 'slide-l' : 'slide-r');
+  return true;
+}
+(() => {
+  let sx = 0, sy = 0, st = 0, ok = false;
+  // Zones qui défilent déjà à l'horizontale (calendrier, rangées de livres…) : le geste leur appartient
+  const zoneLibre = el => el.closest('.cal, .sugs, .tabs, .chips, input, textarea, select, .modal, .notice');
+  document.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    ok = e.touches.length === 1 && !zoneLibre(e.target) && !document.querySelector('.ov.show');
+    sx = t.clientX; sy = t.clientY; st = Date.now();
+  }, {passive: true});
+  document.addEventListener('touchend', e => {
+    if (!ok) return;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    // Un vrai geste horizontal : assez long, plus horizontal que vertical, assez rapide
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.8 && Date.now() - st < 700) goTab(dx < 0 ? 1 : -1);
+  }, {passive: true});
+})();
+
 /* ---------- Démarrage ---------- */
 (async function init() {
   try {
@@ -1866,6 +1964,7 @@ $('#fab').onclick = () => openForm(null);
     if (!c.en_cours && books.length) ui.tab = c.a_lire ? 'a_lire' : 'lu';
     render();
     checkBadges(true);
+    if (!prefs.astuceGlisser && ('ontouchstart' in window)) { prefs.astuceGlisser = true; savePrefs(); toastLater('👆 Astuce : glisse à gauche ou à droite pour changer d\'onglet', 2500); }
     // Une fois par mois : préparer la sélection de 5 livres (en arrière-plan, s'il y a internet)
     if (navigator.onLine !== false) setTimeout(() => genSelection(), 4000);
     if (prefs.timer) paintTimerPill();

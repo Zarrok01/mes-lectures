@@ -216,6 +216,31 @@
     const vrai = Recherche.parIsbn; Recherche.parIsbn = async () => [{titre: 'Autre titre', covers: []}];
     await completerScan(books[0]); Recherche.parIsbn = vrai; return books[0].titre;
   });
+  await test('Hors ligne : un livre vraiment inconnu des catalogues n\'est plus redemandé à chaque ouverture', 'plus réessayé|0 appel', async () => {
+    books = [norm({...blankBook('a_lire'), id: 't-inconnu', titre: 'Livre 9780000000002', isbn: '9782070612758', aCompleter: true, horsLigne: true})];
+    const vrai = Recherche.parIsbn; let appels = 0;
+    Recherche.parIsbn = async () => { appels++; Recherche.dernierStatut = {BnF: 'rien', Sudoc: 'rien', 'Open Library': 'rien', Google: 'rien'}; return []; };
+    await reprendreScans(); appels = 0; await reprendreScans();       // 2e ouverture
+    Recherche.parIsbn = vrai;
+    return (books[0].horsLigne ? 'encore réessayé' : 'plus réessayé') + '|' + appels + ' appel';
+  });
+  await test('Sélection du mois : un seul essai automatique par jour', 'essai bloqué', async () => {
+    const avant = prefs.selectionEssai, sel = prefs.selection;
+    prefs.selection = null; prefs.selectionEssai = today();
+    const vrai = Recherche.selection; let appele = false; Recherche.selection = async () => { appele = true; return []; };
+    await genSelection(); Recherche.selection = vrai; prefs.selectionEssai = avant; prefs.selection = sel; savePrefs();
+    return appele ? 'relancé' : 'essai bloqué';
+  });
+  await test('BnF ménagée : changer la limite de pages ne renvoie aucune demande au catalogue', '1 demande puis 0', async () => {
+    const vrai = window.fetch; let n = 0;
+    window.fetch = async () => { n++; return new Response('<srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/"><srw:numberOfRecords>0</srw:numberOfRecords></srw:searchRetrieveResponse>', {status: 200}); };
+    try {
+      const sujet = 'essai memoire ' + Date.now();
+      await Recherche.parTheme({texte: sujet, max: 100}, {}); const a = n; n = 0;
+      await Recherche.parTheme({texte: sujet, max: 300}, {});
+      return a + ' demande puis ' + n;
+    } finally { window.fetch = vrai; }
+  });
   await test('Réseau (R3) : une réponse qui n\'arrive jamais en entier est coupée (pas de blocage)', 'terminé', async () => {
     const vrai = window.fetch;
     window.fetch = (url, o) => Promise.resolve(new Response(new ReadableStream({start(c) { o && o.signal && o.signal.addEventListener('abort', () => c.error(new DOMException('coupé', 'AbortError'))); }}), {status: 200}));

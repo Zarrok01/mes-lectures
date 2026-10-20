@@ -587,6 +587,7 @@ function readings() {
 }
 function allSessions() { return books.flatMap(b => (b.sessions || []).map(s => ({...s, b}))); }
 // Vitesse de lecture (pages par heure) à partir des séances chronométrées
+let vitesseAffichage = null;   // (gardée le temps d'un affichage de liste)
 function speed() {
   let p = 0, m = 0;
   allSessions().forEach(s => { const d = (+s.a || 0) - (+s.de || 0); if (d > 0 && s.min > 0) { p += d; m += s.min; } });
@@ -654,6 +655,7 @@ function renderCards() {
     pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
   };
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
+  vitesseAffichage = ui.tab === 'en_cours' ? speed() : null;
   $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs">Aussi dans ${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
     (l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
     `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond dans cet onglet.' : !books.length ? ACCUEIL : EMPTY[ui.tab]}</div>`);
@@ -675,7 +677,7 @@ function card(b) {
   let extra = '', acts = '';
   const fois = (b.historique || []).length;
   if (b.statut === 'en_cours') {
-    const p = progress(b), v = speed();
+    const p = progress(b), v = vitesseAffichage !== null ? vitesseAffichage : speed();
     const reste = p.tot && v ? ` · ≈ ${fdur((p.tot - p.cur) / v * 60)} restantes` : '';
     extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %${reste}</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
@@ -1174,6 +1176,8 @@ function themesFavoris() {
 async function genSelection(force) {
   const m = moisCle();
   if (selEnCours || (!force && prefs.selection && prefs.selection.mois === m && (prefs.selection.items || []).length)) return;
+  // Essai automatique : une fois par jour au plus (si les catalogues ne répondent pas, on ne les relance pas à chaque ouverture)
+  if (!force) { if (prefs.selectionEssai === today()) return; prefs.selectionEssai = today(); savePrefs(); }
   selEnCours = true; selProgress = 'Préparation de ta sélection…';
   if (ui.tab === 'decouvrir') renderDecouvrir();
   const items = await Recherche.selection(themesFavoris(), dejaVu, (n, t) => {
@@ -2276,7 +2280,7 @@ async function bulkCode(c) {
     // Pas de réponse des catalogues (pas d'internet, réseau coupé) : ce n'est pas « introuvable », on réessaiera
     const st = Recherche.dernierStatut || {}, vals = Object.values(st);
     const panne = navigator.onLine === false || (vals.length > 0 && vals.every(v => v === 'erreur' || v === 'quota'));
-    const b = {...blankBook(dest), id: newId(), titre: 'Livre ' + isbn, isbn, aCompleter: true};
+    const b = {...blankBook(dest), id: newId(), titre: 'Livre ' + isbn, isbn, aCompleter: true, horsLigne: panne};
     books.push(b); bulkAdded++; render(); Store.persist();
     row(panne ? `<span class="grow">📶 ${esc(isbn)} : pas de connexion. Ajouté « à compléter », je le compléterai quand internet reviendra.</span>`
       : `<span class="grow">⚠️ ${esc(isbn)} introuvable : ajouté « à compléter »</span>`);
@@ -2396,11 +2400,19 @@ async function fillResume(b) {
 // Livre scanné « à compléter » : on réessaie par son ISBN (utile après un scan sans internet)
 async function completerScan(b) {
   const isbn = Recherche.toIsbn13(b.isbn || ''); if (!isbn) return false;
-  const x = (await Recherche.parIsbn(isbn).catch(() => []))[0]; if (!x) return false;
+  const x = (await Recherche.parIsbn(isbn).catch(() => []))[0];
+  if (!x) {
+    // Les catalogues ont répondu « inconnu » (et non « pas de réseau ») : inutile de le redemander à chaque ouverture
+    const vals = Object.values(Recherche.dernierStatut || {});
+    const panne = navigator.onLine === false || !vals.length || vals.every(v => v === 'erreur' || v === 'quota');
+    const i = books.findIndex(z => z.id === b.id);
+    if (!panne && i >= 0 && books[i].horsLigne) { books[i] = {...books[i], horsLigne: false}; Store.persist(); }
+    return false;
+  }
   const u = await Recherche.couverture(x.covers || []).catch(() => '');
   const i = books.findIndex(z => z.id === b.id);
   if (i < 0 || !books[i].aCompleter) return false;   // complété à la main entre-temps : on n'y touche pas
-  const o = books[i], nb = {...o, titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '', aCompleter: false};
+  const o = books[i], nb = {...o, titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '', aCompleter: false, horsLigne: false};
   for (const f of ['pagesTotal', 'editeur', 'annee', 'genre', 'resume']) if (!nb[f] && x[f]) nb[f] = x[f];
   if (!(nb.sujets || []).length && (x.sujets || []).length) nb.sujets = x.sujets;
   if ((x.classements || []).length) { nb.classements = Recherche.unirClassements([nb.classements, x.classements]); nb.classTente = true; }
@@ -2411,7 +2423,7 @@ async function completerScan(b) {
 let reprisesEnCours = false;
 async function reprendreScans() {
   if (reprisesEnCours || navigator.onLine === false || Store.bloque) return;
-  const todo = books.filter(b => b.aCompleter && Recherche.toIsbn13(b.isbn || ''));
+  const todo = books.filter(b => b.aCompleter && b.horsLigne && Recherche.toIsbn13(b.isbn || ''));
   if (!todo.length) return;
   reprisesEnCours = true;
   let ok = 0;

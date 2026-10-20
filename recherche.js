@@ -63,7 +63,8 @@ const Recherche = (() => {
   // Les catalogues publics (BnF, Sudoc) bloquent ceux qui envoient trop de requêtes :
   // on espace les envois vers eux et on réessaie une fois si ça échoue.
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const GAPS = {'catalogue.bnf.fr': 350, 'www.sudoc.fr': 300};
+  // (la BnF bloque un moment ceux qui l'interrogent trop vite : au moins 0,7 s entre deux demandes)
+  const GAPS = {'catalogue.bnf.fr': 700, 'www.sudoc.fr': 300};
   const gates = {};
   function gate(host) {
     const gap = GAPS[host]; if (!gap) return Promise.resolve();
@@ -238,17 +239,34 @@ const Recherche = (() => {
     b.covers = ark ? ['https://catalogue.bnf.fr/couverture?&appName=NE&idArk=' + ark + '&couverture=1'] : [];
     return b;
   }
+  // Mémoire des réponses de la BnF (30 minutes) : une même demande n'est jamais envoyée deux fois
+  // (changer la limite de pages, rouvrir une fiche, relancer un tirage… réutilisent les fiches déjà reçues)
+  const memoBnf = new Map();
+  function enMemoire(cle, fn) {
+    const m = memoBnf.get(cle);
+    if (m && Date.now() - m.t < 30 * 60e3) return m.p;
+    const p = fn().catch(e => { memoBnf.delete(cle); throw e; });   // (une erreur n'est jamais gardée)
+    memoBnf.set(cle, {t: Date.now(), p});
+    if (memoBnf.size > 80) memoBnf.delete(memoBnf.keys().next().value);
+    return p;
+  }
   async function bnf(query, n) {
-    const doc = xmlSru(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&query=' + encodeURIComponent(query)));
-    return [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(bnfRecord).filter(b => b.titre);
+    const recs = await enMemoire('q|' + n + '|' + query, async () => {
+      const doc = xmlSru(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&query=' + encodeURIComponent(query)));
+      return [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(bnfRecord).filter(b => b.titre);
+    });
+    return recs.map(r => ({...r}));
   }
   // Un « paquet » de fiches à partir d'une position (pour feuilleter de grands résultats)
   async function bnfLot(query, start, n) {
-    const doc = xmlSru(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&startRecord=' + start + '&query=' + encodeURIComponent(query), 25000));
-    const diag = doc.getElementsByTagNameNS('*', 'diagnostic')[0];
-    if (diag && !doc.getElementsByTagNameNS(NS_SRW, 'record').length) { const e = new Error('BnF : requête refusée'); e.status = 400; throw e; }
-    const total = +((doc.getElementsByTagNameNS(NS_SRW, 'numberOfRecords')[0] || {}).textContent || 0);
-    return {total, recs: [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(bnfRecord)};
+    const lot = await enMemoire('l|' + start + '|' + n + '|' + query, async () => {
+      const doc = xmlSru(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&startRecord=' + start + '&query=' + encodeURIComponent(query), 25000));
+      const diag = doc.getElementsByTagNameNS('*', 'diagnostic')[0];
+      if (diag && !doc.getElementsByTagNameNS(NS_SRW, 'record').length) { const e = new Error('BnF : requête refusée'); e.status = 400; throw e; }
+      const total = +((doc.getElementsByTagNameNS(NS_SRW, 'numberOfRecords')[0] || {}).textContent || 0);
+      return {total, recs: [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(bnfRecord)};
+    });
+    return {total: lot.total, recs: lot.recs.map(r => ({...r}))};
   }
 
   async function sudoc(isbn) {
@@ -1065,7 +1083,7 @@ const Recherche = (() => {
           if (!cur.cands.length) { out.erreur = 'reseau'; return out; }
         }
         let essais = 0, echecs = 0;
-        while (cur.ci < cur.cands.length && out.res.length < 6 && essais < 16 && !stop()) {
+        while (cur.ci < cur.cands.length && out.res.length < 5 && essais < 10 && !stop()) {
           const c = cur.cands[cur.ci++]; essais++;
           if (o.exclude && o.exclude(c)) continue;
           let eds;
@@ -1093,7 +1111,8 @@ const Recherche = (() => {
         q += BASE + ' and bib.publicationdate <= "' + new Date().getFullYear() + '" sortBy Dat/sort.descending';
         cur.start = cur.start || 1;
         let lots = 0;
-        while (out.res.length < 10 && lots < 4 && !stop()) {
+        // (2 paquets de 50 fiches au plus par demande : « Plus de résultats » va chercher la suite)
+        while (out.res.length < 10 && lots < 2 && !stop()) {
           const {total, recs} = await bnfLot(q, cur.start, 50);
           lots++; cur.start += 50; cur.total = total;
           for (const r of recs) {

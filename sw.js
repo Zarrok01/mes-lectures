@@ -1,7 +1,11 @@
-// Permet à l'appli de s'ouvrir même sans internet.
+// Permet à l'appli de s'ouvrir même sans internet, et garde les couvertures en mémoire.
 // Change ce numéro à chaque mise à jour de l'appli pour forcer le rafraîchissement.
-const CACHE = 'mes-lectures-v2';
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+const CACHE = 'mes-lectures-v3';
+const COVERS = 'mes-lectures-couvertures';
+const FILES = ['./', 'index.html', 'recherche.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+const COVER_HOSTS = ['covers.openlibrary.org', 'archive.org', 'catalogue.bnf.fr', 'images-na.ssl-images-amazon.com',
+  'books.google.com', 'books.googleusercontent.com', 'mzstatic.com'];
+const MAX_COVERS = 1500;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -9,9 +13,15 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    .then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== COVERS).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
+
+async function trimCovers() {
+  const c = await caches.open(COVERS);
+  const keys = await c.keys();
+  for (let i = 0; i < keys.length - MAX_COVERS; i++) await c.delete(keys[i]);
+}
 
 self.addEventListener('fetch', e => {
   const req = e.request;
@@ -23,6 +33,15 @@ self.addEventListener('fetch', e => {
     e.respondWith(fetch(req)
       .then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res; })
       .catch(() => caches.match(req).then(r => r || caches.match('index.html'))));
+    return;
+  }
+
+  // Couvertures : gardées en mémoire après le premier affichage (s'affichent vite et hors ligne).
+  if (req.destination === 'image' && COVER_HOSTS.some(h => url.hostname.endsWith(h))) {
+    e.respondWith(caches.open(COVERS).then(c => c.match(req).then(hit => hit || fetch(req).then(res => {
+      if (res.ok || res.type === 'opaque') { c.put(req, res.clone()); trimCovers(); }
+      return res;
+    }))));
     return;
   }
 

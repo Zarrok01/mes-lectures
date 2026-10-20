@@ -1,0 +1,523 @@
+/* =====================================================================
+   Mes lectures : moteur de recherche de livres
+   ---------------------------------------------------------------------
+   Par code-barres (ISBN) : BnF + Sudoc + Open Library + Google Books
+   (+ bibliothèque allemande pour les livres allemands), interrogés en
+   même temps, puis fusionnés en une seule fiche.
+   Par titre / auteur : BnF + Apple Books + Google Books + Open Library,
+   regroupés par livre et triés par pertinence (éditions françaises,
+   résultats confirmés par plusieurs sources).
+   ===================================================================== */
+const Recherche = (() => {
+  const SRU = 'https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve';
+  const NS_SRW = 'http://www.loc.gov/zing/srw/';
+  const DC = 'http://purl.org/dc/elements/1.1/';
+  const NSB = new RegExp('[' + String.fromCharCode(0x88, 0x89, 0x98, 0x9c) + ']', 'g');
+  let googleKey = '';
+  let googleBlockedUntil = 0;
+
+  /* ---------- Outils texte ---------- */
+  // La BnF code parfois la cédille avec un « crochet souscrit » : on le remplace par une vraie cédille
+  const HOOK = new RegExp(String.fromCharCode(0x321), 'g'), CEDILLE = String.fromCharCode(0x327);
+  const clean = s => String(s == null ? '' : s).replace(NSB, '').replace(HOOK, CEDILLE).normalize('NFC').replace(/\s+/g, ' ').trim();
+  const norm = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+  const STOP = new Set('le la les l un une des de du d et a au aux en par pour sur dans avec the of and to an t tome vol volume n no'.split(' '));
+  const words = s => norm(s).split(' ').filter(w => w && !STOP.has(w));
+  const surname = a => words(String(a || '').split(',')[0]).pop() || '';
+
+  /* ---------- ISBN ---------- */
+  const digits = s => String(s == null ? '' : s).toUpperCase().replace(/[^0-9X]/g, '');
+  function valid13(s) {
+    if (!/^97[89]\d{10}$/.test(s)) return false;
+    let t = 0; for (let k = 0; k < 12; k++) t += (+s[k]) * (k % 2 ? 3 : 1);
+    return (10 - t % 10) % 10 === +s[12];
+  }
+  function valid10(s) {
+    if (!/^\d{9}[\dX]$/.test(s)) return false;
+    let t = 0; for (let k = 0; k < 10; k++) t += (10 - k) * (s[k] === 'X' ? 10 : +s[k]);
+    return t % 11 === 0;
+  }
+  // Renvoie l'ISBN-13 si le numéro est un ISBN valide (10 ou 13 chiffres), sinon ''.
+  function toIsbn13(s) {
+    s = digits(s);
+    if (s.length === 13) return valid13(s) ? s : '';
+    if (s.length === 10 && valid10(s)) {
+      const b = '978' + s.slice(0, 9); let t = 0;
+      for (let k = 0; k < 12; k++) t += (+b[k]) * (k % 2 ? 3 : 1);
+      return b + ((10 - t % 10) % 10);
+    }
+    return '';
+  }
+  function isbn10(i) {
+    if (!/^978\d{10}$/.test(i)) return '';
+    const c = i.slice(3, 12); let s = 0;
+    for (let k = 0; k < 9; k++) s += (10 - k) * +c[k];
+    const r = (11 - s % 11) % 11;
+    return c + (r === 10 ? 'X' : r);
+  }
+  // Ressemble à un ISBN (même faux) ? Sert à prévenir d'une erreur de frappe.
+  const looksLikeIsbn = q => { const d = digits(q); return /^97[89]\d{10}$/.test(d) || /^\d{9}[\dX]$/.test(d) || /^\d{12,14}$/.test(d); };
+
+  /* ---------- Réseau ---------- */
+  // Les catalogues publics (BnF, Sudoc) bloquent ceux qui envoient trop de requêtes :
+  // on espace les envois vers eux et on réessaie une fois si ça échoue.
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const GAPS = {'catalogue.bnf.fr': 350, 'www.sudoc.fr': 300};
+  const gates = {};
+  function gate(host) {
+    const gap = GAPS[host]; if (!gap) return Promise.resolve();
+    const g = gates[host] || (gates[host] = {chain: Promise.resolve(), t: 0});
+    const p = g.chain.then(async () => { const w = g.t + gap - Date.now(); if (w > 0) await sleep(w); g.t = Date.now(); });
+    g.chain = p;
+    return p;
+  }
+  async function fetchT(url, ms, retry) {
+    const host = new URL(url).hostname;
+    await gate(host);
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 10000);
+    try {
+      const r = await fetch(url, {signal: ctl.signal});
+      if ((r.status === 429 || r.status === 503) && GAPS[host] && !retry) { await sleep(2000); return fetchT(url, ms, true); }
+      return r;
+    } catch (e) {
+      if (GAPS[host] && !retry && e.name !== 'AbortError') { await sleep(1500); return fetchT(url, ms, true); }
+      throw e;
+    } finally { clearTimeout(t); }
+  }
+  async function getJson(url, ms) {
+    const r = await fetchT(url, ms);
+    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    return r.json();
+  }
+  async function getText(url, ms) {
+    const r = await fetchT(url, ms);
+    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    return r.text();
+  }
+  const xml = s => new DOMParser().parseFromString(s, 'application/xml');
+
+  /* ---------- Fiches UNIMARC (BnF et Sudoc) ---------- */
+  function romanToInt(s) {
+    const v = {I: 1, V: 5, X: 10, L: 50, C: 100}; let n = 0;
+    for (let k = 0; k < s.length; k++) { const a = v[s[k]], b = v[s[k + 1]] || 0; n += a < b ? -a : a; }
+    return n;
+  }
+  function cleanTome(t) {
+    t = clean(t);
+    const d = t.match(/\d+/); if (d) return String(+d[0]);
+    const r = t.match(/\b[IVXLC]+\b/i); return r ? String(romanToInt(r[0].toUpperCase())) : '';
+  }
+  // Garde la mention seulement si elle ressemble à des noms de personnes (« J. R. R. Tolkien », « Fabcaro, Didier Conrad »)
+  const PARTICLES = new Set(['de', 'du', 'des', 'd', 'le', 'la', 'van', 'von', 'der', 'den', 'da', 'di', 'y', 'et', 'al', 'bin', 'ben', 'el', 'dos', 'das']);
+  function cleanName(m) {
+    const toks = String(m || '').replace(/[.,;]/g, ' ').split(/\s+/).filter(Boolean);
+    if (!toks.length || toks.length > 12) return '';
+    return toks.every(t => /^\p{Lu}/u.test(t) || /^\p{Ll}['’]\p{Lu}/u.test(t) || PARTICLES.has(t.toLowerCase())) ? m : '';
+  }
+  // « Une aventure d'Astérix. » → « Astérix » ; « Les aventures de Tintin » → « Tintin »
+  const cleanSerie = s => clean(s).replace(/^(une |les )?aventures? (de |d'|d’|du |des )/i, '').replace(/[\s.,;:]+$/, '');
+
+  function parseUnimarc(root) {
+    const F = {};
+    for (const f of root.getElementsByTagNameNS('*', 'datafield')) {
+      const sf = {};
+      for (const s of f.getElementsByTagNameNS('*', 'subfield')) {
+        const c = s.getAttribute('code'); (sf[c] = sf[c] || []).push(clean(s.textContent));
+      }
+      (F[f.getAttribute('tag')] = F[f.getAttribute('tag')] || []).push(sf);
+    }
+    const first = (tag, code) => { for (const x of F[tag] || []) if (x[code] && x[code][0]) return x[code][0]; return ''; };
+
+    // Titre, série, tome
+    let titre = first('200', 'a'), serie = '', tome = '';
+    const h = first('200', 'h'), partie = first('200', 'i');
+    if (partie) { serie = titre; titre = partie; tome = cleanTome(h); }
+    else if (h) { serie = titre; tome = cleanTome(h); }
+    const lien = (F['461'] || []).find(x => x.t);
+    if (!serie && lien) { serie = lien.t[0]; tome = cleanTome((lien.v || [''])[0]); }
+    if (serie && norm(serie) === norm(titre) && !tome) serie = '';
+    const sousTitre = first('200', 'e');
+
+    // Auteurs (sans traducteurs, préfaciers…) : 070 auteur, 440 illustrateur, 690 scénariste
+    const auteurs = [];
+    for (const tag of ['700', '701', '702']) for (const p of F[tag] || []) {
+      const role = (p['4'] || [''])[0];
+      if (!['070', '440', '690', ''].includes(role) || (role === '' && tag === '702')) continue;
+      const nom = clean([(p.b || [''])[0], (p.a || [''])[0]].join(' '));
+      if (nom && !auteurs.includes(nom)) auteurs.push(nom);
+    }
+    // Mention telle qu'imprimée (« J. R. R. Tolkien ») : plus lisible quand elle contient bien le nom de l'auteur
+    let mention = clean(first('200', 'f').split(/\s*;\s*/)[0].replace(/\[[^\]]*\]/g, '').replace(/,?\s*(\.\.\.|…)\s*/g, ', '));
+    // « avant-propos de X », « traduit par Y »… : ce n'est pas l'auteur
+    if (/^(avant-propos|pr[ée]face|postface|traduction|traduit|adaptation|introduction|sous la dir|coordonn|choix|[ée]dition [ée]tablie|pr[ée]sent[ée])/i.test(mention)) mention = '';
+    // « texte, Fabcaro », « scénario de X », « par X » : on garde le nom
+    mention = cleanName(mention.replace(/^((par|by|de|écrit par|d'après|textes|texte|scénarios|scénario|scenario|dessins|dessin|illustrations|illustration|récit|histoire|[oœ]uvre originale|supervision|un manga de|un roman de|une histoire de|une bande dessinée de)\s*(,|:|de\b|d'|par\b)?\s*)+/i, '')
+      .replace(/(\s*\.\.\.|\s*…)+$/, '').replace(/[\s,:;]+$/, ''));
+    let auteur = auteurs.slice(0, 3).join(', ');
+    if (mention && mention.length < 80 && (!auteurs.length || norm(mention).includes(surname(auteurs[0])))) auteur = mention.replace(/\s+et\s+/g, ', ');
+    if (!auteur) for (const p of F['710'] || []) { const n = clean((p.a || [''])[0]); if (n) { auteur = n; break; } }
+
+    const pages = +((first('215', 'a').match(/\[?(\d+)\]?\s*(?:p\b|p\.|pages)/) || [])[1] || 0);
+    const pub = [...(F['214'] || []), ...(F['210'] || [])];
+    const editeur = clean(((pub.find(x => x.c) || {}).c || [''])[0]);
+    const annee = (pub.map(x => (x.d || [''])[0]).join(' ').match(/\d{4}/) || [''])[0];
+    const collections = (F['225'] || []).map(x => (x.a || [''])[0]).filter(Boolean);
+    return {
+      titre: clean(titre), sousTitre: clean(sousTitre), serie: cleanSerie(serie), tome,
+      auteur, pagesTotal: pages > 0 && pages < 5000 ? pages : '',
+      editeur, annee, langue: first('101', 'a'), isbn: toIsbn13(first('010', 'a')),
+      indices: collections
+    };
+  }
+
+  /* ---------- Sources ---------- */
+  async function bnf(query, n) {
+    const doc = xml(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=' + n + '&query=' + encodeURIComponent(query)));
+    return [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(r => {
+      const ark = ((r.getElementsByTagNameNS(NS_SRW, 'recordIdentifier')[0] || {}).textContent || '').trim();
+      const b = parseUnimarc(r);
+      b.source = 'BnF';
+      b.covers = ark ? ['https://catalogue.bnf.fr/couverture?&appName=NE&idArk=' + ark + '&couverture=1'] : [];
+      return b;
+    }).filter(b => b.titre);
+  }
+
+  async function sudoc(isbn) {
+    let j;
+    try { j = await getJson('https://www.sudoc.fr/services/isbn2ppn/' + isbn + '&format=text/json'); }
+    catch (e) { if (e.status === 404) return []; throw e; }   // 404 = « aucune notice »
+    let res = j && j.sudoc && j.sudoc.query && j.sudoc.query.result;
+    if (!res) return [];
+    const ppns = [].concat(res).map(r => r.ppn).filter(Boolean).slice(0, 2);
+    const recs = await Promise.all(ppns.map(p => getText('https://www.sudoc.fr/' + p + '.xml')
+      .then(x => parseUnimarc(xml(x).documentElement)).catch(() => null)));
+    return recs.filter(r => r && r.titre).map(r => Object.assign(r, {source: 'Sudoc', covers: []}));
+  }
+
+  async function openLibraryIsbn(isbn) {
+    const j = await getJson('https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:' + isbn);
+    const d = j['ISBN:' + isbn];
+    if (!d || !d.title) return [];
+    return [{
+      titre: clean(d.title), sousTitre: clean(d.subtitle), auteur: (d.authors || []).slice(0, 3).map(a => clean(a.name)).join(', '),
+      pagesTotal: d.number_of_pages || '', editeur: clean(((d.publishers || [])[0] || {}).name),
+      annee: ((d.publish_date || '').match(/\d{4}/) || [''])[0], isbn,
+      covers: d.cover ? [d.cover.large || d.cover.medium] : [], indices: (d.subjects || []).slice(0, 5).map(s => s.name),
+      source: 'Open Library'
+    }];
+  }
+
+  async function openLibraryText(q) {
+    const j = await getJson('https://openlibrary.org/search.json?limit=10&fields=title,subtitle,author_name,first_publish_year,number_of_pages_median,cover_i,language,subject&q=' + encodeURIComponent(q));
+    return (j.docs || []).map(d => ({
+      titre: clean(d.title), sousTitre: clean(d.subtitle), auteur: (d.author_name || []).slice(0, 3).join(', '),
+      pagesTotal: d.number_of_pages_median || '', annee: d.first_publish_year ? String(d.first_publish_year) : '',
+      langue: '', isbn: '', covers: d.cover_i ? ['https://covers.openlibrary.org/b/id/' + d.cover_i + '-L.jpg'] : [],
+      indices: (d.subject || []).slice(0, 5), source: 'Open Library'
+    })).filter(b => b.titre);
+  }
+
+  async function google(q, isbn) {
+    const key = googleKey.trim();
+    if (!key && Date.now() < googleBlockedUntil) { const e = new Error('quota'); e.status = 429; throw e; }
+    try {
+      const j = await getJson('https://www.googleapis.com/books/v1/volumes?maxResults=10&printType=books&q=' +
+        encodeURIComponent(q) + (key ? '&key=' + encodeURIComponent(key) : ''), 8000);
+      return (j.items || []).map(it => {
+        const v = it.volumeInfo || {}, l = v.imageLinks || {};
+        const ids = (v.industryIdentifiers || []).map(x => toIsbn13(x.identifier)).filter(Boolean);
+        return {
+          titre: clean(v.title), sousTitre: clean(v.subtitle), auteur: (v.authors || []).slice(0, 3).join(', '),
+          pagesTotal: v.pageCount || '', editeur: clean(v.publisher), annee: (v.publishedDate || '').slice(0, 4),
+          langue: v.language === 'fr' ? 'fre' : v.language || '', isbn: ids.find(x => x.startsWith('97')) || '', isbns: ids,
+          covers: (l.thumbnail || l.smallThumbnail) ? [(l.thumbnail || l.smallThumbnail).replace(/^http:/, 'https:').replace('&edge=curl', '')] : [],
+          indices: v.categories || [], source: 'Google'
+        };
+      }).filter(b => b.titre && (!isbn || b.isbns.includes(isbn)));
+    } catch (e) {
+      if (e.status === 429 && !key) googleBlockedUntil = Date.now() + 30 * 60e3;
+      throw e;
+    }
+  }
+
+  function storeTitle(t) {
+    return clean(t)
+      .replace(/\s+[-–]\s+(Prix|Lauréat|Grand Prix|Le phénomène|Best[- ]?seller|Nouvelle édition|Édition collector|Le livre événement|Le roman événement|Coup de cœur).*$/i, '')
+      .replace(/\s*\((?:Fiche de lecture|Résumé|Analyse)[^)]*\)\s*$/i, '')
+      .replace(/\s*\((?:Enhanced Edition|Édition enrichie|Edition enrichie|Version enrichie|ebook)\)\s*$/i, '').trim();
+  }
+  async function apple(q) {
+    const j = await getJson('https://itunes.apple.com/search?country=fr&media=ebook&limit=15&term=' + encodeURIComponent(q), 8000);
+    return (j.results || []).map(r => ({
+      titre: storeTitle(r.trackName), sousTitre: '',
+      auteur: (r.artistName || '').split(/\s*&\s*/).slice(0, 3).join(', '),
+      annee: (r.releaseDate || '').slice(0, 4), langue: 'fre', isbn: '', pagesTotal: '',
+      covers: r.artworkUrl100 ? [r.artworkUrl100.replace(/\d+x\d+bb/, '600x600bb')] : [],
+      indices: r.genres || [], source: 'Apple'
+    })).filter(b => b.titre);
+  }
+
+  async function dnb(isbn) {
+    const doc = xml(await getText('https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve&recordSchema=oai_dc&maximumRecords=1&query=isbn%3D' + isbn));
+    const g = n => [...doc.getElementsByTagNameNS(DC, n)].map(e => clean(e.textContent));
+    const t = g('title')[0];
+    if (!t) return [];
+    return [{
+      titre: t.split(' / ')[0].split(' : ')[0], auteur: g('creator').slice(0, 2).map(c => c.replace(/\s*\[.*?\]/g, '').split(', ').reverse().join(' ')).join(', '),
+      editeur: g('publisher')[0] || '', annee: (g('date')[0] || '').slice(0, 4), isbn, covers: [], source: 'DNB'
+    }];
+  }
+
+  /* ---------- Genre deviné ---------- */
+  const GENRE_RULES = [
+    [/manga|shonen|sh[oō]nen|seinen|shojo|kodomo|webtoon/i, 'BD / Manga'],
+    [/bande dessin|bandes dessin|comics?\b|\bbd\b|roman graphique|graphic novel/i, 'BD / Manga'],
+    [/policier|polar|thriller|suspense|crime|mystery|noir\b/i, 'Polar / Thriller'],
+    [/science-fiction|science fiction|fantasy|fantastique|imaginaire|dystop|anticipation/i, 'SF / Fantasy'],
+    [/biograph|mémoires|autobiograph|témoignage/i, 'Biographie'],
+    [/développement personnel|developpement personnel|self-help|bien-être|psychologie positive|motivation/i, 'Développement perso'],
+    [/travail social|éducat|educat|action sociale|protection de l.enfance|médico-social|pédagog|vae/i, 'Pro / VAE'],
+    [/essai|histoire|philosoph|sociolog|politique|sciences humaines|économie|society/i, 'Essai'],
+    [/roman|fiction|littérature|literature|novel|nouvelles/i, 'Roman']
+  ];
+  function guessGenre(indices) {
+    const s = (indices || []).join(' | ');
+    for (const [re, g] of GENRE_RULES) if (re.test(s)) return g;
+    return '';
+  }
+
+  /* ---------- Lancer plusieurs sources en même temps ---------- */
+  async function runSources(jobs, onStatus) {
+    const st = {};
+    Object.keys(jobs).forEach(k => st[k] = 'attente');
+    if (onStatus) onStatus({...st});
+    const all = await Promise.all(Object.entries(jobs).map(([k, p]) => p.then(
+      r => { st[k] = r.length ? 'ok' : 'rien'; if (onStatus) onStatus({...st}); return r; },
+      e => { st[k] = e && e.status === 429 ? 'quota' : 'erreur'; if (onStatus) onStatus({...st}); return []; })));
+    api.dernierStatut = st;
+    return all.flat();
+  }
+
+  const FIELDS = ['titre', 'sousTitre', 'serie', 'tome', 'auteur', 'pagesTotal', 'editeur', 'annee', 'langue', 'isbn'];
+  const PRIO_ISBN = ['BnF', 'Sudoc', 'Google', 'Open Library', 'DNB'];
+
+  // Même édition vue par plusieurs sources → une seule fiche, champ par champ.
+  function mergeSame(recs, prio) {
+    const sorted = recs.slice().sort((a, b) => prio.indexOf(a.source) - prio.indexOf(b.source));
+    const m = {sources: [...new Set(sorted.map(r => r.source))], covers: [], indices: []};
+    for (const f of FIELDS) m[f] = (sorted.find(r => r[f]) || {})[f] || '';
+    // Série et tome viennent ensemble de la même fiche ; une « série » sans numéro (collection) est ignorée
+    const st = sorted.find(r => r.serie && r.tome);
+    m.serie = st ? st.serie : ''; m.tome = st ? st.tome : '';
+    // Pour un tome, préférer le vrai titre du volume (« L'épreuve de Kakashi ») au nom de la série
+    if (m.serie && norm(m.titre) === norm(m.serie)) {
+      const t = sorted.map(r => r.titre).find(t => t && norm(t) !== norm(m.serie) && !norm(t).startsWith(norm(m.serie) + ' '));
+      if (t) m.titre = t;
+    }
+    sorted.forEach(r => {
+      (r.covers || []).forEach(c => { if (c && !m.covers.includes(c)) m.covers.push(c); });
+      (r.indices || []).forEach(c => m.indices.push(c));
+    });
+    m.genre = guessGenre(m.indices);
+    return m;
+  }
+
+  /* ---------- Recherche par ISBN ---------- */
+  async function parIsbn(isbn, onStatus) {
+    const i10 = isbn10(isbn);
+    const jobs = {
+      'BnF': bnf('bib.isbn adj "' + isbn + '"' + (i10 ? ' or bib.isbn adj "' + i10 + '"' : ''), 2).then(r => r.slice(0, 1)),
+      'Sudoc': sudoc(isbn).then(r => r.slice(0, 1)),
+      'Open Library': openLibraryIsbn(isbn),
+      'Google': google('isbn:' + isbn, isbn).then(r => r.slice(0, 1))
+    };
+    if (/^9783/.test(isbn)) jobs['Bibl. allemande'] = dnb(isbn);
+    const recs = (await runSources(jobs, onStatus)).map(splitTome);
+    if (!recs.length) return [];
+    const m = mergeSame(recs, PRIO_ISBN);
+    m.isbn = isbn;
+    m.covers.push('https://covers.openlibrary.org/b/isbn/' + isbn + '-L.jpg?default=false');
+    if (i10) m.covers.push('https://images-na.ssl-images-amazon.com/images/P/' + i10 + '.08.LZZZZZZZ.jpg');
+    m.score = 99;
+    return [m];
+  }
+
+  /* ---------- Recherche par titre / auteur ---------- */
+  const JUNK = /(fiche de lecture|\br[ée]sum[ée]\b|analyse (de l|du livre)|[ée]tude de l.oeuvre|commentaire compos|profil d.une oeuvre|lepetitlitteraire|study guide|summary of|cahier d.activit|coloriage|agenda \d{4}|calendrier \d{4})/i;
+  const SRC_WEIGHT = {'BnF': 1.2, 'Apple': 1.2, 'Google': 1, 'Sudoc': 1, 'Open Library': 0.5};
+  // Un tome de série est identifié par série + auteur + numéro (son titre varie selon les sources)
+  const workKey = b => (b.serie && b.tome ? 'S:' + words(cleanSerie(b.serie)).slice(0, 4).join(' ') : words(b.titre).slice(0, 7).join(' ')) + '|' + (b.tome || '');
+
+  function rank(q, recs) {
+    const qw = words(q), qn = norm(q);
+    const kept = recs.filter(r => !JUNK.test(r.titre + ' ' + r.sousTitre) && !JUNK.test(r.auteur));
+    // Regroupe les fiches d'un même livre : même titre (ou même série + tome) ET au moins un auteur en commun.
+    // Les fiches sans auteur rejoignent le groupe du même titre s'il existe.
+    const gl = [];
+    const names = r => new Set(String(r.auteur || '').split(',').map(surname).filter(Boolean));
+    for (const r of [...kept.filter(r => surname(r.auteur)), ...kept.filter(r => !surname(r.auteur))]) {
+      const k = workKey(r), n = names(r);
+      let g = gl.find(x => x.k === k && (!n.size || !x.names.size || [...n].some(s => x.names.has(s))));
+      if (!g) { g = {k, names: new Set(), recs: []}; gl.push(g); }
+      g.recs.push(r); n.forEach(s => g.names.add(s));
+    }
+    const groups = new Map(gl.map((x, i) => [i, x.recs]));
+    // Popularité d'un auteur dans les résultats (départage les titres identiques)
+    const freq = {};
+    kept.forEach(r => { const s = surname(r.auteur); if (s) freq[s] = (freq[s] || 0) + 1; });
+    // Le mot cherché est-il présent (tolère pluriel et une faute de frappe) ?
+    const near = (a, b) => {
+      if (a === b) return true;
+      if (a.length >= 4 && (a + 's' === b || a + 'x' === b || b + 's' === a || b + 'x' === a)) return true;
+      if (a.length < 5 || Math.abs(a.length - b.length) > 1) return false;
+      let i = 0, j = 0, diff = 0;
+      while (i < a.length && j < b.length) {
+        if (a[i] === b[j]) { i++; j++; continue; }
+        if (++diff > 1) return false;
+        if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+      }
+      return diff + (a.length - i) + (b.length - j) <= 1;
+    };
+    const has = (hayWords, w) => hayWords.some(h => near(w, h));
+    const nums = qw.filter(w => /^\d+$/.test(w));
+    // Recherche d'un auteur (« Amélie Nothomb », « Musso ») : ses livres passent devant les livres sur lui
+    const authorHits = kept.filter(r => qw.length && qw.every(w => has(words(r.auteur), w))).length;
+    const titleHits = kept.filter(r => qw.length && qw.every(w => has(words(r.titre + ' ' + r.serie), w))).length;
+    const authorQuery = authorHits >= 2 && authorHits > titleHits;
+    const out = [];
+    for (const g of groups.values()) {
+      // Édition de référence : la plus récente qui a un ISBN (BnF puis Google), sinon la meilleure source
+      const order = ['BnF', 'Google', 'Apple', 'Sudoc', 'Open Library'];
+      const sorted = g.slice().sort((a, b) => order.indexOf(a.source) - order.indexOf(b.source));
+      // (éditions « normales » d'abord : sans sous-titre du genre « grand livre », « édition collector »…)
+      const special = r => /(collector|luxe|int[ée]grale|coffret|grand livre|[ée]dition sp[ée]ciale|perfect edition|hokage|deluxe)/i.test(r.titre + ' ' + r.sousTitre + ' ' + r.serie) ? 1 : 0;
+      const fr = r => (r.langue === 'fre' ? 0 : 1);
+      const ed = g.filter(r => r.isbn && (r.source === 'BnF' || r.source === 'Google'))
+        .sort((a, b) => fr(a) - fr(b) || special(a) - special(b) || (+b.annee || 0) - (+a.annee || 0))[0];
+      const m = mergeSame(ed ? [ed, ...sorted.filter(r => r !== ed)] : sorted, ed ? [ed.source, ...order] : order);
+      if (ed) for (const f of ['isbn', 'pagesTotal', 'editeur', 'annee']) m[f] = ed[f] || m[f];
+      // Couvertures : édition de référence d'abord, puis Apple (belle qualité), puis le reste
+      const appleCov = g.filter(r => r.source === 'Apple').flatMap(r => r.covers);
+      m.covers = [...new Set([...(ed ? ed.covers : []), ...appleCov, ...m.covers])];
+      if (m.isbn) m.covers.push('https://covers.openlibrary.org/b/isbn/' + m.isbn + '-L.jpg?default=false');
+
+      // Pertinence
+      const hay = ' ' + norm([m.titre, m.sousTitre, m.serie, m.tome, m.auteur].join(' ')) + ' ';
+      const hayW = hay.trim().split(' ');
+      const found = qw.filter(w => has(hayW, w)).length;
+      let s = qw.length ? found / qw.length * 10 : 0;
+      // Numéro de tome demandé (« asterix 40 », « naruto tome 3 »)
+      if (nums.length) s += nums.includes(String(m.tome)) ? 4 : (m.tome ? -2 : -1);
+      if (authorQuery) s += qw.every(w => has(words(m.auteur), w)) ? 4 : -3;
+      const nt = norm(m.titre), ns = norm((m.serie ? m.serie + ' ' : '') + m.titre);
+      if (nt === qn || ns === qn) s += 6;
+      else if ((qn.startsWith(nt + ' ') || qn.startsWith(ns + ' ')) && nt.length > 2) s += 4;
+      else if (nt.startsWith(qn) || ns.startsWith(qn)) s += 3;
+      else if (hay.includes(' ' + qn + ' ')) s += 2;
+      // « stephen king ça » : une fois les mots de l'auteur retirés, il reste exactement le titre
+      const aw = words(m.auteur), rest = qw.filter(w => !has(aw, w)), tw = words(m.titre);
+      if (rest.length && rest.length < qw.length && rest.join(' ') === tw.join(' ')) s += 5;
+      s -= Math.min(3, words(m.titre).filter(w => !qw.includes(w)).length * 0.35);
+      s += Math.max(...g.map(r => SRC_WEIGHT[r.source] || 1)) * 0.8;
+      s += Math.min(2, (new Set(g.map(r => r.source)).size - 1) * 0.9);
+      s += Math.min(1.5, (g.length - 1) * 0.3);
+      s += Math.min(1.5, ((freq[surname(m.auteur)] || 1) - 1) * 0.25);
+      if (!m.auteur) s -= 1.5;
+      // Open Library seul : souvent le titre original ou des fiches approximatives
+      if (g.every(r => r.source === 'Open Library')) s -= 1.2;
+      if (m.langue === 'fre' || g.some(r => r.source === 'Apple' || r.source === 'BnF')) s += 1;
+      if (m.covers.length) s += 0.4;
+      if (m.pagesTotal) s += 0.3;
+      m.score = Math.round(s * 10) / 10;
+      out.push(m);
+    }
+    return out.filter(m => m.score >= 5).sort((a, b) => b.score - a.score).slice(0, 10);
+  }
+
+  // « Naruto - Tome 3 », « One Piece T.100 : Le fluide royal », « Astérix (Tome 40) » → série + tome
+  const TOME_RE = /^(.+?)[\s,:–\-(\[]+(?:tome|t\.|t|vol\.?|volume|n°|no\.?)\s*(\d{1,4})\b\s*[)\]]?\s*(?:[:–-]\s*(.*))?$/i;
+  function splitTome(r) {
+    if (r.tome || r.source === 'BnF' || r.source === 'Sudoc') return r;
+    const m = clean(r.titre).match(TOME_RE);
+    if (!m) return r;
+    let serie = m[1].replace(/[\s,:–-]+$/, '').trim(), titre = m[3] ? m[3].trim() : '';
+    // « Astérix - L'Iris blanc - n°40 » : série, puis titre du volume
+    const parts = serie.split(/\s+[-–]\s+/);
+    if (parts.length > 1) { serie = parts[0]; titre = titre || parts.slice(1).join(' - '); }
+    return {...r, serie: r.serie || cleanSerie(serie), tome: String(+m[2]), titre: titre || serie};
+  }
+
+  async function parTexte(q, onStatus) {
+    const qq = clean(q.replace(/["*?]/g, ' '));
+    // La BnF ne met pas le mot « tome » dans ses titres : on l'enlève pour elle
+    const qb = clean(qq.replace(/\b(tome|tomes|vol|volume|n°|numéro|numero)\b\.?/gi, ' ').replace(/\bt\.?\s*(?=\d)/gi, ' '));
+    // Si le titre seul ne donne presque rien, l'utilisateur a sûrement tapé « titre + auteur » (ou l'inverse) :
+    // on essaie aussi « le(s) dernier(s) mot(s) = auteur » et « le premier mot = auteur ».
+    const ws = qb.split(' ').filter(Boolean);
+    const DOC = ' and bib.doctype any "a"';
+    const splits = [];
+    if (ws.length >= 2) splits.push([ws.slice(0, -1), ws.slice(-1)], [ws.slice(1), ws.slice(0, 1)]);
+    if (ws.length >= 3) splits.push([ws.slice(0, -2), ws.slice(-2)]);
+    const titreAuteur = ([t, a]) => bnf('bib.title all "' + t.join(' ') + '" and bib.author all "' + a.join(' ') + '"' + DOC, 10).catch(() => []);
+    const okSplits = splits.filter(([t]) => t.join('').length > 1);
+    const jobs = {
+      // Toujours : titre complet + « titre, puis auteur en dernier mot » ; si presque rien : le reste
+      'BnF': Promise.all([bnf('bib.title all "' + qb + '"' + DOC, 15), okSplits.length ? titreAuteur(okSplits[0]) : []])
+        .then(async ([r, r2]) => {
+          r = r.concat(r2);
+          if (r.length >= 4) return r;
+          const more = await Promise.all([bnf('bib.anywhere all "' + qb + '"' + DOC, 12).catch(() => []), ...okSplits.slice(1).map(titreAuteur)]);
+          return r.concat(...more);
+        }),
+      'Apple': apple(qq),
+      'Google': google(qq),
+      'Open Library': openLibraryText(qq)
+    };
+    return rank(qq, (await runSources(jobs, onStatus)).map(splitTome));
+  }
+
+  /* ---------- Compléter une fiche (pages, ISBN…) après un choix par titre ---------- */
+  async function completer(x) {
+    if (x.pagesTotal && x.isbn && x.editeur) return x;
+    const a = surname(x.auteur);
+    try {
+      const r = await bnf('bib.title all "' + clean(x.titre.replace(/["*?]/g, ' ')) + '"' + (a ? ' and bib.author all "' + a + '"' : '') + ' and bib.doctype any "a"', 8);
+      // Uniquement le même titre, en édition française de préférence, édition « normale » plutôt que spéciale
+      const special = b => /(collector|luxe|int[ée]grale|coffret|grand livre|[ée]dition sp[ée]ciale|gros caract[èe]res|large print)/i.test(b.titre + ' ' + b.sousTitre) ? 1 : 0;
+      const same = r.filter(b => norm(b.titre) === norm(x.titre) && (!x.tome || !b.tome || String(b.tome) === String(x.tome)));
+      const best = same.filter(b => b.pagesTotal)
+        .sort((p, q) => ((p.langue === 'fre') ? 0 : 1) - ((q.langue === 'fre') ? 0 : 1) || special(p) - special(q) || (+q.annee || 0) - (+p.annee || 0))[0];
+      if (!best || (best.langue && best.langue !== 'fre' && x.langue === 'fre')) return x;
+      const y = {...x};
+      for (const f of ['pagesTotal', 'isbn', 'editeur', 'annee']) if (!y[f] && best[f]) y[f] = best[f];
+      y.covers = [...(x.covers || []), ...(best.covers || [])];
+      return y;
+    } catch (e) { return x; }
+  }
+
+  /* ---------- Trouver la meilleure couverture qui existe vraiment ---------- */
+  function probe(src, ms) {
+    return new Promise(res => {
+      const i = new Image(); const t = setTimeout(() => res(false), ms || 7000);
+      i.onload = () => { clearTimeout(t); res(i.naturalWidth > 20 && i.naturalHeight > 20); };
+      i.onerror = () => { clearTimeout(t); res(false); };
+      i.referrerPolicy = 'no-referrer'; i.src = src;
+    });
+  }
+  async function couverture(list) {
+    list = [...new Set((list || []).filter(u => /^https:\/\//.test(u || '')))];
+    const tests = list.map(u => probe(u));
+    for (let k = 0; k < list.length; k++) if (await tests[k]) return list[k];
+    return '';
+  }
+
+  const api = {
+    toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
+    parIsbn, parTexte, completer, couverture,
+    setGoogleKey(k) { googleKey = k || ''; googleBlockedUntil = 0; },
+    dernierStatut: {},
+    _rank: rank, _parseUnimarc: parseUnimarc
+  };
+  return api;
+})();

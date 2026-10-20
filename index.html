@@ -9,14 +9,14 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#b5562f">
 <style>
-:root{--bg:#f7f3ec;--card:#fffdf9;--field:#fff;--ink:#2b2622;--muted:#7a6f66;--line:#e6ddd0;--accent:#b5562f;--accent-soft:#f3e2d8;--green:#4f7a52;--star:#e0a526;--radius:14px;--shadow:0 1px 3px rgba(60,40,20,.08),0 4px 14px rgba(60,40,20,.06);color-scheme:light}
-:root[data-theme=dark]{--bg:#1b1815;--card:#26221e;--field:#2f2a25;--ink:#efe7dd;--muted:#a99d90;--line:#3d362e;--accent:#dd7a4c;--accent-soft:#3e2a20;--green:#82b082;--shadow:0 1px 3px rgba(0,0,0,.35);color-scheme:dark}
+:root{--bg:#f7f3ec;--card:#fffdf9;--field:#fff;--ink:#2b2622;--muted:#7a6f66;--line:#e6ddd0;--accent:#b5562f;--accent-soft:#f3e2d8;--green:#4f7a52;--star:#e0a526;--red:#c0392b;--radius:14px;--shadow:0 1px 3px rgba(60,40,20,.08),0 4px 14px rgba(60,40,20,.06);color-scheme:light}
+:root[data-theme=dark]{--bg:#1b1815;--card:#26221e;--field:#2f2a25;--ink:#efe7dd;--muted:#a99d90;--line:#3d362e;--accent:#dd7a4c;--accent-soft:#3e2a20;--green:#82b082;--red:#e3735f;--shadow:0 1px 3px rgba(0,0,0,.35);color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
 header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
 .wrap{max-width:760px;margin:0 auto;padding:0 14px}
-main.wrap{padding-bottom:96px}
+main.wrap{padding-bottom:110px}
 .top{display:flex;align-items:center;gap:8px;padding:12px 0 4px}
 h1{font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;margin:0;flex:1}
 .flame{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:3px 10px;font-weight:700;font-size:.9rem}
@@ -26,7 +26,7 @@ h1{font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;margin:0;flex:1}
 .tab.on{color:var(--ink);border-color:var(--accent);font-weight:600}
 .tab .n{display:inline-block;min-width:1.5em;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--line);font-size:.75rem;color:var(--ink)}
 .tools{display:flex;gap:8px;padding:12px 0;flex-wrap:wrap}
-.tools input,.tools select,.search input{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);min-width:0}
+.tools input,.tools select{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);min-width:0}
 .tools input{flex:1 1 200px}
 .tools select{flex:1 1 120px}
 .list{display:grid;gap:12px}
@@ -39,26 +39,31 @@ h1{font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;margin:0;flex:1}
 .ph{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Georgia,serif;font-weight:bold;flex:none}
 .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cover{width:64px;height:96px;border-radius:6px;font-size:1.5rem}
-.rc{width:34px;height:50px;border-radius:4px;font-size:.9rem}
+.rc{width:40px;height:60px;border-radius:4px;font-size:.9rem}
 .big{width:80px;height:120px;border-radius:6px;font-size:1.8rem}
 .mini{width:30px;height:45px;border-radius:3px;font-size:.8rem}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .t{font-weight:650;line-height:1.25}
 .a{color:var(--muted);font-size:.92rem}
 .avis{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-style:italic}
-.meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.meta{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
 .chip{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:1px 9px;font-size:.78rem}
+.chip.warn{background:#fdecc8;color:#8a5a00}
+.chip.late{background:var(--red);color:#fff}
 .stars{color:var(--star);letter-spacing:1px}
 .bar{height:7px;background:var(--line);border-radius:5px;overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--green);border-radius:5px}
 .acts{margin-top:auto;display:flex;gap:6px;padding-top:6px;flex-wrap:wrap}
 .btn{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:9px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.del{color:#c44;border-color:#e8c5c5}
-.btn.del.sure{background:#b33;color:#fff}
+.btn.del{color:var(--red);border-color:#e8c5c5}
+.btn.del.sure{background:var(--red);color:#fff}
 .btn.on{background:var(--accent-soft);border-color:var(--accent)}
+.btn.small{padding:4px 9px;font-size:.8rem}
 .empty{text-align:center;color:var(--muted);padding:50px 20px;grid-column:1/-1}
 .fab{position:fixed;right:20px;bottom:22px;width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:2rem;line-height:1;box-shadow:0 6px 18px rgba(150,60,20,.35);cursor:pointer;z-index:20}
+.fab2{position:fixed;right:88px;bottom:28px;height:46px;border-radius:23px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.9rem;padding:0 14px;box-shadow:var(--shadow);cursor:pointer;z-index:20}
+.pill{position:fixed;left:16px;bottom:28px;height:46px;border-radius:23px;border:0;background:var(--green);color:#fff;font:inherit;font-weight:700;padding:0 16px;box-shadow:var(--shadow);cursor:pointer;z-index:20}
 .ov{position:fixed;inset:0;background:rgba(20,14,8,.5);display:none;align-items:flex-end;justify-content:center;z-index:30}
 .ov.show{display:flex}
 .modal{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px}
@@ -70,9 +75,14 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 .f>label,.lbl{font-size:.82rem;color:var(--muted);font-weight:600}
 .f input,.f select,.f textarea,.search input{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);width:100%}
 .row{display:flex;gap:10px}.row>.f{flex:1}
+.row>.f.small{flex:0 0 90px}
 .search{display:flex;gap:6px;align-items:center}.search input{flex:1}
+.srcs{font-size:.78rem;color:var(--muted);margin:6px 0 0;display:flex;gap:4px 10px;flex-wrap:wrap}
+.srcs .ok{color:var(--green)}.srcs .ko{color:var(--red)}
 .res{display:grid;gap:6px;margin:8px 0}
-.res button{display:flex;gap:10px;align-items:center;text-align:left;font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:6px;cursor:pointer}
+.res button.r{display:flex;gap:10px;align-items:center;text-align:left;font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:6px;cursor:pointer;width:100%}
+.own{color:var(--green);font-weight:600;font-size:.82rem}
+.hint{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:.9rem;margin:8px 0}
 .starpick button{font-size:1.8rem;background:none;border:0;color:var(--line);cursor:pointer;padding:0 2px}
 .starpick button.on{color:var(--star)}
 .mfoot{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
@@ -87,9 +97,9 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 .quote p{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem;white-space:pre-wrap}
 .hist{font-size:.85rem;color:var(--muted);margin:-4px 0 12px}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
-@media(min-width:600px){.tiles{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:600px){.tiles{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px}
-.tile b{display:block;font-size:1.6rem;font-family:Georgia,serif}
+.tile b{display:block;font-size:1.5rem;font-family:Georgia,serif}
 .tile span{font-size:.82rem;color:var(--muted)}
 .panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
 .panel h3{margin:0 0 10px;font-size:1rem}
@@ -107,15 +117,28 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 .top5{display:grid;gap:8px;margin-bottom:12px}
 .top5 div{display:flex;gap:10px;align-items:center;font-size:.92rem}
 .top5 .rk{font-family:Georgia,serif;font-weight:bold;color:var(--accent);width:18px}
-.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40;white-space:nowrap}
-.toast.show{opacity:.94}
-#scanOv{z-index:35}
+.lines{display:grid;gap:8px}
+.line{display:flex;gap:10px;align-items:center;font-size:.92rem;cursor:pointer}
+.line .grow{flex:1;min-width:0}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+.toast.show{opacity:.95}
+.toast.act{pointer-events:auto}
+.toast button{background:none;border:0;color:var(--star);font:inherit;font-weight:700;margin-left:10px;cursor:pointer}
+#scanOv,#bulkOv,#timerOv{z-index:35}
 .cam{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3}
 .cam video{width:100%;height:100%;object-fit:cover;display:block}
 .cam .aim{position:absolute;left:10%;right:10%;top:30%;bottom:30%;border:3px solid rgba(255,255,255,.9);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
 .cam .aim::after{content:"";position:absolute;left:4%;right:4%;top:50%;height:2px;background:#ff5a36;animation:sweep 1.6s ease-in-out infinite}
+.cam.flash .aim{border-color:#5be37d}
 @keyframes sweep{0%,100%{transform:translateY(-35px)}50%{transform:translateY(35px)}}
-.backup{background:var(--accent-soft);color:var(--ink);font-size:.85rem;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.seg button{flex:1;border:0;background:var(--card);color:var(--ink);font:inherit;font-size:.88rem;padding:8px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+.blist{display:grid;gap:6px;margin-top:10px;max-height:32vh;overflow:auto}
+.bl{display:flex;gap:8px;align-items:center;font-size:.88rem;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.bl .grow{flex:1;min-width:0}
+.clock{font-family:Georgia,serif;font-size:3.4rem;text-align:center;margin:10px 0;font-variant-numeric:tabular-nums}
+.notice{background:var(--accent-soft);color:var(--ink);font-size:.85rem;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
 #print{display:none}
 @media print{
   body>*:not(#print){display:none!important}
@@ -127,47 +150,73 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 </style>
 </head>
 <body>
-<div id="backupBar" class="backup" hidden></div>
+<div id="notice" class="notice" hidden></div>
 <header><div class="wrap">
   <div class="top">
     <h1>📚 Mes lectures</h1>
     <span class="flame" id="flame" hidden title="Jours de lecture d'affilée"></span>
-    <button class="icon" id="theme" title="Mode sombre / clair" aria-label="Changer de thème"></button>
+    <button class="icon" id="settingsBtn" title="Réglages" aria-label="Réglages">⚙️</button>
   </div>
   <nav class="tabs" id="tabs"></nav>
 </div></header>
 <main class="wrap" id="main"><div class="empty">Chargement de tes livres…</div></main>
+<button class="fab2" id="bulkBtn" title="Scanner plusieurs livres d'affilée">📦 Scan rapide</button>
 <button class="fab" id="fab" title="Ajouter un livre" aria-label="Ajouter un livre">+</button>
+<button class="pill" id="timerPill" hidden></button>
+
 <div class="ov" id="ov"><div class="modal" id="modal" role="dialog"></div></div>
+
 <div class="ov" id="scanOv"><div class="modal">
   <h2>Scanner le code-barres</h2>
-  <div class="cam"><video id="cam" playsinline muted autoplay></video><div class="aim"></div></div>
-  <p class="a" id="scanMsg">Vise le code-barres au dos du livre (celui qui commence par 978).</p>
+  <div class="cam" id="cam1box"><video id="cam" playsinline muted autoplay></video><div class="aim"></div></div>
+  <p class="a" id="scanMsg"></p>
   <div class="mfoot"><button class="btn" id="scanPhoto" type="button">📷 Prendre une photo à la place</button><span class="sp"></span>
     <button class="btn" id="scanClose" type="button">Annuler</button></div>
 </div></div>
+
+<div class="ov" id="bulkOv"><div class="modal">
+  <h2>📦 Scan rapide</h2>
+  <p class="a" style="margin-top:-6px">Scanne tes livres les uns après les autres : ils s'ajoutent tout seuls.</p>
+  <div class="lbl" style="margin-bottom:4px">Les ranger dans :</div>
+  <div class="seg" id="bulkDest"><button data-dest="a_lire" class="on">À lire</button><button data-dest="lu">Lus</button><button data-dest="en_cours">En cours</button></div>
+  <div class="cam" id="cam2box"><video id="cam2" playsinline muted autoplay></video><div class="aim"></div></div>
+  <p class="a" id="bulkMsg">Vise le code-barres au dos du livre.</p>
+  <div class="blist" id="bulkList"></div>
+  <div class="mfoot"><span class="a" id="bulkCount"></span><span class="sp"></span><button class="btn pri" id="bulkDone" type="button">Terminé</button></div>
+</div></div>
+
+<div class="ov" id="timerOv"><div class="modal" id="timerModal"></div></div>
+
 <div class="toast" id="toast"></div>
 <input type="file" id="pick_cover" accept="image/*" hidden>
 <input type="file" id="pick_scan" accept="image/*" capture="environment" hidden>
 <input type="file" id="pick_backup" accept=".json,application/json" hidden>
 <div id="print"></div>
 
+<script src="recherche.js"></script>
 <script>
+/* =====================================================================
+   Mes lectures : l'appli
+   ===================================================================== */
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
 const STATUT_UN = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lu', abandon: 'Abandonné'};
-const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Autre'];
+const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Jeunesse', 'Autre'];
+const FORMATS = {papier: '📖 Papier', numerique: '📱 Numérique', audio: '🎧 Audio'};
+const POSSESSION = {a_moi: 'Je l\'ai', emprunte: 'Emprunté (médiathèque, ami…)', prete: 'Prêté à quelqu\'un', non: 'Je ne l\'ai pas'};
 const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const EMPTY = {
   en_cours: 'Aucune lecture en cours.<br>Va dans « À lire » et appuie sur « Commencer », ou ajoute un livre avec le bouton +.',
-  a_lire: 'Ta liste de livres à lire est vide.<br>Ajoute un livre avec le bouton +.',
+  a_lire: 'Ta liste de livres à lire est vide.<br>Ajoute un livre avec le bouton +, ou scanne-les avec 📦 Scan rapide.',
   lu: 'Aucun livre terminé pour l\'instant.',
   abandon: 'Aucun livre abandonné. 👍'
 };
 
 let books = [], goal = 0, form = null, lastRes = [];
-const ui = {tab: 'en_cours', q: '', cq: '', genre: '', sort: 'recent', year: new Date().getFullYear()};
-const prefs = Object.assign({view: 'liste', theme: 'auto'}, (() => { try { return JSON.parse(localStorage.getItem('mes-lectures-prefs')) || {}; } catch (e) { return {}; } })());
+const ui = {tab: 'en_cours', q: '', cq: '', genre: '', own: '', sort: 'recent', year: new Date().getFullYear()};
+const prefs = Object.assign({view: 'liste', theme: 'auto', googleKey: '', bulkDest: 'a_lire'},
+  (() => { try { return JSON.parse(localStorage.getItem('mes-lectures-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem('mes-lectures-prefs', JSON.stringify(prefs)); } catch (e) {} }
+Recherche.setGoogleKey(prefs.googleKey);
 
 /* ---------- Petits outils ---------- */
 const $ = s => document.querySelector(s);
@@ -176,36 +225,89 @@ const safeUrl = u => /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const today = () => iso(new Date());
+const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
 function fdate(s) { if (!s) return ''; const d = new Date(s + 'T00:00'); return isNaN(d) ? s : d.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); }
+function fdur(min) { min = Math.round(min); if (min < 60) return min + ' min'; const h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''); }
 function stars(n) { n = Math.round(n || 0); return n ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''; }
 function hue(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
 function plural(n, w) { return n + ' ' + w + (n > 1 ? 's' : ''); }
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2300); }
-function coverHtml(b, cls) {
-  const u = safeUrl(b.couverture);
-  const ini = esc((b.titre || '?').trim().charAt(0).toUpperCase());
-  return `<div class="${cls || 'cover'} ph" style="background:hsl(${hue(b.titre)} 32% 48%)">${ini}${u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>`;
+function toast(msg, action) {
+  const t = $('#toast');
+  t.innerHTML = esc(msg) + (action ? `<button type="button" id="toastBtn">${esc(action.label)}</button>` : '');
+  t.classList.toggle('act', !!action);
+  t.classList.add('show'); clearTimeout(t._h);
+  if (action) $('#toastBtn').onclick = () => { t.classList.remove('show', 'act'); action.fn(); };
+  t._h = setTimeout(() => t.classList.remove('show', 'act'), action ? 6500 : 2400);
 }
+// Couverture : essaie les adresses une par une jusqu'à en trouver une qui existe
+function coverList(b) { return [b.couverture, ...(b._covers || b.covers || [])].map(safeUrl).filter((u, i, a) => u && a.indexOf(u) === i); }
+function coverHtml(b, cls) {
+  const list = coverList(b);
+  const ini = esc((b.titre || '?').trim().charAt(0).toUpperCase());
+  return `<div class="${cls || 'cover'} ph" style="background:hsl(${hue(b.titre)} 32% 48%)">${ini}${list.length ?
+    `<img src="${esc(list[0])}" data-alt="${esc(list.slice(1).join('|'))}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="coverOk(this)" onerror="coverNext(this)">` : ''}</div>`;
+}
+window.coverNext = img => { const alt = (img.dataset.alt || '').split('|').filter(Boolean); if (!alt.length) return img.remove(); img.dataset.alt = alt.slice(1).join('|'); img.src = alt[0]; };
+window.coverOk = img => { if (img.naturalWidth <= 20) coverNext(img); };
 function counts() { const c = {en_cours: 0, a_lire: 0, lu: 0, abandon: 0}; books.forEach(b => { if (b.statut in c) c[b.statut]++; }); return c; }
 function allQuotes() { const out = []; books.forEach(b => (b.citations || []).forEach((q, i) => out.push({b, q, i}))); return out; }
 function parseList(v) { if (Array.isArray(v)) return v; try { const x = JSON.parse(v || '[]'); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
 function norm(b) {
   return {...b, note: +b.note || 0, epingle: b.epingle === true || b.epingle === 'true',
-    citations: parseList(b.citations), journal: parseList(b.journal), historique: parseList(b.historique)};
+    citations: parseList(b.citations), journal: parseList(b.journal), historique: parseList(b.historique), sessions: parseList(b.sessions),
+    format: b.format || 'papier', possession: b.possession || 'a_moi'};
 }
+const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : '';
 
-/* ---------- Thème clair / sombre ---------- */
+/* ---------- Thème ---------- */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
   const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  $('#theme').textContent = dark ? '☀️' : '🌙';
 }
-darkQuery.addEventListener && darkQuery.addEventListener('change', applyTheme);
-$('#theme').onclick = () => { prefs.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); };
+if (darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme);
 applyTheme();
 
-/* ---------- Journal de lecture (pages par jour, série) ---------- */
+/* ---------- Stockage sur l'appareil (IndexedDB : grande capacité) ---------- */
+const Store = {
+  fallback: !('indexedDB' in window),
+  queue: Promise.resolve(),
+  db() {
+    if (!this._db) this._db = new Promise((res, rej) => {
+      const r = indexedDB.open('mes-lectures', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return this._db;
+  },
+  async get(k) { const db = await this.db(); return new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  async set(k, v) { const db = await this.db(); return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); },
+  async load() {
+    if (!this.fallback) {
+      try {
+        const d = await this.get('data');
+        if (d) return d;
+        // Première ouverture de cette version : on reprend les livres de l'ancienne mémoire
+        let old = null; try { old = JSON.parse(localStorage.getItem('mes-lectures-data')); } catch (e) {}
+        const d2 = old || {books: [], goal: 0};
+        await this.set('data', d2);
+        if (old) { localStorage.setItem('mes-lectures-data-ancienne', localStorage.getItem('mes-lectures-data')); localStorage.removeItem('mes-lectures-data'); }
+        return d2;
+      } catch (e) { this.fallback = true; }
+    }
+    try { return JSON.parse(localStorage.getItem('mes-lectures-data')) || {books: [], goal: 0}; } catch (e) { return {books: [], goal: 0}; }
+  },
+  persist() {
+    this.queue = this.queue.then(async () => {
+      const snap = {books, goal};
+      if (!this.fallback) { try { await this.set('data', snap); return; } catch (e) { this.fallback = true; } }
+      localStorage.setItem('mes-lectures-data', JSON.stringify(snap));
+    }).catch(() => toast('Oups, pas enregistré : mémoire du téléphone pleine ?'));
+    return this.queue;
+  }
+};
+
+/* ---------- Journal de lecture (pages par jour, série, vitesse) ---------- */
 function logPage(b, page, date) {
   date = date || today();
   b.journal = (b.journal || []).filter(e => e.date !== date).concat({date, page: +page || 0})
@@ -216,6 +318,7 @@ function activity() {
   books.forEach(b => {
     const j = b.journal || [];
     for (let i = 1; i < j.length; i++) { const d = j[i].page - j[i - 1].page; if (d > 0) m[j[i].date] = (m[j[i].date] || 0) + d; }
+    (b.sessions || []).forEach(s => { if (!m[s.date]) m[s.date] = m[s.date] || 0.001; });
   });
   return m;
 }
@@ -225,7 +328,7 @@ function streaks(m) {
   let best = 0, run = 0, prev = null;
   Object.keys(m).sort().forEach(k => {
     const x = new Date(k + 'T00:00');
-    run = prev && (x - prev) / 864e5 === 1 ? run + 1 : 1; best = Math.max(best, run); prev = x;
+    run = prev && Math.round((x - prev) / 864e5) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = x;
   });
   return {cur, best};
 }
@@ -237,112 +340,13 @@ function readings() {
   });
   return out;
 }
-
-/* ---------- Recherche de livres en ligne ----------
-   ISBN (code-barres) : BnF + Open Library + Google Books en même temps.
-   Texte : Google Books + Open Library, puis BnF si rien trouvé. */
-function cleanIsbn(q) {
-  const s = String(q).replace(/[\s-]/g, '').toUpperCase();
-  return /^(97[89]\d{10}|\d{9}[\dX])$/.test(s) ? s : '';
+function allSessions() { return books.flatMap(b => (b.sessions || []).map(s => ({...s, b}))); }
+// Vitesse de lecture (pages par heure) à partir des séances chronométrées
+function speed() {
+  let p = 0, m = 0;
+  allSessions().forEach(s => { const d = (+s.a || 0) - (+s.de || 0); if (d > 0 && s.min > 0) { p += d; m += s.min; } });
+  return m >= 15 ? p / m * 60 : 0;
 }
-function isbn10(i) {
-  if (i.length === 10) return i;
-  if (!i.startsWith('978')) return '';
-  const c = i.slice(3, 12); let s = 0;
-  for (let k = 0; k < 9; k++) s += (10 - k) * +c[k];
-  const r = (11 - s % 11) % 11;
-  return c + (r === 10 ? 'X' : r);
-}
-async function getJson(url, ms) {
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 8000);
-  try { const r = await fetch(url, {signal: ctl.signal}); if (!r.ok) throw new Error(r.status); return await r.json(); }
-  finally { clearTimeout(t); }
-}
-async function getText(url, ms) {
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 8000);
-  try { const r = await fetch(url, {signal: ctl.signal}); if (!r.ok) throw new Error(r.status); return await r.text(); }
-  finally { clearTimeout(t); }
-}
-async function fromGoogle(q) {
-  const j = await getJson('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent(q), 6000);
-  return (j.items || []).map(it => {
-    const v = it.volumeInfo || {}, l = v.imageLinks || {};
-    return {titre: v.title || '', auteur: (v.authors || []).join(', '), pagesTotal: v.pageCount || '',
-      couverture: (l.thumbnail || l.smallThumbnail || '').replace(/^http:/, 'https:').replace('&edge=curl', '')};
-  }).filter(b => b.titre);
-}
-async function fromOpenLibraryIsbn(i) {
-  const j = await getJson('https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:' + i);
-  const d = j['ISBN:' + i];
-  if (!d || !d.title) return [];
-  return [{titre: d.title, auteur: (d.authors || []).map(a => a.name).join(', '), pagesTotal: d.number_of_pages || '',
-    couverture: (d.cover && d.cover.medium) || ''}];
-}
-async function fromOpenLibrarySearch(q) {
-  const j = await getJson('https://openlibrary.org/search.json?limit=8&fields=title,author_name,number_of_pages_median,cover_i&q=' + encodeURIComponent(q));
-  return (j.docs || []).map(d => ({titre: d.title || '', auteur: (d.author_name || []).join(', '), pagesTotal: d.number_of_pages_median || '',
-    couverture: d.cover_i ? 'https://covers.openlibrary.org/b/id/' + d.cover_i + '-M.jpg' : ''})).filter(b => b.titre);
-}
-async function fromBnf(query, max) {
-  const x = await getText('https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&recordSchema=dublincore&maximumRecords=' +
-    (max || 5) + '&query=' + encodeURIComponent(query));
-  const doc = new DOMParser().parseFromString(x, 'application/xml');
-  const DC = 'http://purl.org/dc/elements/1.1/';
-  return [...doc.getElementsByTagNameNS('http://www.openarchives.org/OAI/2.0/oai_dc/', 'dc')].map(r => {
-    const get = n => [...r.getElementsByTagNameNS(DC, n)].map(e => e.textContent.trim());
-    // Auteur : « Camus, Albert (1913-1960). Auteur du texte » → « Albert Camus »
-    const auteurs = get('creator').map(c => c.replace(/\s*\(.*$/, '').replace(/\..*$/, '').split(', ').reverse().join(' ').trim()).filter(Boolean);
-    // Titre : « L'Étranger / Albert Camus » ou « Dune (Trad. revue) Frank Herbert ; traduit… »
-    let titre = (get('title')[0] || '').split(' / ')[0];
-    if (auteurs[0] && titre.includes(auteurs[0])) titre = titre.slice(0, titre.indexOf(auteurs[0]));
-    titre = titre.split(' ; ')[0].replace(/\s*\([^)]*\)\s*$/, '').replace(/[\s:;,.]+$/, '').trim();
-    const pages = (get('format').join(' ').match(/(\d+)\s*p\./) || [])[1] || '';
-    const isbn = cleanIsbn((get('identifier').find(s => /^ISBN/.test(s)) || '').replace(/^ISBN\s*/, ''));
-    return {titre, auteur: auteurs.join(', '), pagesTotal: pages,
-      couverture: isbn ? 'https://covers.openlibrary.org/b/isbn/' + isbn + '-M.jpg?default=false' : ''};
-  }).filter(b => b.titre);
-}
-async function searchOnline(q) {
-  const settle = ps => Promise.allSettled(ps).then(rs => rs.flatMap(r => r.status === 'fulfilled' ? r.value : []));
-  const i = cleanIsbn(q);
-  let out;
-  if (i) {
-    const i10 = isbn10(i);
-    out = await settle([
-      fromBnf(`bib.isbn adj "${i}"` + (i10 && i10 !== i ? ` or bib.isbn adj "${i10}"` : ''), 3),
-      fromOpenLibraryIsbn(i),
-      fromGoogle('isbn:' + i)
-    ]);
-    // Couverture par l'ISBN si une source n'en a pas
-    const cover = (out.find(b => b.couverture && !b.couverture.includes('default=false')) || {}).couverture ||
-      'https://covers.openlibrary.org/b/isbn/' + i + '-M.jpg?default=false';
-    out.forEach(b => { if (!b.couverture) b.couverture = cover; if (!b.pagesTotal) b.pagesTotal = (out.find(x => x.pagesTotal) || {}).pagesTotal || ''; });
-  } else {
-    out = await settle([fromGoogle(q), fromOpenLibrarySearch(q)]);
-    if (!out.length) out = await settle([fromBnf(`bib.anywhere all "${q.replace(/"/g, '')}"`, 8)]);
-  }
-  // Retire les doublons (même titre + même auteur)
-  const seen = new Set();
-  const key = b => (b.titre + '|' + b.auteur).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').split(String.fromCharCode(8217)).join("'");
-  return out.filter(b => { const k = key(b); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 10);
-}
-
-/* ---------- Stockage sur l'appareil ---------- */
-function call(fn, ...args) { return Promise.resolve().then(() => Local[fn](...args)); }
-const LS = 'mes-lectures-data';
-const Local = {
-  load() { try { return JSON.parse(localStorage.getItem(LS)) || {books: [], goal: 0}; } catch (e) { return {books: [], goal: 0}; } },
-  store(d) {
-    try { localStorage.setItem(LS, JSON.stringify(d)); }
-    catch (e) { toast('Mémoire pleine : retire quelques photos de couverture'); throw e; }
-  },
-  getData() { return this.load(); },
-  saveBook(b) { const d = this.load(); const i = d.books.findIndex(x => x.id === b.id); if (i >= 0) d.books[i] = b; else d.books.push(b); this.store(d); return b; },
-  deleteBook(id) { const d = this.load(); d.books = d.books.filter(x => x.id !== id); this.store(d); return true; },
-  setGoal(n) { const d = this.load(); d.goal = n; this.store(d); return n; },
-  replaceAll(d) { this.store({books: d.books, goal: d.goal || 0}); return true; },
-  searchBooks(q) { return searchOnline(q); }
-};
 
 /* ---------- Affichage ---------- */
 function render() {
@@ -354,15 +358,18 @@ function render() {
   const on = $('#tabs .on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
   const s = streaks(activity()).cur;
   $('#flame').hidden = !s; $('#flame').textContent = '🔥 ' + s;
+  paintNotice(); paintTimerPill();
   if (ui.tab === 'stats') return renderStats();
   if (ui.tab === 'citations') return renderQuotesTab();
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
-  const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['note', 'Meilleure note']];
+  const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note']];
+  const owns = [['', 'Tous les livres'], ['a_moi', 'Ceux que j\'ai'], ['emprunte', 'Empruntés'], ['prete', 'Prêtés'], ['numerique', 'Numériques'], ['audio', 'Audio'], ['completer', 'À compléter']];
   const grid = prefs.view === 'grille';
   $('#main').innerHTML = `<div class="tools">
-      <input id="q" type="search" placeholder="Chercher un titre, un auteur…" value="${esc(ui.q)}">
+      <input id="q" type="search" placeholder="Chercher dans mes livres…" value="${esc(ui.q)}">
       <select id="genre"><option value="">Tous les genres</option>${genres.map(g => `<option value="${esc(g)}" ${g === ui.genre ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
+      <select id="own">${owns.map(([v, t]) => `<option value="${v}" ${v === ui.own ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="sort">${sorts.map(([v, t]) => `<option value="${v}" ${v === ui.sort ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? '☰' : '▦'}</button>
     </div><div class="list ${grid ? 'grid' : ''}" id="list"></div>`;
@@ -372,34 +379,44 @@ function render() {
 function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.dateFin : b.statut === 'en_cours' ? b.dateDebut : '') || b.ajoute || ''; }
 
 function renderCards() {
-  const q = ui.q.trim().toLowerCase();
+  const q = Recherche.norm(ui.q);
   let l = books.filter(b => b.statut === ui.tab);
-  if (q) l = l.filter(b => [b.titre, b.auteur, b.genre, b.avis].join(' ').toLowerCase().includes(q));
+  if (q) l = l.filter(b => Recherche.norm([b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom].join(' ')).includes(q));
   if (ui.genre) l = l.filter(b => b.genre === ui.genre);
+  if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
   const by = {
     recent: (a, b) => dateKey(b).localeCompare(dateKey(a)),
     titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
     auteur: (a, b) => (a.auteur || '').localeCompare(b.auteur || '', 'fr'),
+    serie: (a, b) => (a.serie || '~').localeCompare(b.serie || '~', 'fr') || (+a.tome || 0) - (+b.tome || 0) || a.titre.localeCompare(b.titre, 'fr'),
     note: (a, b) => (b.note || 0) - (a.note || 0)
   };
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
   $('#list').innerHTML = l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
-    `<div class="empty">${q || ui.genre ? 'Aucun livre ne correspond.' : EMPTY[ui.tab]}</div>`;
+    `<div class="empty">${q || ui.genre || ui.own ? 'Aucun livre ne correspond.' : EMPTY[ui.tab]}</div>`;
 }
 
 function progress(b) {
   const tot = +b.pagesTotal || 0, cur = +b.pageActuelle || 0;
   return {tot, cur, pct: tot ? Math.min(100, Math.round(cur / tot * 100)) : 0};
 }
-
+function loanChip(b) {
+  if (b.possession === 'prete') return `<span class="chip">📤 Prêté${b.pretNom ? ' à ' + esc(b.pretNom) : ''}</span>`;
+  if (b.possession === 'emprunte') {
+    const late = b.pretRetour && b.pretRetour < today(), soon = b.pretRetour && !late && b.pretRetour <= addDays(3);
+    return `<span class="chip ${late ? 'late' : soon ? 'warn' : ''}">📥 ${b.pretRetour ? (late ? 'En retard ! ' : 'À rendre le ') + fdate(b.pretRetour) : 'Emprunté'}</span>`;
+  }
+  return '';
+}
 function card(b) {
   let extra = '', acts = '';
   const fois = (b.historique || []).length;
   if (b.statut === 'en_cours') {
-    const p = progress(b);
-    extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
+    const p = progress(b), v = speed();
+    const reste = p.tot && v ? ` · ≈ ${fdur((p.tot - p.cur) / v * 60)} restantes` : '';
+    extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %${reste}</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
-    acts = `<button class="btn" data-act="pages">Où j'en suis</button><button class="btn" data-act="quote">＋ Citation</button><button class="btn pri" data-act="fini">J'ai fini ✓</button>`;
+    acts = `<button class="btn" data-act="timer">⏱️ Lire</button><button class="btn" data-act="pages">Où j'en suis</button><button class="btn" data-act="quote">＋ Citation</button><button class="btn pri" data-act="fini">J'ai fini ✓</button>`;
   } else if (b.statut === 'a_lire') {
     extra = b.pagesTotal ? `<div class="meta">${esc(b.pagesTotal)} pages</div>` : '';
     acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut">📌 ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
@@ -411,18 +428,34 @@ function card(b) {
     extra = `<div class="meta">${p.tot && p.cur ? `<span>Arrêté p. ${p.cur} / ${p.tot}</span>` : ''}${b.dateFin ? `<span>le ${fdate(b.dateFin)}</span>` : ''}</div>`;
     acts = `<button class="btn" data-act="resume">Reprendre</button>`;
   }
+  const chips = [b.aCompleter ? '<span class="chip warn">⚠️ À compléter</span>' : '', serieLabel(b) ? `<span class="chip">${esc(serieLabel(b))}</span>` : '',
+    b.genre ? `<span class="chip">${esc(b.genre)}</span>` : '', b.format !== 'papier' ? `<span class="chip">${FORMATS[b.format].split(' ')[0]}</span>` : '', loanChip(b)].join('');
   return `<article class="card" data-id="${esc(b.id)}">${coverHtml(b)}<div class="info">
       <div class="t">${b.epingle && b.statut === 'a_lire' ? '📌 ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
-      ${b.genre ? `<div class="meta"><span class="chip">${esc(b.genre)}</span></div>` : ''}
+      ${chips.trim() ? `<div class="meta">${chips}</div>` : ''}
       ${extra}${acts ? `<div class="acts">${acts}</div>` : ''}</div></article>`;
 }
-
 function gcard(b) {
   let extra = '';
   if (b.statut === 'en_cours') { const p = progress(b); if (p.tot) extra = `<div class="bar"><i style="width:${p.pct}%"></i></div>`; }
   if (b.statut === 'lu' && b.note) extra = `<div class="stars" style="font-size:.8rem">${stars(b.note)}</div>`;
-  return `<article class="gcard card-g" data-id="${esc(b.id)}">${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
-    <div class="t">${esc(b.titre)}</div>${extra}</article>`;
+  return `<article class="gcard" data-id="${esc(b.id)}">${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
+    <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${extra}</article>`;
+}
+
+/* ---------- Bandeau d'alerte (retours de prêt, sauvegarde) ---------- */
+function paintNotice() {
+  const bar = $('#notice');
+  const due = books.filter(b => b.possession === 'emprunte' && b.pretRetour && b.pretRetour <= addDays(3)).sort((a, b) => a.pretRetour.localeCompare(b.pretRetour))[0];
+  const last = prefs.lastBackup, late = books.length >= 3 && (!last || Date.now() - new Date(last) > 30 * 864e5);
+  if (due) {
+    const lateRet = due.pretRetour < today();
+    bar.innerHTML = `📥 « ${esc(due.titre)} » ${lateRet ? 'devait être rendu le' : 'est à rendre le'} <b>${fdate(due.pretRetour)}</b> <button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
+    bar.hidden = false;
+  } else if (late) {
+    bar.innerHTML = `💾 ${last ? 'Ta dernière sauvegarde date de plus d\'un mois.' : 'Pense à sauvegarder tes livres.'} <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
+    bar.hidden = false;
+  } else bar.hidden = true;
 }
 
 /* ---------- Onglet Citations ---------- */
@@ -431,9 +464,9 @@ function renderQuotesTab() {
   renderQuotes();
 }
 function renderQuotes() {
-  const q = ui.cq.trim().toLowerCase();
+  const q = Recherche.norm(ui.cq);
   let l = allQuotes();
-  if (q) l = l.filter(x => [x.q.texte, x.b.titre, x.b.auteur].join(' ').toLowerCase().includes(q));
+  if (q) l = l.filter(x => Recherche.norm([x.q.texte, x.b.titre, x.b.auteur].join(' ')).includes(q));
   l.sort((a, b) => (b.q.date || '').localeCompare(a.q.date || ''));
   $('#qlist').innerHTML = l.length ? l.map(x => `<article class="quote" data-book="${esc(x.b.id)}"><p>« ${esc(x.q.texte)} »</p>
       <div class="a">— <b>${esc(x.b.titre)}</b>${x.b.auteur ? ', ' + esc(x.b.auteur) : ''}${x.q.page ? ' · p. ' + esc(x.q.page) : ''}</div></article>`).join('')
@@ -451,14 +484,17 @@ function renderStats() {
   const noted = ly.filter(r => r.note > 0);
   const moy = noted.length ? noted.reduce((s, r) => s + r.note, 0) / noted.length : 0;
   const act = activity(), st = streaks(act);
+  const ses = allSessions(), sesY = ses.filter(s => (s.date || '').startsWith(String(y)));
+  const minY = sesY.reduce((s, x) => s + (+x.min || 0), 0), v = speed();
 
-  // Pages lues : 8 dernières semaines (lundi → dimanche)
   const monday = new Date(); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
   const weeks = [];
-  for (let w = 7; w >= 0; w--) { const s = new Date(monday); s.setDate(s.getDate() - 7 * w); weeks.push({start: s, n: 0}); }
-  Object.entries(act).forEach(([k, n]) => { const d = new Date(k + 'T00:00'); const w = weeks.findIndex(x => d >= x.start && d - x.start < 7 * 864e5); if (w >= 0) weeks[w].n += n; });
+  for (let w = 7; w >= 0; w--) { const s = new Date(monday); s.setDate(s.getDate() - 7 * w); weeks.push({start: s, n: 0, min: 0}); }
+  const wk = k => { const d = new Date(k + 'T00:00'); return weeks.findIndex(x => d >= x.start && d - x.start < 7 * 864e5); };
+  Object.entries(act).forEach(([k, n]) => { const w = wk(k); if (w >= 0) weeks[w].n += Math.round(n); });
+  ses.forEach(s => { const w = wk(s.date); if (w >= 0) weeks[w].min += +s.min || 0; });
   const wmax = Math.max(1, ...weeks.map(w => w.n));
-  const thisWeek = weeks[7].n;
+  const thisWeek = weeks[7];
 
   const perM = Array(12).fill(0); ly.forEach(r => { const m = +r.fin.slice(5, 7); if (m) perM[m - 1]++; });
   const max = Math.max(1, ...perM);
@@ -468,32 +504,58 @@ function renderStats() {
   const s = ly.length > 1 ? 's' : '';
 
   $('#main').innerHTML = `
-    <div class="tools"><select id="year" aria-label="Année">${years.map(v => `<option ${v === y ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div class="tools"><select id="year" aria-label="Année">${years.map(v2 => `<option ${v2 === y ? 'selected' : ''}>${v2}</option>`).join('')}</select></div>
     <div class="tiles">
       <div class="tile"><b>${ly.length}</b><span>livre${s} lu${s} en ${y}</span></div>
       <div class="tile"><b>${pages.toLocaleString('fr-FR')}</b><span>pages lues en ${y}</span></div>
       <div class="tile"><b>${moy ? moy.toFixed(1).replace('.', ',') : '–'}</b><span>note moyenne / 5</span></div>
       <div class="tile"><b>🔥 ${st.cur}</b><span>jour${st.cur > 1 ? 's' : ''} d'affilée · record ${st.best}</span></div>
+      <div class="tile"><b>${minY ? fdur(minY) : '–'}</b><span>de lecture chronométrée en ${y}</span></div>
+      <div class="tile"><b>${v ? Math.round(v) : '–'}</b><span>pages par heure${v ? '' : ' (utilise ⏱️ Lire)'}</span></div>
     </div>
     ${y === thisYear ? `<div class="panel"><h3>Mon objectif ${y}</h3>
       ${goal ? `<div class="meta" style="margin-bottom:6px">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
              : '<div class="a">Pas encore d\'objectif. Combien de livres veux-tu lire cette année ?</div>'}
       <div class="search" style="margin-top:10px"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
     <div class="panel"><h3>Pages lues par semaine</h3>
-      <div class="a" style="margin:-4px 0 8px">Cette semaine : <b>${plural(thisWeek, 'page')}</b>${thisWeek ? ` · ${Math.round(thisWeek / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
+      <div class="a" style="margin:-4px 0 8px">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
       <div class="chart green">${weeks.map(w => `<div><div class="col"><em>${w.n || ''}</em><i style="height:${w.n / wmax * 100}%"></i></div>${w.start.getDate()}/${w.start.getMonth() + 1}</div>`).join('')}</div>
-      <div class="a" style="font-size:.78rem;margin-top:6px">Compté à partir des pages que tu notes avec « Où j'en suis ».</div></div>
+      <div class="a" style="font-size:.78rem;margin-top:6px">Compté avec « Où j'en suis » et « ⏱️ Lire ».</div></div>
     <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
       `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
     <div class="panel"><h3>Par genre</h3>${gl.length ? gl.map(([k, n]) =>
       `<div class="hb"><span>${esc(k)}</span><div class="bar"><i style="width:${n / gl[0][1] * 100}%"></i></div><span>${n}</span></div>`).join('')
       : `<div class="a">Aucun livre fini en ${y}.</div>`}</div>
+    ${seriesPanel()}
+    ${loansPanel()}
     ${bilan(y, ly)}
     <div class="panel"><h3>Exporter ma liste</h3><div class="a" style="margin-bottom:10px">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
       <div class="acts"><button class="btn pri" data-export="excel">📊 Excel</button><button class="btn pri" data-export="pdf">📄 PDF</button></div></div>
     <div class="panel"><h3>💾 Sauvegarde</h3><div class="a" style="margin-bottom:10px">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
       (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
       <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>`;
+}
+
+function seriesPanel() {
+  const m = {};
+  books.filter(b => b.serie).forEach(b => { const k = Recherche.norm(b.serie); (m[k] = m[k] || {nom: b.serie, l: []}).l.push(b); });
+  const list = Object.values(m).filter(x => x.l.length >= 1).sort((a, b) => b.l.length - a.l.length);
+  if (!list.length) return '';
+  return `<div class="panel"><h3>📚 Mes séries</h3><div class="lines">${list.slice(0, 15).map(x => {
+    const tomes = x.l.map(b => +b.tome).filter(Boolean).sort((a, b) => a - b);
+    const lus = x.l.filter(b => b.statut === 'lu').length;
+    const maxT = tomes.length ? tomes[tomes.length - 1] : 0;
+    const manque = []; for (let t = 1; t < maxT && manque.length < 6; t++) if (!tomes.includes(t)) manque.push(t);
+    return `<div class="line" data-serie="${esc(x.nom)}"><div class="grow"><b>${esc(x.nom)}</b><div class="a" style="font-size:.84rem">${plural(x.l.length, 'tome')}${tomes.length ? ' (' + (tomes.length > 6 ? tomes[0] + ' à ' + maxT : tomes.join(', ')) + ')' : ''} · ${lus} lu${lus > 1 ? 's' : ''}${manque.length ? ' · il manque : ' + manque.join(', ') : ''}</div></div>
+      ${maxT ? `<button class="btn small" data-next="${esc(x.nom)}|${maxT + 1}">＋ T.${maxT + 1}</button>` : ''}</div>`;
+  }).join('')}</div></div>`;
+}
+
+function loansPanel() {
+  const l = books.filter(b => b.possession === 'prete' || b.possession === 'emprunte');
+  if (!l.length) return '';
+  return `<div class="panel"><h3>Prêts et emprunts</h3><div class="lines">${l.map(b =>
+    `<div class="line" data-open="${esc(b.id)}">${coverHtml(b, 'mini')}<div class="grow"><b>${esc(b.titre)}</b><div class="meta">${loanChip(b)}</div></div></div>`).join('')}</div></div>`;
 }
 
 function bilan(y, ly) {
@@ -540,17 +602,11 @@ function backupInfo() {
   const days = Math.floor((Date.now() - new Date(last)) / 864e5);
   return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.`;
 }
-function paintBackupBar() {
-  const last = prefs.lastBackup, bar = $('#backupBar');
-  const late = books.length >= 3 && (!last || Date.now() - new Date(last) > 30 * 864e5);
-  bar.hidden = !late;
-  if (late) bar.innerHTML = `💾 ${last ? 'Ta dernière sauvegarde date de plus d\'un mois.' : 'Pense à sauvegarder tes livres.'} <button class="btn pri" data-export="backup">Sauvegarder</button>`;
-}
-
 function doExport(kind) {
   if (kind === 'excel') {
-    const rows = [['Titre', 'Auteur', 'Statut', 'Genre', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Mon avis']]
-      .concat(sortedBooks().map(b => [b.titre, b.auteur, STATUT_UN[b.statut], b.genre, b.note || '', fdShort(b.dateDebut), fdShort(b.dateFin), b.pagesTotal, b.avis]));
+    const rows = [['Titre', 'Auteur', 'Série', 'Tome', 'Statut', 'Genre', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Éditeur', 'Année', 'ISBN', 'Format', 'Possession', 'Mon avis']]
+      .concat(sortedBooks().map(b => [b.titre, b.auteur, b.serie, b.tome, STATUT_UN[b.statut], b.genre, b.note || '', fdShort(b.dateDebut), fdShort(b.dateFin),
+        b.pagesTotal, b.editeur, b.annee, b.isbn, (FORMATS[b.format] || '').slice(3), POSSESSION[b.possession] + (b.pretNom ? ' : ' + b.pretNom : ''), b.avis]));
     const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
     download('mes-lectures.csv', csv, 'text/csv;charset=utf-8');
     toast('Fichier Excel téléchargé');
@@ -559,20 +615,19 @@ function doExport(kind) {
     const quotes = allQuotes();
     $('#print').innerHTML = `<h1>📚 Mes lectures</h1><div>Liste du ${fdate(today())} · ${plural(books.length, 'livre')}</div>` +
       groups.map(([k, l]) => `<h2>${STATUTS[k]} (${l.length})</h2><table><tr><th>Titre</th><th>Auteur</th><th>Genre</th><th>Note</th><th>Fini le</th></tr>${l.map(b =>
-        `<tr><td><b>${esc(b.titre)}</b>${b.avis ? `<br><i>${esc(b.avis)}</i>` : ''}</td><td>${esc(b.auteur)}</td><td>${esc(b.genre)}</td><td>${stars(b.note)}</td><td>${fdShort(b.dateFin)}</td></tr>`).join('')}</table>`).join('') +
+        `<tr><td><b>${esc(b.titre)}</b>${serieLabel(b) ? ' <i>(' + esc(serieLabel(b)) + ')</i>' : ''}${b.avis ? `<br><i>${esc(b.avis)}</i>` : ''}</td><td>${esc(b.auteur)}</td><td>${esc(b.genre)}</td><td>${stars(b.note)}</td><td>${fdShort(b.dateFin)}</td></tr>`).join('')}</table>`).join('') +
       (quotes.length ? `<h2>Citations (${quotes.length})</h2>${quotes.map(x => `<blockquote>« ${esc(x.q.texte)} » — ${esc(x.b.titre)}${x.q.page ? ', p. ' + esc(x.q.page) : ''}</blockquote>`).join('')}` : '');
     window.print();
   } else if (kind === 'backup') {
-    const data = {app: 'mes-lectures', version: 1, date: new Date().toISOString(), goal, books};
+    const data = {app: 'mes-lectures', version: 2, date: new Date().toISOString(), goal, books};
     download(`mes-lectures-sauvegarde-${today()}.json`, JSON.stringify(data), 'application/json');
-    prefs.lastBackup = new Date().toISOString(); savePrefs(); paintBackupBar();
+    prefs.lastBackup = new Date().toISOString(); savePrefs(); paintNotice();
     if (ui.tab === 'stats') renderStats();
     toast('Sauvegarde téléchargée 💾');
   } else if (kind === 'restore') {
     $('#pick_backup').value = ''; $('#pick_backup').click();
   }
 }
-
 $('#pick_backup').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   let d;
@@ -585,38 +640,47 @@ $('#pick_backup').onchange = async e => {
   showM();
   $('#r_ok').onclick = async () => {
     closeM();
-    try {
-      await call('replaceAll', d);
-      books = d.books.map(norm); goal = +d.goal || 0;
-      render(); paintBackupBar(); toast('Livres restaurés ✓');
-    } catch (err) { toast('Restauration impossible'); }
+    books = d.books.map(norm); goal = +d.goal || 0;
+    await Store.persist(); render(); toast('Livres restaurés ✓');
   };
 };
 
 /* ---------- Enregistrer / supprimer ---------- */
-async function save(b, msg) {
+function save(b, msg, action) {
   if (!b.id) b.id = newId();
   if (!b.ajoute) b.ajoute = new Date().toISOString();
-  const i = books.findIndex(x => x.id === b.id), prev = i >= 0 ? books[i] : null;
+  const i = books.findIndex(x => x.id === b.id);
   if (i >= 0) books[i] = b; else books.push(b);
-  render(); if (msg) toast(msg);
-  try { await call('saveBook', b); }
-  catch (e) {
-    if (prev) books[books.findIndex(x => x.id === b.id)] = prev; else books = books.filter(x => x.id !== b.id);
-    render(); toast('Oups, pas enregistré. Réessaie.');
-  }
+  render(); if (msg) toast(msg, action);
+  return Store.persist();
 }
-
-async function remove(b) {
+function remove(b) {
   const i = books.findIndex(x => x.id === b.id); if (i < 0) return;
-  books.splice(i, 1); render(); toast('Livre supprimé');
-  try { await call('deleteBook', b.id); }
-  catch (e) { books.splice(i, 0, b); render(); toast('Oups, pas supprimé. Réessaie.'); }
+  books.splice(i, 1); render(); Store.persist();
+  toast('Livre supprimé', {label: 'Annuler', fn: () => { books.splice(Math.min(i, books.length), 0, b); render(); Store.persist(); toast('Livre remis ✓'); }});
+}
+function blankBook(statut) {
+  return {titre: '', auteur: '', genre: '', note: 0, couverture: '', statut, citations: [], journal: [], historique: [], sessions: [],
+    format: 'papier', possession: statut === 'a_lire' ? 'non' : 'a_moi'};
+}
+function bookFrom(x, statut) {
+  const b = {...blankBook(statut), titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '',
+    pagesTotal: x.pagesTotal || '', isbn: x.isbn || '', editeur: x.editeur || '', annee: x.annee || '', genre: x.genre || '', possession: 'a_moi'};
+  if (statut === 'en_cours') { b.dateDebut = today(); logPage(b, 0); }
+  return b;
+}
+// Ce livre est-il déjà dans ma liste ? (même ISBN, ou même titre + auteur, et même tome si les deux en ont un)
+function findOwned(x, exceptId) {
+  const n = Recherche.norm, sn = Recherche.surname;
+  const sameTome = b => !b.tome || !x.tome || String(b.tome) === String(x.tome);
+  const sameTitle = b => n(b.titre) === n(x.titre) || (b.serie && x.serie && b.tome && x.tome && n(b.serie) === n(x.serie));
+  return books.find(b => b.id !== exceptId && x.isbn && b.isbn === x.isbn) ||
+    books.find(b => b.id !== exceptId && !b.aCompleter && sameTitle(b) && sameTome(b) && (!sn(b.auteur) || !sn(x.auteur) || sn(b.auteur) === sn(x.auteur)));
 }
 
 function quick(act, b) {
   if (act === 'start' || act === 'resume') {
-    const nb = {...b, statut: 'en_cours', dateDebut: act === 'start' ? (b.dateDebut || today()) : b.dateDebut || today(), dateFin: ''};
+    const nb = {...b, statut: 'en_cours', dateDebut: b.dateDebut || today(), dateFin: ''};
     logPage(nb, nb.pageActuelle || 0);
     save(nb, act === 'start' ? 'Bonne lecture ! 📖' : 'C\'est reparti ! 📖');
   }
@@ -624,6 +688,17 @@ function quick(act, b) {
   else if (act === 'fini') openForm({...b, statut: 'lu', dateFin: today(), pageActuelle: b.pagesTotal || b.pageActuelle}, {finish: true});
   else if (act === 'pages') openPage(b);
   else if (act === 'quote') openQuote(b);
+  else if (act === 'timer') startTimer(b);
+}
+// Après avoir fini un tome : proposer le suivant
+function afterFinish(b) {
+  if (!b.serie || !b.tome) return;
+  const next = +b.tome + 1;
+  if (books.some(x => Recherche.norm(x.serie) === Recherche.norm(b.serie) && +x.tome === next)) return;
+  setTimeout(() => toast(`Fini ! Ajouter le tome ${next} de ${b.serie} ?`, {label: '＋ Tome ' + next, fn: () => addNextTome(b.serie, next)}), 900);
+}
+function addNextTome(serie, n) {
+  openForm(null, {statut: 'a_lire', query: serie + ' ' + n});
 }
 
 /* ---------- Fenêtres ---------- */
@@ -665,26 +740,33 @@ function openQuote(b) {
   };
 }
 
+/* ---------- Fiche d'un livre (ajout / modification) ---------- */
 function openForm(b, opts) {
   opts = opts || {};
   const isNew = !b;
-  const startStatut = ['en_cours', 'a_lire', 'lu', 'abandon'].includes(ui.tab) ? ui.tab : 'a_lire';
-  form = b ? {...b, citations: [...(b.citations || [])]} : {titre: '', auteur: '', genre: '', note: 0, couverture: '', statut: startStatut, citations: [], journal: [], historique: []};
+  const startStatut = opts.statut || (['en_cours', 'a_lire', 'lu', 'abandon'].includes(ui.tab) ? ui.tab : 'a_lire');
+  form = b ? {...b, citations: [...(b.citations || [])]} : blankBook(startStatut);
   if (isNew && form.statut === 'en_cours') form.dateDebut = today();
   if (isNew && (form.statut === 'lu' || form.statut === 'abandon')) form.dateFin = today();
   const genres = [...new Set([...GENRES, ...books.map(x => x.genre).filter(Boolean)])];
   const hist = form.historique || [];
+  const searchOpen = isNew || form.aCompleter;
   $('#modal').innerHTML = `
     <h2>${opts.finish ? 'Bravo, livre terminé ! 🎉' : isNew ? 'Ajouter un livre' : 'Modifier le livre'}</h2>
-    <details ${isNew ? 'open' : ''}><summary>🔎 Chercher le livre en ligne (remplit tout seul)</summary>
-      <div class="search"><input id="s_q" type="search" placeholder="Titre, auteur ou ISBN…" enterkeyhint="search" value="${isNew ? '' : esc(form.titre + ' ' + (form.auteur || ''))}">
+    <details ${searchOpen ? 'open' : ''}><summary>🔎 ${isNew ? 'Chercher le livre (remplit tout seul)' : 'Compléter les infos depuis internet'}</summary>
+      <div class="search"><input id="s_q" type="search" placeholder="Titre, auteur ou ISBN…" enterkeyhint="search" value="${esc(opts.query || (isNew ? '' : (form.aCompleter && form.isbn ? form.isbn : (form.isbn || (form.titre + ' ' + (form.auteur || ''))))))}">
       <button class="btn pri" id="s_go" type="button">Chercher</button></div>
       <div style="margin-top:8px"><button class="btn" id="s_scan" type="button">📷 Scanner le code-barres</button></div>
+      <div class="srcs" id="s_st"></div>
       <div class="res" id="s_res"></div></details>
     <div class="prev" id="prev"></div>
     <div class="search" id="linkbox" hidden style="margin-bottom:12px"><input id="f_link" placeholder="Coller le lien d'une image (https://…)"><button class="btn" id="f_linkok" type="button">OK</button></div>
-    <div class="f"><label for="f_titre">Titre *</label><input id="f_titre" value="${esc(form.titre)}"></div>
+    <div class="f"><label for="f_titre">Titre *</label><input id="f_titre" value="${esc(form.aCompleter ? '' : form.titre)}" placeholder="${form.aCompleter ? 'Titre du livre' : ''}"></div>
     <div class="f"><label for="f_auteur">Auteur</label><input id="f_auteur" value="${esc(form.auteur)}"></div>
+    <div class="row">
+      <div class="f"><label for="f_serie">Série</label><input id="f_serie" value="${esc(form.serie)}" placeholder="Si le livre fait partie d'une série"></div>
+      <div class="f small"><label for="f_tome">Tome</label><input id="f_tome" type="number" min="0" inputmode="numeric" value="${esc(form.tome)}"></div>
+    </div>
     <div class="row">
       <div class="f"><label for="f_statut">Statut</label><select id="f_statut">${Object.keys(STATUT_UN).map(k => `<option value="${k}" ${k === form.statut ? 'selected' : ''}>${STATUT_UN[k]}</option>`).join('')}</select></div>
       <div class="f"><label for="f_genre">Genre</label><input id="f_genre" list="dl_genres" value="${esc(form.genre)}" placeholder="Choisir ou écrire"><datalist id="dl_genres">${genres.map(g => `<option value="${esc(g)}">`).join('')}</datalist></div>
@@ -703,11 +785,26 @@ function openForm(b, opts) {
     <div class="f"><span class="lbl">Citations</span><div class="qlist" id="f_quotes"></div>
       <textarea id="f_qt" rows="2" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
       <div class="search"><input id="f_qp" type="number" min="0" inputmode="numeric" placeholder="Page" style="max-width:110px"><button class="btn" id="f_qadd" type="button">＋ Ajouter la citation</button></div></div>
+    <details ${form.possession === 'prete' || form.possession === 'emprunte' ? 'open' : ''}><summary>📦 Format, prêt et infos d'édition</summary>
+      <div class="row">
+        <div class="f"><label for="f_format">Format</label><select id="f_format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}" ${k === form.format ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div class="f"><label for="f_pos">Je l'ai ?</label><select id="f_pos">${Object.entries(POSSESSION).map(([k, v]) => `<option value="${k}" ${k === form.possession ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      </div>
+      <div class="row" id="loanRow">
+        <div class="f"><label for="f_pnom" id="l_pnom">Prêté à</label><input id="f_pnom" value="${esc(form.pretNom)}"></div>
+        <div class="f"><label for="f_pret">À rendre le</label><input id="f_pret" type="date" value="${esc(form.pretRetour)}"></div>
+      </div>
+      <div class="row">
+        <div class="f"><label for="f_isbn">ISBN</label><input id="f_isbn" inputmode="numeric" value="${esc(form.isbn)}"></div>
+        <div class="f"><label for="f_edit">Éditeur</label><input id="f_edit" value="${esc(form.editeur)}"></div>
+        <div class="f small"><label for="f_annee">Année</label><input id="f_annee" inputmode="numeric" value="${esc(form.annee)}"></div>
+      </div>
+    </details>
     <div class="mfoot">${isNew ? '' : '<button class="btn del" id="f_del" type="button">Supprimer</button>'}
       ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button">🔁 Relire</button>' : ''}<span class="sp"></span>
       <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
   showM();
-  syncShow(); paintStars(); paintPrev(); paintQuotes();
+  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan();
 
   $('#f_statut').onchange = () => {
     const s = $('#f_statut').value;
@@ -715,22 +812,21 @@ function openForm(b, opts) {
     if ((s === 'lu' || s === 'abandon') && !$('#f_fin').value) $('#f_fin').value = today();
     syncShow();
   };
+  $('#f_pos').onchange = syncLoan;
+  $('#f_titre').oninput = () => { if (!coverList(form).length) paintPrev(); };
   $('#f_note').onclick = e => { const n = +(e.target.dataset.n || 0); if (!n) return; form.note = form.note === n ? 0 : n; paintStars(); };
-  $('#s_go').onclick = doSearch;
+  $('#s_go').onclick = () => doSearch();
   $('#s_q').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } };
   $('#s_scan').onclick = openScanner;
   $('#s_res').onclick = e => {
-    const btn = e.target.closest('[data-res]'); if (!btn) return;
-    const x = lastRes[+btn.dataset.res];
-    $('#f_titre').value = x.titre; $('#f_auteur').value = x.auteur || '';
-    if (x.pagesTotal) $('#f_total').value = x.pagesTotal;
-    form.couverture = x.couverture || form.couverture || '';
-    $('#s_res').innerHTML = ''; paintPrev(); toast('Infos remplies ✓');
+    const op = e.target.closest('[data-openown]'); if (op) { const o = books.find(x => x.id === op.dataset.openown); closeM(); if (o) openForm(o); return; }
+    const any = e.target.closest('[data-anyway]'); if (any) return fillFrom(lastRes[+any.dataset.anyway]);
+    const btn = e.target.closest('[data-res]'); if (btn) pickResult(+btn.dataset.res);
   };
   $('#f_linkok').onclick = () => {
     const u = $('#f_link').value.trim();
     if (!/^https:\/\//i.test(u)) return toast('Le lien doit commencer par https://');
-    form.couverture = u; $('#linkbox').hidden = true; paintPrev();
+    form.couverture = u; form._covers = null; $('#linkbox').hidden = true; paintPrev();
   };
   $('#f_qadd').onclick = () => {
     const texte = $('#f_qt').value.trim(); if (!texte) return toast('Écris la citation');
@@ -738,16 +834,20 @@ function openForm(b, opts) {
     $('#f_qt').value = ''; $('#f_qp').value = ''; paintQuotes();
   };
   $('#f_quotes').onclick = e => { const x = e.target.closest('[data-qdel]'); if (x) { form.citations.splice(+x.dataset.qdel, 1); paintQuotes(); } };
-  $('#f_save').onclick = () => {
+  $('#f_save').onclick = async () => {
     collect();
     if (!form.titre) { toast('Il faut au moins un titre'); $('#f_titre').focus(); return; }
-    const orig = books.find(x => x.id === form.id) || {};
-    if (form.statut === 'lu' && form.pagesTotal && !form.pageActuelle) form.pageActuelle = form.pagesTotal;
-    if (form.statut === 'en_cours' && (orig.statut !== 'en_cours' || +orig.pageActuelle !== +form.pageActuelle)) logPage(form, form.pageActuelle || 0);
-    if (form.statut === 'lu' && orig.statut !== 'lu' && form.pagesTotal) logPage(form, form.pagesTotal);
-    const b2 = form, moved = orig.statut && orig.statut !== b2.statut;
+    const f = form;
+    if (!f.couverture && (f._covers || []).length) { $('#f_save').textContent = 'Couverture…'; f.couverture = await Promise.race([Recherche.couverture(f._covers), new Promise(r => setTimeout(() => r(''), 3500))]); }
+    delete f._covers;
+    const orig = books.find(x => x.id === f.id) || {};
+    if (f.statut === 'lu' && f.pagesTotal && !f.pageActuelle) f.pageActuelle = f.pagesTotal;
+    if (f.statut === 'en_cours' && (orig.statut !== 'en_cours' || +orig.pageActuelle !== +f.pageActuelle)) logPage(f, f.pageActuelle || 0);
+    if (f.statut === 'lu' && orig.statut !== 'lu' && f.pagesTotal) logPage(f, f.pagesTotal);
+    const moved = orig.statut && orig.statut !== f.statut;
     closeM();
-    save(b2, !orig.statut || moved ? `Rangé dans « ${STATUTS[b2.statut]} »` : 'Enregistré ✓');
+    save(f, !orig.statut || moved ? `Rangé dans « ${STATUTS[f.statut]} »` : 'Enregistré ✓');
+    if (f.statut === 'lu' && orig.statut !== 'lu') afterFinish(f);
   };
   const del = $('#f_del');
   if (del) del.onclick = () => {
@@ -761,25 +861,38 @@ function openForm(b, opts) {
       statut: 'en_cours', dateDebut: today(), dateFin: '', pageActuelle: 0, note: 0};
     logPage(nb, 0); closeM(); save(nb, 'Bonne relecture ! 🔁');
   };
-  if (isNew) $('#s_q').focus();
+  if (opts.query) doSearch();
+  else if (isNew) $('#s_q').focus();
 }
 
 function collect() {
   const num = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? '' : n; };
   Object.assign(form, {
     titre: $('#f_titre').value.trim(), auteur: $('#f_auteur').value.trim(), statut: $('#f_statut').value,
+    serie: $('#f_serie').value.trim(), tome: num($('#f_tome').value),
     genre: $('#f_genre').value.trim(), pageActuelle: num($('#f_page').value), pagesTotal: num($('#f_total').value),
-    dateDebut: $('#f_debut').value, dateFin: $('#f_fin').value, avis: $('#f_avis').value.trim()
+    dateDebut: $('#f_debut').value, dateFin: $('#f_fin').value, avis: $('#f_avis').value.trim(),
+    format: $('#f_format').value, possession: $('#f_pos').value, pretNom: $('#f_pnom').value.trim(), pretRetour: $('#f_pret').value,
+    isbn: Recherche.toIsbn13($('#f_isbn').value) || $('#f_isbn').value.replace(/[^0-9X]/gi, ''), editeur: $('#f_edit').value.trim(), annee: $('#f_annee').value.trim()
   });
   const pending = $('#f_qt').value.trim();
   if (pending) form.citations.push({texte: pending, page: $('#f_qp').value, date: today()});
   if (form.statut !== 'lu' && form.statut !== 'abandon') form.dateFin = '';
   if (form.statut !== 'a_lire') form.epingle = false;
+  if (!['prete', 'emprunte'].includes(form.possession)) { form.pretNom = ''; form.pretRetour = ''; }
+  if (!form.serie) form.tome = '';
+  if (form.titre) form.aCompleter = false;
 }
 function syncShow() {
   const s = $('#f_statut').value;
   document.querySelectorAll('#modal [data-show]').forEach(el => el.hidden = !el.dataset.show.split(' ').includes(s));
   $('#l_fin').textContent = s === 'abandon' ? 'Arrêté le' : 'Fini le';
+}
+function syncLoan() {
+  const p = $('#f_pos').value;
+  $('#loanRow').hidden = !['prete', 'emprunte'].includes(p);
+  $('#l_pnom').textContent = p === 'prete' ? 'Prêté à' : 'Emprunté à (médiathèque, ami…)';
+  if (p === 'emprunte' && !$('#f_pret').value) $('#f_pret').value = addDays(21);
 }
 function paintStars() { document.querySelectorAll('#f_note button').forEach(b => b.classList.toggle('on', +b.dataset.n <= (form.note || 0))); }
 function paintQuotes() {
@@ -787,26 +900,91 @@ function paintQuotes() {
     `<div class="q"><p>« ${esc(q.texte)} »${q.page ? ` <span class="a">p. ${esc(q.page)}</span>` : ''}</p><button type="button" data-qdel="${i}" title="Retirer" aria-label="Retirer la citation">✕</button></div>`).join('');
 }
 function paintPrev() {
-  const has = !!safeUrl(form.couverture);
-  $('#prev').innerHTML = coverHtml({titre: ($('#f_titre') && $('#f_titre').value) || form.titre || '?', couverture: form.couverture}, 'big') +
+  const has = coverList(form).length > 0;
+  $('#prev').innerHTML = coverHtml({titre: ($('#f_titre') && $('#f_titre').value) || form.titre || '?', couverture: form.couverture, _covers: form._covers}, 'big') +
     `<div class="btns"><button class="btn" type="button" id="f_photo">📷 ${has ? 'Changer la' : 'Ajouter une'} couverture</button>
      <button class="btn" type="button" id="f_linkbtn">🔗 Lien d'image</button>
      ${has ? '<button class="btn" type="button" id="f_nocov">Retirer</button>' : ''}</div>`;
   $('#f_photo').onclick = () => { $('#pick_cover').value = ''; $('#pick_cover').click(); };
   $('#f_linkbtn').onclick = () => { $('#linkbox').hidden = !$('#linkbox').hidden; if (!$('#linkbox').hidden) $('#f_link').focus(); };
-  const x = $('#f_nocov'); if (x) x.onclick = () => { form.couverture = ''; paintPrev(); };
+  const x = $('#f_nocov'); if (x) x.onclick = () => { form.couverture = ''; form._covers = null; paintPrev(); };
 }
-async function doSearch() {
+
+/* ---------- Recherche dans la fiche ---------- */
+const SRC_ICON = {ok: '<span class="ok">✓</span>', rien: '–', attente: '…', quota: '<span class="ko">⛔</span>', erreur: '<span class="ko">✗</span>'};
+function statusHtml(st) { return Object.entries(st).map(([k, v]) => `<span>${esc(k)} ${SRC_ICON[v] || ''}</span>`).join(''); }
+function resultHtml(x, i) {
+  const own = findOwned(x, form && form.id);
+  const meta = [x.auteur || 'Auteur inconnu', [x.editeur, x.annee].filter(Boolean).join(' '), x.pagesTotal ? x.pagesTotal + ' p.' : ''].filter(Boolean).join(' · ');
+  const sous = x.sousTitre && x.sousTitre.length < 70 ? ` <span class="a">— ${esc(x.sousTitre)}</span>` : '';
+  return `<button type="button" class="r" data-res="${i}">${coverHtml(x, 'rc')}<span><b>${esc(x.titre)}</b>${sous}<br>
+    ${serieLabel(x) ? `<span class="chip">${esc(serieLabel(x))}</span> ` : ''}<span class="a">${esc(meta)}</span>
+    ${own ? `<br><span class="own">✓ Déjà dans ta liste (${STATUT_UN[own.statut]})</span>` : ''}</span></button>`;
+}
+async function doSearch(auto) {
   const q = $('#s_q').value.trim(); if (!q) return;
-  const box = $('#s_res'); box.innerHTML = '<div class="a">Recherche…</div>';
-  try {
-    lastRes = (await call('searchBooks', q)) || [];
-    box.innerHTML = lastRes.length ? lastRes.map((x, i) =>
-      `<button type="button" data-res="${i}">${coverHtml(x, 'rc')}<span><b>${esc(x.titre)}</b><br><span class="a">${esc(x.auteur || 'Auteur inconnu')}${x.pagesTotal ? ' · ' + esc(x.pagesTotal) + ' p.' : ''}</span></span></button>`).join('')
-      : cleanIsbn(q)
-        ? `<div class="a">Code lu (<b>${esc(q)}</b>), mais ce livre n'est dans aucune base en ligne.<br>Tape plutôt son <b>titre</b> dans la recherche, ou remplis la fiche à la main.</div>`
-        : '<div class="a">Rien trouvé. Essaie avec moins de mots (juste le titre), ou remplis à la main.</div>';
-  } catch (e) { box.innerHTML = '<div class="a">Recherche impossible pour l\'instant. Remplis à la main.</div>'; }
+  const box = $('#s_res'), tok = (doSearch.tok = (doSearch.tok || 0) + 1);
+  const isbn = Recherche.toIsbn13(q);
+  if (!isbn && Recherche.looksLikeIsbn(q) && !/[a-z]/i.test(q.replace(/isbn/i, ''))) {
+    box.innerHTML = '<div class="hint">⚠️ Ce numéro ISBN n\'est pas valide : un chiffre est sûrement faux. Vérifie les chiffres sous le code-barres.</div>';
+    $('#s_st').innerHTML = ''; return;
+  }
+  box.innerHTML = '<div class="a">Recherche dans les catalogues…</div>';
+  const onSt = st => { if (tok === doSearch.tok && $('#s_st')) $('#s_st').innerHTML = statusHtml(st); };
+  let res = [];
+  try { res = isbn ? await Recherche.parIsbn(isbn, onSt) : await Recherche.parTexte(q, onSt); } catch (e) {}
+  if (tok !== doSearch.tok || !form) return;
+  lastRes = res;
+  if (res.length) {
+    box.innerHTML = res.map(resultHtml).join('');
+    if (isbn && auto && res.length === 1) pickResult(0);
+    return;
+  }
+  const st = Recherche.dernierStatut || {};
+  const googleTip = st.Google === 'quota' && !prefs.googleKey ? '<br>💡 Google Books est saturé en ce moment : ajoute ta clé gratuite dans ⚙️ Réglages pour fouiller aussi son catalogue.' : '';
+  const reseau = Object.values(st).every(v => v === 'erreur') ? '<br>📶 Aucune source n\'a répondu : vérifie ta connexion internet.' : '';
+  if (isbn) {
+    if (!form.isbn) { form.isbn = isbn; $('#f_isbn').value = isbn; }
+    box.innerHTML = `<div class="hint">Code <b>${esc(isbn)}</b> bien lu ✓, mais aucun catalogue ne connaît ce livre (souvent : très récent, auto-édité ou imprimé à l'étranger).<br>
+      👉 Tape plutôt son <b>titre</b> dans la recherche ci-dessus, ou remplis la fiche à la main : le code est déjà noté.${googleTip}${reseau}</div>`;
+    $('#s_q').value = ''; $('#s_q').placeholder = 'Titre ou auteur du livre…';
+  } else {
+    box.innerHTML = `<div class="hint">Rien trouvé pour « ${esc(q)} ».<br>👉 Essaie juste le titre (sans l'auteur), ou juste le nom de l'auteur, ou vérifie l'orthographe.${googleTip}${reseau}</div>`;
+  }
+}
+function pickResult(i) {
+  const x = lastRes[i]; if (!x) return;
+  const own = findOwned(x, form.id);
+  if (own) {
+    $('#s_res').innerHTML = `<div class="hint">📚 Tu as déjà <b>${esc(own.titre)}</b> dans « ${STATUT_UN[own.statut]} ».
+      <div class="acts"><button class="btn pri small" type="button" data-openown="${esc(own.id)}">Ouvrir sa fiche</button><button class="btn small" type="button" data-anyway="${i}">L'ajouter quand même</button></div></div>`;
+    return;
+  }
+  fillFrom(x);
+}
+function fillFrom(x) {
+  const f = form;
+  $('#f_titre').value = x.titre; $('#f_auteur').value = x.auteur || '';
+  if (x.pagesTotal) $('#f_total').value = x.pagesTotal;
+  $('#f_serie').value = x.serie || ''; $('#f_tome').value = x.tome || '';
+  if (x.isbn) $('#f_isbn').value = x.isbn;
+  if (x.editeur) $('#f_edit').value = x.editeur;
+  if (x.annee) $('#f_annee').value = x.annee;
+  if (!$('#f_genre').value && x.genre) $('#f_genre').value = x.genre;
+  if (!f.couverture || f.aCompleter) { f.couverture = ''; f._covers = x.covers || []; paintPrev(); }
+  $('#s_res').innerHTML = ''; $('#s_st').innerHTML = '';
+  $('#modal details').open = false;
+  toast('Infos remplies ✓');
+  // En arrière-plan : vraie couverture + infos manquantes (pages, ISBN…)
+  Recherche.couverture(x.covers).then(u => { if (form === f && u && !f.couverture) { f.couverture = u; f._covers = null; paintPrev(); } });
+  if (!x.pagesTotal || !x.isbn) Recherche.completer(x).then(y => {
+    if (form !== f) return;
+    if (!$('#f_total').value && y.pagesTotal) $('#f_total').value = y.pagesTotal;
+    if (!$('#f_isbn').value && y.isbn) $('#f_isbn').value = y.isbn;
+    if (!$('#f_edit').value && y.editeur) $('#f_edit').value = y.editeur;
+    if (!$('#f_annee').value && y.annee) $('#f_annee').value = y.annee;
+    if (!coverList(f).length && y.covers && y.covers.length) { f._covers = y.covers; paintPrev(); }
+  });
 }
 
 /* ---------- Photos : couverture et code-barres ---------- */
@@ -842,7 +1020,7 @@ async function decodeBarcode(file) {
 }
 $('#pick_cover').onchange = async e => {
   const f = e.target.files[0]; if (!f || !form) return;
-  try { form.couverture = await fileToCover(f); paintPrev(); toast('Couverture ajoutée ✓'); }
+  try { form.couverture = await fileToCover(f); form._covers = null; paintPrev(); toast('Couverture ajoutée ✓'); }
   catch (err) { toast('Image illisible'); }
 };
 $('#pick_scan').onchange = async e => {
@@ -850,52 +1028,56 @@ $('#pick_scan').onchange = async e => {
   $('#s_res').innerHTML = '<div class="a">Lecture du code-barres…</div>';
   try {
     const code = await decodeBarcode(f);
-    $('#s_q').value = code; doSearch();
+    $('#s_q').value = code; doSearch(true);
   } catch (err) {
-    $('#s_res').innerHTML = '<div class="a">Code-barres pas reconnu. Reprends la photo bien à plat et nette, ou tape les chiffres sous le code-barres (ISBN).</div>';
+    $('#s_res').innerHTML = '<div class="hint">Code-barres pas reconnu. Reprends la photo bien à plat et nette, ou tape les chiffres sous le code-barres (ISBN).</div>';
   }
 };
 
-/* ---------- Scanner en direct avec la caméra ---------- */
+/* ---------- Caméra : lecture du code-barres en direct ---------- */
+// Un code n'est accepté que s'il est lu 2 fois de suite et que son chiffre de contrôle est bon.
+async function startCamera(video, onCode) {
+  if ('BarcodeDetector' in window) {
+    const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+    video.srcObject = stream; await video.play();
+    const det = new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a']});
+    let alive = true, last = '', n = 0;
+    const loop = async () => {
+      if (!alive) return;
+      try {
+        const r = await det.detect(video);
+        const c = ((r.find(x => /^97[89]/.test(x.rawValue)) || r[0]) || {}).rawValue;
+        if (c) { n = c === last ? n + 1 : 1; last = c; if (n >= 2) { n = 0; onCode(c); } }
+      } catch (e) {}
+      if (alive) setTimeout(loop, 120);
+    };
+    loop();
+    return () => { alive = false; stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
+  }
+  await loadZXing();
+  const reader = new ZXing.BrowserMultiFormatReader();
+  let stopped = false;
+  reader.decodeFromConstraints({video: {facingMode: 'environment'}}, video, res => { if (res && !stopped) onCode(res.getText()); });
+  return () => { stopped = true; reader.reset(); };
+}
+function cameraError(err) {
+  toast(err && err.name === 'NotAllowedError' ? 'Caméra refusée : autorise-la dans les réglages de Chrome' : 'Caméra indisponible : prends une photo');
+}
+const isBookCode = c => /^97[89]\d{10}$/.test(c) && !!Recherche.toIsbn13(c);
+
 let scanStop = null;
-const isBookCode = c => /^97[89]\d{10}$/.test(c);
-function scanFound(code) {
-  closeScanner();
-  if (navigator.vibrate) navigator.vibrate(80);
-  $('#s_q').value = code; doSearch();
-}
-function scanSeen(code) {
-  if (isBookCode(code)) return scanFound(code);
-  $('#scanMsg').textContent = 'Ce code-barres n\'est pas celui du livre. Vise celui qui commence par 978 ou 979.';
-}
 async function openScanner() {
   $('#scanOv').classList.add('show');
-  $('#scanMsg').textContent = 'Vise le code-barres au dos du livre (celui qui commence par 978).';
-  const video = $('#cam');
+  $('#scanMsg').textContent = 'Vise le code-barres au dos du livre (celui qui commence par 978 ou 979).';
   try {
-    if ('BarcodeDetector' in window) {
-      const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
-      video.srcObject = stream; await video.play();
-      const det = new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a']});
-      let alive = true;
-      scanStop = () => { alive = false; stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
-      const loop = async () => {
-        if (!alive) return;
-        try { const r = await det.detect(video); if (r.length) { const c = r.find(x => isBookCode(x.rawValue)) || r[0]; scanSeen(c.rawValue); if (!alive) return; } } catch (e) {}
-        setTimeout(loop, 200);
-      };
-      loop();
-    } else {
-      $('#scanMsg').textContent = 'Préparation de la caméra…';
-      await loadZXing();
-      const reader = new ZXing.BrowserMultiFormatReader();
-      scanStop = () => reader.reset();
-      $('#scanMsg').textContent = 'Vise le code-barres au dos du livre (celui qui commence par 978).';
-      reader.decodeFromConstraints({video: {facingMode: 'environment'}}, video, res => { if (res && scanStop) scanSeen(res.getText()); });
-    }
+    scanStop = await startCamera($('#cam'), c => {
+      if (!isBookCode(c)) { $('#scanMsg').textContent = 'Ce code-barres n\'est pas celui du livre. Vise celui qui commence par 978 ou 979.'; return; }
+      closeScanner();
+      if (navigator.vibrate) navigator.vibrate(80);
+      $('#s_q').value = c; doSearch(true);
+    });
   } catch (err) {
-    closeScanner();
-    toast(err && err.name === 'NotAllowedError' ? 'Caméra refusée : autorise-la dans les réglages de Chrome' : 'Caméra indisponible : prends une photo');
+    closeScanner(); cameraError(err);
     $('#pick_scan').value = ''; $('#pick_scan').click();
   }
 }
@@ -906,24 +1088,209 @@ function closeScanner() {
 $('#scanClose').onclick = closeScanner;
 $('#scanPhoto').onclick = () => { closeScanner(); $('#pick_scan').value = ''; $('#pick_scan').click(); };
 
+/* ---------- Scan rapide : plusieurs livres d'affilée ---------- */
+let bulkStop = null, bulkSeen = new Set(), bulkAdded = 0;
+async function openBulk() {
+  bulkSeen = new Set(); bulkAdded = 0;
+  $('#bulkList').innerHTML = ''; $('#bulkCount').textContent = '';
+  document.querySelectorAll('#bulkDest button').forEach(b => b.classList.toggle('on', b.dataset.dest === prefs.bulkDest));
+  $('#bulkMsg').textContent = 'Vise le code-barres au dos du livre.';
+  $('#bulkOv').classList.add('show');
+  try { bulkStop = await startCamera($('#cam2'), bulkCode); }
+  catch (err) { closeBulk(); cameraError(err); }
+}
+function closeBulk() {
+  if (bulkStop) { const s = bulkStop; bulkStop = null; try { s(); } catch (e) {} }
+  $('#bulkOv').classList.remove('show');
+  if (bulkAdded) toast(`${plural(bulkAdded, 'livre')} ajouté${bulkAdded > 1 ? 's' : ''} ✓`);
+}
+function bulkRow(html) {
+  const d = document.createElement('div'); d.className = 'bl'; d.innerHTML = html;
+  $('#bulkList').prepend(d);
+  return h => { d.innerHTML = h; };
+}
+async function bulkCode(c) {
+  if (!isBookCode(c)) { $('#bulkMsg').textContent = 'Ce code n\'est pas celui d\'un livre : vise celui qui commence par 978 ou 979.'; return; }
+  const isbn = Recherche.toIsbn13(c);
+  if (bulkSeen.has(isbn)) return;
+  bulkSeen.add(isbn);
+  if (navigator.vibrate) navigator.vibrate(60);
+  $('#cam2box').classList.add('flash'); setTimeout(() => $('#cam2box').classList.remove('flash'), 400);
+  $('#bulkMsg').textContent = 'Vise le livre suivant…';
+  const row = bulkRow(`<span class="grow">⏳ ${esc(isbn)}…</span>`);
+  const dest = prefs.bulkDest;
+  const own = books.find(b => b.isbn === isbn);
+  if (own) return row(`<span class="grow">↩︎ Déjà dans ta liste : <b>${esc(own.titre)}</b></span>`);
+  const res = await Recherche.parIsbn(isbn).catch(() => []);
+  if (res.length) {
+    const x = res[0];
+    const own2 = findOwned(x);
+    if (own2) return row(`<span class="grow">↩︎ Déjà dans ta liste : <b>${esc(own2.titre)}</b></span>`);
+    const b = bookFrom(x, dest);
+    b.id = newId();
+    row(`${coverHtml({titre: b.titre, _covers: x.covers}, 'mini')}<span class="grow">✓ <b>${esc(b.titre)}</b>${b.tome ? ' T.' + esc(b.tome) : ''}<br><span class="a">${esc(b.auteur)}</span></span>`);
+    b.couverture = await Recherche.couverture(x.covers);
+    books.push(b); bulkAdded++; render(); Store.persist();
+  } else {
+    const b = {...blankBook(dest), id: newId(), titre: 'Livre ' + isbn, isbn, aCompleter: true};
+    books.push(b); bulkAdded++; render(); Store.persist();
+    row(`<span class="grow">⚠️ ${esc(isbn)} introuvable : ajouté « à compléter »</span>`);
+  }
+  $('#bulkCount').textContent = plural(bulkAdded, 'livre') + ' ajouté' + (bulkAdded > 1 ? 's' : '');
+}
+$('#bulkDest').onclick = e => { const b = e.target.closest('[data-dest]'); if (!b) return; prefs.bulkDest = b.dataset.dest; savePrefs(); document.querySelectorAll('#bulkDest button').forEach(x => x.classList.toggle('on', x === b)); };
+$('#bulkDone').onclick = closeBulk;
+$('#bulkBtn').onclick = openBulk;
+
+/* ---------- Chrono de lecture ---------- */
+let timerTick = null;
+const timerMs = () => { const t = prefs.timer; return t ? t.acc + (t.running ? Date.now() - t.start : 0) : 0; };
+const clock = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(s % 60).padStart(2, '0'); };
+function paintTimerPill() {
+  const t = prefs.timer, p = $('#timerPill');
+  p.hidden = !t || $('#timerOv').classList.contains('show');
+  if (t) p.textContent = (t.running ? '⏱️ ' : '⏸️ ') + clock(timerMs());
+}
+setInterval(() => { if (prefs.timer) { paintTimerPill(); const c = $('#clock'); if (c) c.textContent = clock(timerMs()); } }, 1000);
+function startTimer(b) {
+  if (prefs.timer && prefs.timer.id !== b.id) { toast('Un chrono tourne déjà pour un autre livre'); return openTimer(); }
+  if (!prefs.timer) { prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: true}; savePrefs(); }
+  openTimer();
+}
+function openTimer() {
+  const t = prefs.timer; if (!t) return;
+  const b = books.find(x => x.id === t.id);
+  if (!b) { prefs.timer = null; savePrefs(); return paintTimerPill(); }
+  $('#timerModal').innerHTML = `<h2>⏱️ Lecture en cours</h2>${coverHtml(b, 'mini')}<b> ${esc(b.titre)}</b>
+    <div class="clock" id="clock">${clock(timerMs())}</div>
+    <div class="acts" style="justify-content:center"><button class="btn" id="t_pause">${t.running ? '⏸️ Pause' : '▶️ Reprendre'}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
+    <div id="t_end" hidden><div class="f" style="margin-top:12px"><label for="t_page">À quelle page t'es-tu arrêté ?${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
+      <input id="t_page" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
+      <div class="acts"><button class="btn pri" id="t_save">Enregistrer la séance</button></div></div>
+    <div class="mfoot"><button class="btn del small" id="t_cancel">Annuler le chrono</button><span class="sp"></span><button class="btn" id="t_hide">Réduire</button></div>`;
+  $('#timerOv').classList.add('show'); paintTimerPill();
+  $('#t_pause').onclick = () => {
+    const x = prefs.timer;
+    if (x.running) { x.acc += Date.now() - x.start; x.running = false; } else { x.start = Date.now(); x.running = true; }
+    savePrefs(); openTimer();
+  };
+  $('#t_stop').onclick = () => { const x = prefs.timer; if (x.running) { x.acc += Date.now() - x.start; x.running = false; savePrefs(); } $('#t_end').hidden = false; $('#t_page').focus(); $('#t_page').select(); };
+  $('#t_save').onclick = () => {
+    const n = parseInt($('#t_page').value, 10);
+    if (isNaN(n) || n < 0) return toast('Indique un numéro de page');
+    const min = Math.max(1, Math.round(timerMs() / 60000));
+    const tot = +b.pagesTotal || 0, to = tot ? Math.min(n, tot) : n, from = +b.pageActuelle || 0;
+    const nb = {...b, pageActuelle: to, sessions: [...(b.sessions || []), {date: today(), min, de: from, a: to}]};
+    logPage(nb, to);
+    prefs.timer = null; savePrefs(); $('#timerOv').classList.remove('show');
+    if (tot && to >= tot) { save(nb); return openForm({...nb, statut: 'lu', dateFin: today()}, {finish: true}); }
+    save(nb, `${fdur(min)} de lecture · +${plural(Math.max(0, to - from), 'page')} 👏`);
+  };
+  $('#t_cancel').onclick = () => { prefs.timer = null; savePrefs(); $('#timerOv').classList.remove('show'); paintTimerPill(); toast('Chrono annulé'); };
+  $('#t_hide').onclick = () => { $('#timerOv').classList.remove('show'); paintTimerPill(); };
+}
+$('#timerPill').onclick = openTimer;
+
+/* ---------- Réglages ---------- */
+function openSettings() {
+  $('#modal').innerHTML = `<h2>⚙️ Réglages</h2>
+    <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', '☀️ Clair'], ['dark', '🌙 Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+    <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>🔎 Recherche de livres</h3>
+      <div class="a" style="font-size:.88rem">L'appli fouille en même temps la <b>BnF</b>, le <b>Sudoc</b> (bibliothèques universitaires), <b>Open Library</b>, <b>Apple Books</b> et <b>Google Books</b>.
+      Google Books est souvent saturé quand on l'utilise sans clé. Avec ta propre clé (gratuite), il répond toujours et ajoute encore plus de livres.</div>
+      <div class="f" style="margin-top:10px"><label for="st_key">Clé Google Books (facultatif)</label><input id="st_key" value="${esc(prefs.googleKey)}" placeholder="AIza…" autocomplete="off"></div>
+      <details><summary>Comment obtenir une clé gratuite ?</summary><ol class="a" style="font-size:.86rem;padding-left:18px;margin:0">
+        <li>Va sur <b>console.cloud.google.com</b> (connecté à ton compte Google) et accepte les conditions.</li>
+        <li>En haut : <b>Sélectionner un projet → Nouveau projet</b> → nom « Mes lectures » → Créer.</li>
+        <li>Menu ☰ → <b>API et services → Bibliothèque</b> → cherche « Books API » → <b>Activer</b>.</li>
+        <li>Menu ☰ → <b>API et services → Identifiants → Créer des identifiants → Clé API</b>.</li>
+        <li>Copie la clé (elle commence par AIza) et colle-la ici. C'est gratuit (1 000 recherches par jour).</li></ol></details>
+      <div class="acts"><button class="btn" id="st_test">Tester la recherche</button></div><div class="srcs" id="st_res"></div></div>
+    <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>✨ Compléter mes livres</h3>
+      <div class="a" style="font-size:.88rem">Retrouve automatiquement ce qui manque à tes livres déjà enregistrés : couverture, nombre de pages, série et tome, ISBN, éditeur.
+      Seules les cases vides sont remplies, et seulement si le titre et l'auteur correspondent bien.</div>
+      <div class="acts"><button class="btn pri" id="st_fill">✨ Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a" id="st_fillres" style="font-size:.85rem;margin-top:6px"></div></div>
+    <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>💾 Sauvegarde</h3><div class="a" style="font-size:.88rem;margin-bottom:8px">${backupInfo()}</div>
+      <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>
+    <div class="a" style="font-size:.8rem">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}</div>
+    <div class="mfoot"><span class="sp"></span><button class="btn pri" id="st_ok">Fermer</button></div>`;
+  showM();
+  $('#st_theme').onclick = e => { const b = e.target.closest('[data-th]'); if (!b) return; prefs.theme = b.dataset.th; savePrefs(); applyTheme(); document.querySelectorAll('#st_theme button').forEach(x => x.classList.toggle('on', x === b)); };
+  const keep = () => { prefs.googleKey = $('#st_key').value.trim(); savePrefs(); Recherche.setGoogleKey(prefs.googleKey); };
+  $('#st_test').onclick = async () => {
+    keep(); $('#st_res').innerHTML = 'Test en cours…';
+    await Recherche.parIsbn('9782070360024', st => { $('#st_res').innerHTML = statusHtml(st); });
+  };
+  $('#st_ok').onclick = () => { keep(); closeM(); };
+  $('#st_fill').onclick = async () => {
+    keep();
+    const btn = $('#st_fill'); btn.disabled = true;
+    const r = await fillAll(txt => { if ($('#st_fillres')) $('#st_fillres').textContent = txt; });
+    if ($('#st_fillres')) $('#st_fillres').textContent = `Terminé : ${plural(r.ok, 'livre')} complété${r.ok > 1 ? 's' : ''}${r.ko ? `, ${r.ko} non trouvé${r.ko > 1 ? 's' : ''} (à compléter à la main)` : ''}.`;
+    btn.disabled = false;
+  };
+}
+
+/* ---------- Compléter automatiquement les fiches existantes ---------- */
+const needsFill = b => !b.aCompleter && b.titre && (!b.couverture || !b.pagesTotal || !b.isbn);
+async function fillOne(b) {
+  const n = Recherche.norm, sn = Recherche.surname;
+  let res = [], byIsbn = false;
+  if (b.isbn && Recherche.toIsbn13(b.isbn)) { res = await Recherche.parIsbn(Recherche.toIsbn13(b.isbn)).catch(() => []); byIsbn = res.length > 0; }
+  if (!res.length) res = await Recherche.parTexte(b.titre + (b.auteur ? ' ' + b.auteur : '') + (b.tome ? ' ' + b.tome : '')).catch(() => []);
+  // Le résultat doit vraiment être le même livre (même titre, même auteur, même tome), en français de préférence
+  const same = res.filter(r => (n(r.titre) === n(b.titre) || (b.serie && r.serie && n(r.serie) === n(b.serie) && String(r.tome) === String(b.tome)))
+    && (!sn(b.auteur) || sn(r.auteur) === sn(b.auteur)) && (!b.tome || !r.tome || String(r.tome) === String(b.tome)));
+  const x = same.find(r => r.langue === 'fre') || same[0];
+  if (!x) return false;
+  const y = (!x.pagesTotal || !x.isbn) ? await Recherche.completer(x) : x;
+  const nb = {...books.find(z => z.id === b.id)};
+  // Trouvé par le titre : on ne connaît pas l'édition exacte → pas d'ISBN ni d'éditeur (ce serait peut-être faux)
+  for (const f of byIsbn ? ['auteur', 'pagesTotal', 'isbn', 'editeur', 'annee', 'genre'] : ['auteur', 'pagesTotal', 'genre']) if (!nb[f] && y[f]) nb[f] = y[f];
+  // Série : seulement si le livre n'en a pas, que la fiche vient d'un catalogue (BnF/Sudoc) et que le titre colle
+  if (!nb.serie && x.serie && x.tome && (x.sources || []).some(s => s === 'BnF' || s === 'Sudoc') && n(x.titre) === n(b.titre)) { nb.serie = x.serie; nb.tome = x.tome; }
+  if (!nb.couverture) nb.couverture = await Recherche.couverture(y.covers);
+  const i = books.findIndex(z => z.id === b.id); if (i >= 0) books[i] = nb;
+  return true;
+}
+async function fillAll(onProgress) {
+  // Un livre à la fois, avec une petite pause : les catalogues publics n'aiment pas être bombardés
+  const todo = books.filter(needsFill);
+  let ok = 0, ko = 0;
+  for (const b of todo) {
+    onProgress(`Recherche ${ok + ko + 1} / ${todo.length} : ${b.titre}…`);
+    (await fillOne(b).catch(() => false)) ? ok++ : ko++;
+    if ((ok + ko) % 5 === 0) { await Store.persist(); render(); }
+    await new Promise(r => setTimeout(r, 600));
+  }
+  await Store.persist(); render();
+  return {ok, ko};
+}
+$('#settingsBtn').onclick = openSettings;
+
 /* ---------- Clics et saisies ---------- */
 document.addEventListener('click', e => {
   const tab = e.target.closest('[data-tab]');
   if (tab) { ui.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
   if (e.target.closest('[data-close]') || e.target.id === 'ov') return closeM();
+  if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
   const ex = e.target.closest('[data-export]');
   if (ex) return doExport(ex.dataset.export);
   if (e.target.closest('[data-goal]')) {
-    goal = parseInt($('#goal').value, 10) || 0; renderStats();
-    toast(goal ? 'Objectif enregistré 🎯' : 'Objectif retiré');
-    call('setGoal', goal).catch(() => toast('Oups, objectif pas enregistré.'));
-    return;
+    goal = parseInt($('#goal').value, 10) || 0; renderStats(); Store.persist();
+    return toast(goal ? 'Objectif enregistré 🎯' : 'Objectif retiré');
   }
+  const nx = e.target.closest('[data-next]');
+  if (nx) { const [s, n] = nx.dataset.next.split('|'); return addNextTome(s, +n); }
+  const sr = e.target.closest('[data-serie]');
+  if (sr) { ui.tab = 'a_lire'; ui.q = sr.dataset.serie; ui.sort = 'serie'; const c = counts(); if (!books.some(b => b.statut === 'a_lire' && Recherche.norm(b.serie) === Recherche.norm(sr.dataset.serie))) ui.tab = 'lu'; render(); return; }
+  const op = e.target.closest('[data-open]');
+  if (op) { const b = books.find(x => x.id === op.dataset.open); if (b) openForm(b); return; }
   const qt = e.target.closest('[data-book]');
   if (qt) { const b = books.find(x => x.id === qt.dataset.book); if (b) openForm(b); return; }
   const c = e.target.closest('.card, .gcard');
-  if (c) {
+  if (c && !e.target.closest('.modal')) {
     const b = books.find(x => x.id === c.dataset.id); if (!b) return;
     const act = e.target.closest('[data-act]');
     return act ? quick(act.dataset.act, b) : openForm(b);
@@ -935,12 +1302,15 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   if (e.target.id === 'genre') { ui.genre = e.target.value; renderCards(); }
+  if (e.target.id === 'own') { ui.own = e.target.value; renderCards(); }
   if (e.target.id === 'sort') { ui.sort = e.target.value; renderCards(); }
   if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if ($('#scanOv').classList.contains('show')) closeScanner();
+  else if ($('#bulkOv').classList.contains('show')) closeBulk();
+  else if ($('#timerOv').classList.contains('show')) { $('#timerOv').classList.remove('show'); paintTimerPill(); }
   else if ($('#ov').classList.contains('show')) closeM();
 });
 $('#fab').onclick = () => openForm(null);
@@ -948,18 +1318,17 @@ $('#fab').onclick = () => openForm(null);
 /* ---------- Démarrage ---------- */
 (async function init() {
   try {
-    const d = await call('getData');
+    const d = await Store.load();
     books = (d.books || []).map(norm);
     goal = +d.goal || 0;
     const c = counts();
     if (!c.en_cours && books.length) ui.tab = c.a_lire ? 'a_lire' : 'lu';
-    render(); paintBackupBar();
+    render();
+    if (prefs.timer) paintTimerPill();
   } catch (e) {
     $('#main').innerHTML = `<div class="empty">Impossible de charger tes livres.<br><small>${esc(e.message || e)}</small></div>`;
   }
-  // Demande au navigateur de ne jamais effacer les livres pour faire de la place
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  // Mode hors ligne + installation comme une appli
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>

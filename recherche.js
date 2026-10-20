@@ -1042,6 +1042,9 @@ const Recherche = (() => {
     const stop = () => !!(o.stop && o.stop());
     const cat = CATS.find(c => c.id === o.cat) || null;
     const texte = clean(String(o.texte || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
+    // Recherche par auteur ou par titre (toutes les éditions françaises de la BnF ; une seule par livre)
+    const auteur = clean(String(o.auteur || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
+    const titre = clean(String(o.titre || '').replace(/["*?()<>=]/g, ' ')).slice(0, 80);
     // Même livre (même ISBN, ou même titre + même auteur) vu deux fois : on ne le montre qu'une fois
     const garder = (r, extra) => {
       const k = norm(r.titre) + '|' + surname(r.auteur);
@@ -1051,7 +1054,7 @@ const Recherche = (() => {
       (!r.pagesTotal && max ? out.inconnus : out.res).push(versResultat(r, extra));
     };
     try {
-      if (cat && RECH_FICTION[cat.id]) {
+      if (cat && RECH_FICTION[cat.id] && !auteur && !titre) {
         if (!cur.cands) {
           const ts = RECH_FICTION[cat.id].map(id => THEMES.find(t => t.id === id)).filter(Boolean);
           const listes = await Promise.all(ts.flatMap(t => [t.apple.length ? candApple(t) : null, (t.wd.length || t.classiques) ? candGenre(t) : null,
@@ -1079,9 +1082,13 @@ const Recherche = (() => {
         }
         out.fin = cur.ci >= cur.cands.length;
       } else {
-        if (!cat && !texte) { out.fin = true; return out; }
-        let q = cat ? '(' + RECH[cat.id].join(' or ') + ')' : 'bib.subject adj "' + texte + '"';
-        if (cat && texte) q += ' and bib.subject all "' + texte + '"';
+        if (!cat && !texte && !auteur && !titre) { out.fin = true; return out; }
+        const parts = [];
+        if (auteur) parts.push('bib.author all "' + auteur + '"');
+        if (titre) parts.push('bib.title all "' + titre + '"');
+        if (cat && RECH[cat.id]) parts.push('(' + RECH[cat.id].join(' or ') + ')');
+        if (texte) parts.push(parts.length ? 'bib.subject all "' + texte + '"' : 'bib.subject adj "' + texte + '"');
+        let q = parts.join(' and ');
         // Les plus récents d'abord (livres qu'on trouve encore en librairie), sans les annonces de livres pas encore parus
         q += BASE + ' and bib.publicationdate <= "' + new Date().getFullYear() + '" sortBy Dat/sort.descending';
         cur.start = cur.start || 1;
@@ -1093,7 +1100,9 @@ const Recherche = (() => {
             out.examines++;
             if (!r.titre || !r.isbn || JUNK.test(r.titre) || (r.langue && r.langue !== 'fre')) continue;
             // Revérification : le classement de la fiche doit correspondre au thème
-            if (cat && !categories(r).some(c => c.id === cat.id)) continue;
+            if (cat && RECH[cat.id] && !categories(r).some(c => c.id === cat.id)) continue;
+            // (par auteur : l'auteur doit vraiment être celui cherché, pas un préfacier ou un traducteur)
+            if (auteur && !words(auteur).every(w => norm(r.auteur).split(' ').some(m => m === w || m.startsWith(w)))) continue;
             garder(r, {theme: cat ? cat.id : ''});
           }
           if (onProgress) onProgress(out);

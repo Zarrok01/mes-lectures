@@ -18,7 +18,9 @@
   const cats = b => ids(Recherche.categories(b));
   const vider = async () => { books = []; goal = 0; await Store.persist(); localStorage.removeItem(CLE + '-data'); };
   const fiche = (titre, extra) => norm({...blankBook('a_lire'), id: 't-' + titre, titre, auteur: 'Auteur Test', ...extra});
-  const enLigne = !new URLSearchParams(location.search).has('horsligne') && navigator.onLine !== false;
+  // Les tests 🌐 interrogent vraiment les catalogues (BnF…) : seulement sur demande (index.html?tests&enligne),
+  // pour ne pas fatiguer la BnF, qui bloque un moment ceux qui l'interrogent trop souvent
+  const enLigne = new URLSearchParams(location.search).has('enligne') && navigator.onLine !== false;
 
   // Pas de vraies fenêtres de confirmation pendant les tests
   const vraiConfirm = window.confirm;
@@ -252,13 +254,32 @@
     const v = $('#f_serie').value; modalModifie = false; closeM(); await pause(250); return v;
   });
 
+  /* ---------- 8 quater. Récupérer une sauvegarde dès l'ouverture ---------- */
+  await test('Appli vide : le premier écran propose de récupérer une sauvegarde', true, () => {
+    books = []; ui.tab = 'en_cours'; ui.q = ''; ui.genre = ''; ui.own = ''; ui.cat = ''; render();
+    return !!document.querySelector('#list [data-export="restore"]');
+  });
+  await test('Appli avec des livres : ce bouton n\'apparaît plus', false, () => {
+    books = [fiche('Un livre')]; ui.tab = 'en_cours'; render();
+    return !!document.querySelector('#list [data-export="restore"]');
+  });
+  await test('Sauvegarde : tout fichier peut être choisi (aucun filtre de type)', '', () => $('#pick_backup').getAttribute('accept') || '');
+  await test('Sauvegarde : un fichier qui n\'en est pas une (ex. une photo) est refusé', 'Ce fichier n\'est pas une sauvegarde de l\'appli', async () => {
+    const f = new File([new Uint8Array([137, 80, 78, 71, 13, 10])], 'photo.png', {type: 'image/png'});
+    const dt = new DataTransfer(); dt.items.add(f); $('#pick_backup').files = dt.files;
+    $('#pick_backup').onchange({target: $('#pick_backup')}); await pause(300);
+    return $('#toast').textContent;
+  });
+
   /* ---------- 8 ter. Tirage au sort : toutes les catégories ---------- */
   const attendus = ['roman', 'polar', 'sf', 'fantasy', 'bd', 'manga', 'histoire', 'essai', 'perso', 'social', 'romance', 'classique', 'jeunesse',
     'cat:politique', 'cat:histoire', 'cat:philo', 'cat:psycho', 'cat:socio', 'cat:eco', 'cat:sciences', 'cat:bio', 'cat:education', 'cat:social', 'cat:art', 'cat:droit', 'cat:religion'];
   await test('Tirage en ligne : toutes les catégories sont proposées', [], () => attendus.filter(id => !Recherche.THEMES_TIRAGE.some(t => t.id === id)));
   await test('Tirage en ligne : les mêmes thèmes dans Découvrir et dans « Que lire ensuite »', true, async () => {
+    const avant = prefs.tirage; prefs.tirage = 'hasard';   // (les thèmes s'affichent en mode « Au hasard »)
     ui.tab = 'decouvrir'; render(); const dc = document.querySelectorAll('#dc_theme [data-v]').length;
     pick.mode = 'ligne'; openNext(); const nx = document.querySelectorAll('#nx_theme [data-v]').length; closeM(); await pause(250);
+    prefs.tirage = avant;
     return dc === Recherche.THEMES_TIRAGE.length + 1 && nx === dc;
   });
   await test('Que lire ensuite : tirage parmi mes livres d\'une catégorie', ['t-Pol'], async () => {
@@ -271,8 +292,63 @@
     return chips.includes('litterature') ? ids : ['chips manquantes'];
   });
 
+  /* ---------- 8 quinquies. Tirage « d'après mes lectures » ---------- */
+  await test('Goûts : livres lus et bien notés en tête, livres abandonnés écartés', 'fantasy,cat:politique|polar absent|2 aimés', () => {
+    books = [fiche('F1', {statut: 'lu', note: 5, genre: 'SF / Fantasy'}), fiche('F2', {statut: 'lu', note: 4, genre: 'SF / Fantasy'}),
+      fiche('P1', {statut: 'a_lire', classements: [B('686', '320')]}), fiche('Po', {statut: 'abandon', genre: 'Polar / Thriller'})];
+    const g = mesGouts();
+    return g.themes.map(t => t[0]).join(',') + '|' + (g.themes.some(t => t[0] === 'polar') ? 'polar présent' : 'polar absent') + '|' + g.aimes.length + ' aimés';
+  });
+  await test('Choix « D\'après mes lectures / Au hasard » dans Découvrir et dans Que lire ensuite', 'dc:perso sans thèmes|dc:hasard avec thèmes|nx:perso', async () => {
+    prefs.tirage = 'perso'; ui.tab = 'decouvrir'; render();
+    const a = '$dc:' + (document.querySelector('#dc_inspi .on').dataset.v) + (document.querySelector('#dc_theme') ? ' avec thèmes' : ' sans thèmes');
+    document.querySelector('#dc_inspi [data-v="hasard"]').click();
+    const b = 'dc:' + inspiration() + (document.querySelector('#dc_theme') ? ' avec thèmes' : ' sans thèmes');
+    document.querySelector('#dc_inspi [data-v="perso"]').click();
+    pick.mode = 'ligne'; openNext(); const c = 'nx:' + document.querySelector('#nx_inspi .on').dataset.v; closeM(); await pause(250);
+    return [a.slice(1), b, c].join('|');
+  });
+
+  /* ---------- 8 sexies. Découvrir : chercher par thème, auteur ou titre ---------- */
+  await test('Découvrir : choisir « Auteur » cache les thèmes et change l\'aide', 'auteur|sans thèmes|Un auteur', () => {
+    ui.tab = 'decouvrir'; rech.par = 'theme'; render();
+    document.querySelector('#rq_par [data-v="auteur"]').click();
+    return rech.par + '|' + (document.querySelector('#rq_cats') ? 'avec thèmes' : 'sans thèmes') + '|' + ($('#rq').placeholder.startsWith('Un auteur') ? 'Un auteur' : $('#rq').placeholder);
+  });
+  await test('Découvrir : la recherche par auteur envoie bien un auteur (avec la limite de pages)', '{"auteur":"Victor Hugo","max":300}', async () => {
+    const vrai = Recherche.parTheme; let recu = null;
+    Recherche.parTheme = async o => { recu = {auteur: o.auteur, max: o.max}; return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+    rech.par = 'auteur'; rech.texte = 'Victor Hugo'; rech.max = 300; await lancerRech();
+    Recherche.parTheme = vrai; return JSON.stringify(recu);
+  });
+  await test('Découvrir : la recherche par titre envoie bien un titre', '{"titre":"Dune"}', async () => {
+    const vrai = Recherche.parTheme; let recu = null;
+    Recherche.parTheme = async o => { recu = {titre: o.titre}; return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+    rech.par = 'titre'; rech.texte = 'Dune'; await lancerRech();
+    Recherche.parTheme = vrai; rech.par = 'theme'; rech.texte = ''; rech.max = 0; rech.etat = ''; return JSON.stringify(recu);
+  });
+
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
+    await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {
+      const r = await Recherche.parTheme({auteur: 'Annie Ernaux', max: 0}, {});
+      const t = r.res.map(x => Recherche.norm(x.titre));
+      return r.erreur === '' && r.res.length > 0 && r.res.every(x => /ernaux/i.test(x.auteur)) && t.length === new Set(t).size;
+    });
+    await test('🌐 Par titre « Le Petit Prince », 150 p. max', true, async () => {
+      const r = await Recherche.parTheme({titre: 'Le Petit Prince', max: 150}, {});
+      return r.erreur === '' && r.res.some(x => /petit prince/i.test(x.titre)) && r.res.every(x => x.pagesTotal <= 150);
+    });
+    await test('🌐 D\'après mes lectures : un autre livre d\'un auteur aimé (pas celui déjà lu)', true, async () => {
+      books = [fiche('Mort', {statut: 'lu', note: 5, auteur: 'Terry Pratchett'})];
+      const x = await livreMemeAuteur(books[0]);
+      return !!x && /pratchett/i.test(x.auteur) && Recherche.norm(x.titre) !== 'mort' && x.raison.includes('Parce que tu as aimé');
+    });
+    await test('🌐 D\'après mes lectures : un livre de ma catégorie préférée', true, async () => {
+      books = [fiche('P1', {statut: 'lu', note: 3, classements: [B('686', '320')]}), fiche('P2', {statut: 'a_lire', classements: [B('686', '320')]})];
+      const box = document.createElement('div'); await drawPerso(box, null);
+      return !!lastOnline && lastOnline.raison.startsWith('Tu lis souvent « Politique »') && box.querySelector('.sug') !== null;
+    });
     await test('🌐 Tirage en ligne « Politique » : un livre classé Politique, avec couverture', true, async () => {
       const x = await Recherche.decouvrir('cat:politique', {exclude: () => false});
       return !!x && !!x.couverture && x.themeNom === 'Politique' && cats(x).includes('politique');
@@ -299,9 +375,9 @@
     const vrai = window.fetch; window.fetch = () => Promise.reject(new TypeError('panne simulée'));
     try { return (await Recherche.parTheme({cat: 'socio', max: 300}, {})).erreur; } finally { window.fetch = vrai; }
   });
-  await test('Réponse illisible du catalogue → erreur annoncée', 'reseau', async () => {
+  await test('Réponse illisible du catalogue → erreur annoncée (pas « aucun résultat »)', true, async () => {
     const vrai = window.fetch; window.fetch = () => Promise.resolve(new Response('<pas du xml', {status: 200}));
-    try { return (await Recherche.parTheme({cat: 'eco', max: 300}, {})).erreur; } finally { window.fetch = vrai; }
+    try { return ['reseau', 'pause'].includes((await Recherche.parTheme({cat: 'eco', max: 300}, {})).erreur); } finally { window.fetch = vrai; }
   });
 
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
@@ -313,7 +389,7 @@
   box.id = 'resultatsTests';
   box.style.cssText = 'position:fixed;inset:0;z-index:999;overflow:auto;background:var(--bg);color:var(--ink);padding:16px;font-size:.88rem';
   box.innerHTML = `<h2>${ko.length ? '❌' : '✅'} Tests : ${resultats.length - ko.length} réussis sur ${resultats.length}</h2>
-    <p class="a">${enLigne ? '' : 'Tests 🌐 non exécutés (hors ligne). '}Mémoire de test séparée : tes vrais livres n'ont pas été touchés.</p>
+    <p class="a">${enLigne ? '' : 'Tests 🌐 (vrais catalogues) non exécutés : ajoute « &enligne » à l’adresse pour les lancer. '}Mémoire de test séparée : tes vrais livres n'ont pas été touchés.</p>
     <table style="width:100%;border-collapse:collapse">${resultats.map(r => `<tr style="border-top:1px solid var(--line)">
       <td style="padding:4px">${r.ok ? '✅' : '❌'}</td><td style="padding:4px">${esc(r.nom)}${r.ok ? '' : `<br><small>attendu : ${esc(JSON.stringify(r.attendu))}<br>obtenu : ${esc(JSON.stringify(r.obtenu))}</small>`}</td></tr>`).join('')}</table>`;
   document.body.appendChild(box);

@@ -317,7 +317,9 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 <div class="toast" id="toast"></div>
 <input type="file" id="pick_cover" accept="image/*" hidden>
 <input type="file" id="pick_scan" accept="image/*" capture="environment" hidden>
-<input type="file" id="pick_backup" accept=".json,application/json" hidden>
+<!-- (aucun filtre de type : sur certains téléphones, une sauvegarde reçue par WhatsApp ou Drive apparaissait grisée ;
+     l'appli vérifie elle-même que le fichier choisi est bien une sauvegarde) -->
+<input type="file" id="pick_backup" hidden>
 <div id="print"></div>
 
 <script src="recherche.js"></script>
@@ -338,6 +340,11 @@ const EMPTY = {
   lu: 'Aucun livre terminé pour l\'instant.',
   abandon: 'Aucun livre abandonné. 👍'
 };
+// Bibliothèque complètement vide (premier lancement, réinstallation, nouveau téléphone) : récupérer une sauvegarde en un geste
+const ACCUEIL = `<div style="font-size:1.6rem;margin-bottom:6px">👋</div><b style="color:var(--ink)">Ta bibliothèque est vide.</b><br>
+  Ajoute ton premier livre avec le bouton ＋.<br><br>Tu avais déjà l'appli ?
+  <div style="margin-top:10px"><button class="btn pri" type="button" data-export="restore">📂 J'ai une sauvegarde : récupérer mes livres</button></div>
+  <div style="font-size:.8rem;margin-top:8px">(le fichier « mes-lectures-sauvegarde-… », dans tes Téléchargements, ton Drive ou tes mails)</div>`;
 
 let books = [], goal = 0, form = null, lastRes = [];
 const ui = {tab: 'en_cours', q: '', cq: '', genre: '', cat: '', own: '', sort: 'recent', year: new Date().getFullYear()};
@@ -649,7 +656,7 @@ function renderCards() {
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
   $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs">Aussi dans ${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
     (l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
-    `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond dans cet onglet.' : EMPTY[ui.tab]}</div>`);
+    `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond dans cet onglet.' : !books.length ? ACCUEIL : EMPTY[ui.tab]}</div>`);
 }
 
 function progress(b) {
@@ -979,7 +986,7 @@ function openNext() {
   $('#modal').innerHTML = `<h2>🎲 Que lire ensuite ?</h2>
     <div class="seg" id="nx_mode"><button type="button" data-v="liste" class="${!enLigne ? 'on' : ''}">📚 Dans ma liste</button><button type="button" data-v="ligne" class="${enLigne ? 'on' : ''}">🌍 En ligne</button></div>
     ${enLigne ? `<div class="a" style="font-size:.86rem;margin-bottom:8px">Un livre que tu n'as pas encore, trouvé parmi les prix littéraires, les incontournables, les nouveautés et les livres préférés des lecteurs.</div>
-      <div class="lbl" style="margin-bottom:4px">Thème</div>${themeChips('nx_theme', pick.theme)}` : `
+      ${inspiHtml('nx_inspi')}${inspiration() === 'hasard' ? `<div class="lbl" style="margin-bottom:4px">Thème</div>${themeChips('nx_theme', pick.theme)}` : ''}` : `
       <div class="lbl" style="margin-bottom:4px">Longueur <span class="a" style="font-weight:400">(court : moins de 250 p. · long : plus de 450 p.)</span></div>
       <div class="seg" id="nx_len">${lens.map(([k, v]) => `<button type="button" data-v="${k}" class="${pick.len === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${genres.length > 1 ? `<div class="lbl" style="margin-bottom:4px">Genre</div><div class="chips" id="nx_genre"><button type="button" data-v="" class="chipb ${!pick.genre ? 'on' : ''}">Peu importe</button>${genres.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.genre === g ? 'on' : ''}">${esc(g)}</button>`).join('')}</div>` : ''}
@@ -995,7 +1002,8 @@ function openNext() {
   choix('#nx_cat', v => { pick.cat = v; });
   choix('#nx_theme', v => { pick.theme = v; });
   const d = $('#nx_dispo'); if (d) d.onchange = e => { pick.dispo = e.target.checked; };
-  $('#nx_go').onclick = () => enLigne ? drawOnline(pick.theme, $('#nx_res'), $('#nx_go')) : drawNext();
+  wireInspi('nx_inspi', openNext);
+  $('#nx_go').onclick = () => !enLigne ? drawNext() : inspiration() === 'perso' ? drawPerso($('#nx_res'), $('#nx_go')) : drawOnline(pick.theme, $('#nx_res'), $('#nx_go'));
 }
 function nextCandidates() {
   return books.filter(b => b.statut === 'a_lire').filter(b => {
@@ -1079,6 +1087,83 @@ async function drawOnline(themeId, box, btn) {
   retenir(x); lastOnline = x;
   box.innerHTML = sugCard(x, 'tir', 0);
 }
+/* ---------- 🎯 Tirage « d'après mes lectures » ---------- */
+// Goûts calculés SUR LE TÉLÉPHONE (rien n'est envoyé), à partir des catégories, genres et auteurs de mes livres.
+// On ne compte que des thèmes de lecture et des auteurs : jamais d'opinion.
+const THEME_DE_CAT = {politique: 'cat:politique', histoire: 'cat:histoire', philo: 'cat:philo', psycho: 'cat:psycho', socio: 'cat:socio', eco: 'cat:eco',
+  sciences: 'cat:sciences', bio: 'cat:bio', education: 'cat:education', social: 'cat:social', art: 'cat:art', droit: 'cat:droit', religion: 'cat:religion',
+  litterature: 'roman', fantasy: 'fantasy', sf: 'sf', polar: 'polar', bd: 'bd', perso: 'perso', jeunesse: 'jeunesse'};
+const THEME_DE_GENRE = {'Roman': 'roman', 'Polar / Thriller': 'polar', 'SF / Fantasy': 'fantasy', 'BD / Manga': 'bd', 'Essai': 'essai',
+  'Développement perso': 'perso', 'Pro / VAE': 'social', 'Biographie': 'cat:bio', 'Jeunesse': 'jeunesse'};
+function mesGouts() {
+  const poids = {}, aimes = [];
+  books.forEach(b => {
+    // un livre lu et bien noté compte beaucoup ; un livre abandonné ou mal noté compte contre
+    const w = b.statut === 'abandon' ? -1 : b.statut === 'lu' ? (b.note >= 4 ? 3 : b.note && b.note <= 2 ? -0.5 : 2) : 1;
+    const ids = new Set(catsDe(b).map(c => THEME_DE_CAT[c.id]).filter(Boolean));
+    if (!ids.size && THEME_DE_GENRE[b.genre]) ids.add(THEME_DE_GENRE[b.genre]);
+    ids.forEach(id => poids[id] = (poids[id] || 0) + w);
+    if (b.statut === 'lu' && b.note >= 4 && b.auteur) aimes.push(b);
+  });
+  const themes = Object.entries(poids).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  return {themes, aimes};
+}
+const auHasard = l => l[Math.floor(Math.random() * l.length)];
+// Un autre livre d'un auteur que j'ai aimé (que je n'ai pas encore)
+async function livreMemeAuteur(b) {
+  const nom = b.auteur.split(',')[0].trim(), sn = Recherche.surname(nom);
+  if (!sn) return null;
+  const res = (await Recherche.parTexte(nom).catch(() => [])).filter(r => Recherche.surname(r.auteur) === sn && !dejaVu(r));
+  for (const r of res.slice(0, 8).sort(() => Math.random() - 0.5).slice(0, 4)) {
+    const cov = await Recherche.couverture(r.covers || []) || (await Recherche.chercherCouvertures(r, 2).catch(() => []))[0];
+    if (!cov) continue;
+    const resume = r.resume || (await Recherche.resume(r).catch(() => ({}))).resume || '';
+    return {...r, resume, couverture: cov, theme: '', themeE: '✍️', themeNom: 'Même auteur', source: 'auteur', sourceNom: '🎯 D’après tes lectures',
+      raison: `Parce que tu as aimé « ${b.titre} » (${'★'.repeat(b.note)})`};
+  }
+  return null;
+}
+async function drawPerso(box, btn) {
+  const g = mesGouts();
+  if (!g.themes.length && !g.aimes.length) {
+    box.innerHTML = '<div class="hint">Je ne te connais pas encore assez 🙂 Ajoute quelques livres (et note ceux que tu as lus). En attendant, voici un tirage au hasard.</div>';
+    await new Promise(r => setTimeout(r, 1200));
+    return drawOnline('', box, btn);
+  }
+  if (btn) btn.disabled = true;
+  box.innerHTML = '<div class="nxspin">🎯 Je cherche d’après tes lectures…</div>';
+  let x = null;
+  // Une fois sur deux : un auteur que tu as aimé (s'il y en a) ; sinon une de tes catégories préférées
+  if (g.aimes.length && (Math.random() < 0.5 || !g.themes.length)) x = await livreMemeAuteur(auHasard(g.aimes)).catch(() => null);
+  if (!x && g.themes.length) {
+    // Tirage pondéré : les catégories que tu lis le plus ont plus de chances
+    let r = Math.random() * g.themes.reduce((t, z) => t + z[1], 0), id = g.themes[0][0];
+    for (const [k, w] of g.themes) { r -= w; if (r <= 0) { id = k; break; } }
+    const t = Recherche.THEMES_TIRAGE.find(z => z.id === id);
+    x = await Recherche.decouvrir(id, {exclude: dejaVu}).catch(() => null);
+    if (x && t) x = {...x, sourceNom: '🎯 D’après tes lectures', raison: `Tu lis souvent « ${t.nom} »` + (x.raison ? ' · ' + x.raison : '')};
+  }
+  if (!x && g.aimes.length) x = await livreMemeAuteur(auHasard(g.aimes)).catch(() => null);
+  if (btn) btn.disabled = false;
+  if (!x) { box.innerHTML = '<div class="hint">Rien trouvé cette fois (pas de connexion, ou catalogues occupés). Réessaie dans un instant.</div>'; return; }
+  retenir(x); lastOnline = x;
+  box.innerHTML = sugCard(x, 'tir', 0);
+}
+// Le choix « D'après mes lectures » / « Au hasard » (gardé d'une fois sur l'autre)
+const inspiration = () => prefs.tirage === 'hasard' ? 'hasard' : 'perso';
+function inspiHtml(id) {
+  const perso = inspiration() === 'perso', g = perso ? mesGouts() : null;
+  const noms = g ? g.themes.slice(0, 3).map(([k]) => (Recherche.THEMES_TIRAGE.find(t => t.id === k) || {}).nom).filter(Boolean) : [];
+  return `<div class="seg" id="${id}"><button type="button" data-v="perso" class="${perso ? 'on' : ''}">🎯 D'après mes lectures</button><button type="button" data-v="hasard" class="${perso ? '' : 'on'}">🎲 Au hasard</button></div>
+    ${perso ? `<div class="a" style="font-size:.85rem;margin:-2px 0 10px">${noms.length || g.aimes.length
+      ? `Je m'inspire de tes livres${noms.length ? ' : tu lis surtout <b>' + noms.map(esc).join('</b>, <b>') + '</b>' : ''}${g.aimes.length ? (noms.length ? ', et ' : ' : ') + 'tu as aimé ' + plural(new Set(g.aimes.map(b => b.auteur)).size, 'auteur') : ''}.`
+      : 'Ajoute et note quelques livres : je m\'inspirerai de tes lectures.'}
+      <span style="font-size:.78rem">(calculé sur ton téléphone, rien n'est envoyé)</span></div>` : ''}`;
+}
+function wireInspi(id, refaire) {
+  const el = $('#' + id); if (!el) return;
+  el.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; prefs.tirage = b.dataset.v; savePrefs(); refaire(); };
+}
 // Thèmes préférés d'après mes livres (pour que 2 des 5 livres du mois me ressemblent)
 function themesFavoris() {
   const map = {'Roman': 'roman', 'Polar / Thriller': 'polar', 'SF / Fantasy': 'fantasy', 'BD / Manga': 'bd', 'Essai': 'essai',
@@ -1116,13 +1201,15 @@ function renderDecouvrir() {
     </div>
     ${rechPanel()}
     <div class="panel"><h3>🎲 Tirage au sort en ligne</h3>
-      <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Choisis un thème (ou laisse faire le hasard) : je te trouve un livre que tu n'as pas encore.</div>
-      ${themeChips('dc_theme', pick.theme)}
+      <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Je te trouve un livre que tu n'as pas encore : d'après tes lectures, ou au hasard dans le thème de ton choix.</div>
+      ${inspiHtml('dc_inspi')}
+      ${inspiration() === 'hasard' ? themeChips('dc_theme', pick.theme) : ''}
       <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="dc_go" type="button">🎲 Tirer au sort</button></div>
       <div id="dc_res">${lastOnline ? sugCard(lastOnline, 'tir', 0) : ''}</div></div>`;
   const ch = $('#dc_theme');
-  ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
-  $('#dc_go').onclick = () => drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
+  if (ch) ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
+  wireInspi('dc_inspi', renderDecouvrir);
+  $('#dc_go').onclick = () => inspiration() === 'perso' ? drawPerso($('#dc_res'), $('#dc_go')) : drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
   const go = $('#selgo'); if (go) go.onclick = () => genSelection(true);
   wireRechPanel();
   // Points sous la rangée : montrent quel livre de la sélection est affiché
@@ -1135,7 +1222,14 @@ function renderDecouvrir() {
 /* ---------- 🔎 Chercher par thème, avec une longueur maximale ---------- */
 // (les livres dont le nombre de pages n'est pas connu ne sont jamais mêlés aux résultats quand il y a une limite)
 const rech = {cat: prefs.rechCat || '', texte: '', max: +prefs.rechMax || 0, etat: '', res: [], inconnus: [], trop: 0, examines: 0, enCours: 0,
-  fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastMax: 0};
+  fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastMax: 0,
+  par: prefs.rechPar || 'theme', lastPar: 'theme'};
+// Chercher par : thème (ou sujet), auteur, titre
+const RECH_PAR = {
+  theme: {nom: '🏷️ Thème', aide: 'Choisis un thème ou écris un sujet (géopolitique, écologie, féminisme…).', place: 'Un sujet : géopolitique, écologie, féminisme…'},
+  auteur: {nom: '✍️ Auteur', aide: 'Écris le nom d\'un auteur, d\'une autrice ou d\'un dessinateur : je te montre ses livres (une édition par livre).', place: 'Un auteur : Annie Ernaux, Tolkien, Riad Sattouf…'},
+  titre: {nom: '📖 Titre', aide: 'Écris un titre, ou quelques mots du titre.', place: 'Un titre : L\'Étranger, Dune, Le Petit Prince…'}
+};
 const LIMITES = [[100, '100 p.'], [200, '200 p.'], [300, '300 p.'], [500, '500 p.'], [0, 'Sans limite']];
 const catNom = id => { const c = Recherche.CATS.find(z => z.id === id); return c ? c.e + ' ' + c.nom : ''; };
 function rechChips() {
@@ -1145,11 +1239,13 @@ function rechChips() {
     || '<span class="a" style="font-size:.85rem">Pas de thème de la liste à ce nom : je chercherai ce sujet dans le catalogue de la BnF.</span>';
 }
 function rechPanel() {
-  const filtres = rech.cat || rech.texte || rech.max;
-  return `<div class="panel" id="rechPanel"><h3>🔎 Chercher par thème</h3>
-    <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Choisis un thème ou écris un sujet, puis une longueur maximale : je cherche des livres en français dans le catalogue de la BnF.</div>
-    <div class="search"><input id="rq" type="search" enterkeyhint="search" placeholder="Un sujet : géopolitique, écologie, féminisme…" value="${esc(rech.texte)}" aria-label="Thème ou sujet"></div>
-    <div class="chips" id="rq_cats" style="margin-top:8px">${rechChips()}</div>
+  const filtres = rech.cat || rech.texte || rech.max, m = RECH_PAR[rech.par] || RECH_PAR.theme;
+  return `<div class="panel" id="rechPanel"><h3>🔎 Chercher des livres</h3>
+    <div class="lbl" style="margin-bottom:4px">Chercher par</div>
+    <div class="seg" id="rq_par">${Object.entries(RECH_PAR).map(([k, v]) => `<button type="button" data-v="${k}" class="${rech.par === k ? 'on' : ''}">${v.nom}</button>`).join('')}</div>
+    <div class="a" style="margin:-2px 0 10px;font-size:.88rem">${m.aide} Puis choisis une longueur maximale : je cherche des livres en français dans le catalogue de la BnF.</div>
+    <div class="search"><input id="rq" type="search" enterkeyhint="search" placeholder="${esc(m.place)}" value="${esc(rech.texte)}" aria-label="${esc(m.nom.slice(3))}"></div>
+    ${rech.par === 'theme' ? `<div class="chips" id="rq_cats" style="margin-top:8px">${rechChips()}</div>` : '<div style="height:10px"></div>'}
     <div class="lbl" style="margin-bottom:4px">Longueur maximale</div>
     <div class="seg" id="rq_max">${LIMITES.map(([v, t]) => `<button type="button" data-v="${v}" class="${rech.max === v ? 'on' : ''}">${t}</button>`).join('')}</div>
     <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="rq_go" type="button">🔎 Chercher</button>
@@ -1175,7 +1271,8 @@ function rechCard(x, ctx, i) {
 }
 function rechResultats() {
   if (!rech.etat) return '';
-  const quoi = rech.lastCat ? `« ${catNom(rech.lastCat)} »` : `sur « ${esc(rech.lastTexte)} »`;
+  const quoi = rech.lastPar === 'auteur' ? `de « ${esc(rech.lastTexte)} »` : rech.lastPar === 'titre' ? `intitulé « ${esc(rech.lastTexte)} »`
+    : rech.lastCat ? `« ${catNom(rech.lastCat)} »` : `sur « ${esc(rech.lastTexte)} »`;
   const lim = rech.lastMax ? ` de ${rech.lastMax} pages ou moins` : '';
   const vus = rech.examines + rech.enCours;
   let h = '';
@@ -1215,11 +1312,13 @@ function paintRech() {
 }
 async function lancerRech(suite) {
   if (!suite) {
-    let cat = rech.cat, texte = rech.texte.trim();
+    const par = rech.par;
+    let cat = par === 'theme' ? rech.cat : '', texte = rech.texte.trim();
+    if (par !== 'theme' && !texte) return toast(par === 'auteur' ? 'Écris le nom d\'un auteur' : 'Écris un titre');
     // « philo », « polar », « manga »… écrits à la main → le thème correspondant
-    if (!cat && texte) { const t = Recherche.themePourTexte(texte); if (t && Recherche.THEMES_RECHERCHE.includes(t)) { cat = rech.cat = t.id; texte = rech.texte = ''; renderDecouvrir(); } }
+    if (par === 'theme' && !cat && texte) { const t = Recherche.themePourTexte(texte); if (t && Recherche.THEMES_RECHERCHE.includes(t)) { cat = rech.cat = t.id; texte = rech.texte = ''; renderDecouvrir(); } }
     if (!cat && !texte) return toast('Choisis un thème ou écris un sujet');
-    Object.assign(rech, {lastCat: cat, lastTexte: texte, lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
+    Object.assign(rech, {lastPar: par, lastCat: cat, lastTexte: texte, lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
     prefs.rechCat = cat; prefs.rechMax = rech.max; savePrefs();
   }
   const tok = ++rech.tok;
@@ -1235,7 +1334,8 @@ async function lancerRech(suite) {
     rech.enCours = o.examines;
     return neufs;
   };
-  const r = await Recherche.parTheme({cat: rech.lastCat, texte: rech.lastTexte, max: rech.lastMax, stop: () => rech.stop || tok !== rech.tok}, rech.cur, o => {
+  const crit = rech.lastPar === 'auteur' ? {auteur: rech.lastTexte} : rech.lastPar === 'titre' ? {titre: rech.lastTexte} : {cat: rech.lastCat, texte: rech.lastTexte};
+  const r = await Recherche.parTheme({...crit, max: rech.lastMax, stop: () => rech.stop || tok !== rech.tok}, rech.cur, o => {
     if (tok !== rech.tok) return;
     if (absorbe(o)) paintRech();
     else { const p = $('#rq_prog'); if (p) p.textContent = `🔎 Je cherche (${plural(rech.examines + o.examines, 'livre')} regardé${rech.examines + o.examines > 1 ? 's' : ''})…`; }
@@ -1247,10 +1347,15 @@ async function lancerRech(suite) {
 }
 function wireRechPanel() {
   const q = $('#rq'); if (!q) return;
-  q.oninput = () => { rech.texte = q.value; $('#rq_cats').innerHTML = rechChips(); };
+  q.oninput = () => { rech.texte = q.value; if ($('#rq_cats')) $('#rq_cats').innerHTML = rechChips(); };
+  $('#rq_par').onclick = e => {
+    const b = e.target.closest('[data-v]'); if (!b || b.dataset.v === rech.par) return;
+    rech.par = b.dataset.v; prefs.rechPar = rech.par; savePrefs(); rech.texte = ''; renderDecouvrir();
+    const champ = $('#rq'); if (champ) champ.focus();
+  };
   q.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); q.blur(); lancerRech(); } };
   // Changer de thème ou de limite relance la recherche (sans avoir à tout recommencer)
-  $('#rq_cats').onclick = e => {
+  if ($('#rq_cats')) $('#rq_cats').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
     rech.cat = rech.cat === b.dataset.v ? '' : b.dataset.v;
     if (rech.cat && Recherche.themePourTexte(rech.texte)) rech.texte = '';

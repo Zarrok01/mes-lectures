@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mes lectures</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#b5562f">
+<style>
+:root{--bg:#f7f3ec;--card:#fffdf9;--field:#fff;--ink:#2b2622;--muted:#7a6f66;--line:#e6ddd0;--accent:#b5562f;--accent-soft:#f3e2d8;--green:#4f7a52;--star:#e0a526;--radius:14px;--shadow:0 1px 3px rgba(60,40,20,.08),0 4px 14px rgba(60,40,20,.06);color-scheme:light}
+:root[data-theme=dark]{--bg:#1b1815;--card:#26221e;--field:#2f2a25;--ink:#efe7dd;--muted:#a99d90;--line:#3d362e;--accent:#dd7a4c;--accent-soft:#3e2a20;--green:#82b082;--shadow:0 1px 3px rgba(0,0,0,.35);color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+.wrap{max-width:760px;margin:0 auto;padding:0 14px}
+main.wrap{padding-bottom:96px}
+.top{display:flex;align-items:center;gap:8px;padding:12px 0 4px}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;margin:0;flex:1}
+.flame{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:3px 10px;font-weight:700;font-size:.9rem}
+.icon{border:1px solid var(--line);background:var(--card);color:var(--ink);width:38px;height:38px;border-radius:10px;font-size:1.1rem;cursor:pointer;flex:none}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tab{flex:1 0 auto;border:0;background:none;padding:10px 8px;font:inherit;font-size:.93rem;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab.on{color:var(--ink);border-color:var(--accent);font-weight:600}
+.tab .n{display:inline-block;min-width:1.5em;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--line);font-size:.75rem;color:var(--ink)}
+.tools{display:flex;gap:8px;padding:12px 0;flex-wrap:wrap}
+.tools input,.tools select,.search input{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);min-width:0}
+.tools input{flex:1 1 200px}
+.tools select{flex:1 1 120px}
+.list{display:grid;gap:12px}
+.list.grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:14px 10px}
+.card{display:flex;gap:12px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;cursor:pointer}
+.gcard{cursor:pointer;display:flex;flex-direction:column;gap:5px;position:relative}
+.gcard .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:8px;font-size:2rem;box-shadow:var(--shadow)}
+.gcard .t{font-size:.84rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gcard .pin{position:absolute;top:4px;right:4px;font-size:1rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.ph{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Georgia,serif;font-weight:bold;flex:none}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cover{width:64px;height:96px;border-radius:6px;font-size:1.5rem}
+.rc{width:34px;height:50px;border-radius:4px;font-size:.9rem}
+.big{width:80px;height:120px;border-radius:6px;font-size:1.8rem}
+.mini{width:30px;height:45px;border-radius:3px;font-size:.8rem}
+.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.t{font-weight:650;line-height:1.25}
+.a{color:var(--muted);font-size:.92rem}
+.avis{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-style:italic}
+.meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.chip{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:1px 9px;font-size:.78rem}
+.stars{color:var(--star);letter-spacing:1px}
+.bar{height:7px;background:var(--line);border-radius:5px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--green);border-radius:5px}
+.acts{margin-top:auto;display:flex;gap:6px;padding-top:6px;flex-wrap:wrap}
+.btn{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:9px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.del{color:#c44;border-color:#e8c5c5}
+.btn.del.sure{background:#b33;color:#fff}
+.btn.on{background:var(--accent-soft);border-color:var(--accent)}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;grid-column:1/-1}
+.fab{position:fixed;right:20px;bottom:22px;width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:2rem;line-height:1;box-shadow:0 6px 18px rgba(150,60,20,.35);cursor:pointer;z-index:20}
+.ov{position:fixed;inset:0;background:rgba(20,14,8,.5);display:none;align-items:flex-end;justify-content:center;z-index:30}
+.ov.show{display:flex}
+.modal{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px}
+@media(min-width:600px){.ov{align-items:center}.modal{border-radius:18px}}
+.modal h2{margin:0 0 12px;font-family:Georgia,serif;font-size:1.25rem}
+details{margin-bottom:12px}
+summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;margin-bottom:8px}
+.f{display:flex;flex-direction:column;gap:4px;margin-bottom:11px;min-width:0}
+.f>label,.lbl{font-size:.82rem;color:var(--muted);font-weight:600}
+.f input,.f select,.f textarea,.search input{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);width:100%}
+.row{display:flex;gap:10px}.row>.f{flex:1}
+.search{display:flex;gap:6px;align-items:center}.search input{flex:1}
+.res{display:grid;gap:6px;margin:8px 0}
+.res button{display:flex;gap:10px;align-items:center;text-align:left;font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:6px;cursor:pointer}
+.starpick button{font-size:1.8rem;background:none;border:0;color:var(--line);cursor:pointer;padding:0 2px}
+.starpick button.on{color:var(--star)}
+.mfoot{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.mfoot .sp{flex:1}
+.prev{display:flex;gap:12px;align-items:flex-end;margin-bottom:12px}
+.prev .btns{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.qlist{display:grid;gap:6px;margin-bottom:6px}
+.q{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:8px 10px;font-size:.92rem;display:flex;gap:8px}
+.q p{margin:0;flex:1;font-style:italic;white-space:pre-wrap}
+.q button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1rem}
+.quote{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;cursor:pointer}
+.quote p{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem;white-space:pre-wrap}
+.hist{font-size:.85rem;color:var(--muted);margin:-4px 0 12px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+@media(min-width:600px){.tiles{grid-template-columns:repeat(4,1fr)}}
+.tile{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px}
+.tile b{display:block;font-size:1.6rem;font-family:Georgia,serif}
+.tile span{font-size:.82rem;color:var(--muted)}
+.panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.panel h3{margin:0 0 10px;font-size:1rem}
+.chart{display:flex;gap:4px;height:140px}
+.chart>div{flex:1;display:flex;flex-direction:column;align-items:center;font-size:.7rem;color:var(--muted);min-width:0}
+.chart .col{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.chart i{display:block;width:100%;background:var(--accent);border-radius:4px 4px 0 0}
+.chart.green i{background:var(--green)}
+.chart em{font-style:normal;color:var(--ink);font-weight:600;font-size:.68rem}
+.hb{display:grid;grid-template-columns:minmax(80px,140px) 1fr 24px;gap:8px;align-items:center;font-size:.88rem;margin-bottom:7px}
+.hb .bar>i{background:var(--accent)}
+.facts{display:grid;gap:8px}
+.fact{display:flex;gap:10px;align-items:center;font-size:.92rem}
+.fact .k{color:var(--muted);min-width:118px;font-size:.85rem}
+.top5{display:grid;gap:8px;margin-bottom:12px}
+.top5 div{display:flex;gap:10px;align-items:center;font-size:.92rem}
+.top5 .rk{font-family:Georgia,serif;font-weight:bold;color:var(--accent);width:18px}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40;white-space:nowrap}
+.toast.show{opacity:.94}
+.backup{background:var(--accent-soft);color:var(--ink);font-size:.85rem;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+#print{display:none}
+@media print{
+  body>*:not(#print){display:none!important}
+  #print{display:block;color:#000;font:12px/1.4 Georgia,serif}
+  #print h1{font-size:20px;margin:0 0 4px}#print h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #999}
+  #print table{width:100%;border-collapse:collapse}#print td,#print th{text-align:left;padding:4px 6px;border-bottom:1px solid #ddd;vertical-align:top}
+  #print blockquote{margin:0 0 8px;font-style:italic}
+}
+</style>
+</head>
+<body>
+<div id="backupBar" class="backup" hidden></div>
+<header><div class="wrap">
+  <div class="top">
+    <h1>📚 Mes lectures</h1>
+    <span class="flame" id="flame" hidden title="Jours de lecture d'affilée"></span>
+    <button class="icon" id="theme" title="Mode sombre / clair" aria-label="Changer de thème"></button>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</div></header>
+<main class="wrap" id="main"><div class="empty">Chargement de tes livres…</div></main>
+<button class="fab" id="fab" title="Ajouter un livre" aria-label="Ajouter un livre">+</button>
+<div class="ov" id="ov"><div class="modal" id="modal" role="dialog"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="pick_cover" accept="image/*" hidden>
+<input type="file" id="pick_scan" accept="image/*" capture="environment" hidden>
+<input type="file" id="pick_backup" accept=".json,application/json" hidden>
+<div id="print"></div>
+
+<script>
+const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
+const STATUT_UN = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lu', abandon: 'Abandonné'};
+const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Autre'];
+const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+const EMPTY = {
+  en_cours: 'Aucune lecture en cours.<br>Va dans « À lire » et appuie sur « Commencer », ou ajoute un livre avec le bouton +.',
+  a_lire: 'Ta liste de livres à lire est vide.<br>Ajoute un livre avec le bouton +.',
+  lu: 'Aucun livre terminé pour l\'instant.',
+  abandon: 'Aucun livre abandonné. 👍'
+};
+
+let books = [], goal = 0, form = null, lastRes = [];
+const ui = {tab: 'en_cours', q: '', cq: '', genre: '', sort: 'recent', year: new Date().getFullYear()};
+const prefs = Object.assign({view: 'liste', theme: 'auto'}, (() => { try { return JSON.parse(localStorage.getItem('mes-lectures-prefs')) || {}; } catch (e) { return {}; } })());
+function savePrefs() { try { localStorage.setItem('mes-lectures-prefs', JSON.stringify(prefs)); } catch (e) {} }
+
+/* ---------- Petits outils ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const safeUrl = u => /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u || '') ? u : '';
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const today = () => iso(new Date());
+function fdate(s) { if (!s) return ''; const d = new Date(s + 'T00:00'); return isNaN(d) ? s : d.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); }
+function stars(n) { n = Math.round(n || 0); return n ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''; }
+function hue(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function plural(n, w) { return n + ' ' + w + (n > 1 ? 's' : ''); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2300); }
+function coverHtml(b, cls) {
+  const u = safeUrl(b.couverture);
+  const ini = esc((b.titre || '?').trim().charAt(0).toUpperCase());
+  return `<div class="${cls || 'cover'} ph" style="background:hsl(${hue(b.titre)} 32% 48%)">${ini}${u ? `<img src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div>`;
+}
+function counts() { const c = {en_cours: 0, a_lire: 0, lu: 0, abandon: 0}; books.forEach(b => { if (b.statut in c) c[b.statut]++; }); return c; }
+function allQuotes() { const out = []; books.forEach(b => (b.citations || []).forEach((q, i) => out.push({b, q, i}))); return out; }
+function parseList(v) { if (Array.isArray(v)) return v; try { const x = JSON.parse(v || '[]'); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
+function norm(b) {
+  return {...b, note: +b.note || 0, epingle: b.epingle === true || b.epingle === 'true',
+    citations: parseList(b.citations), journal: parseList(b.journal), historique: parseList(b.historique)};
+}
+
+/* ---------- Thème clair / sombre ---------- */
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme() {
+  const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  $('#theme').textContent = dark ? '☀️' : '🌙';
+}
+darkQuery.addEventListener && darkQuery.addEventListener('change', applyTheme);
+$('#theme').onclick = () => { prefs.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); };
+applyTheme();
+
+/* ---------- Journal de lecture (pages par jour, série) ---------- */
+function logPage(b, page, date) {
+  date = date || today();
+  b.journal = (b.journal || []).filter(e => e.date !== date).concat({date, page: +page || 0})
+    .sort((x, y) => x.date.localeCompare(y.date)).slice(-400);
+}
+function activity() {
+  const m = {};
+  books.forEach(b => {
+    const j = b.journal || [];
+    for (let i = 1; i < j.length; i++) { const d = j[i].page - j[i - 1].page; if (d > 0) m[j[i].date] = (m[j[i].date] || 0) + d; }
+  });
+  return m;
+}
+function streaks(m) {
+  const d = new Date(); if (!m[iso(d)]) d.setDate(d.getDate() - 1);
+  let cur = 0; while (m[iso(d)]) { cur++; d.setDate(d.getDate() - 1); }
+  let best = 0, run = 0, prev = null;
+  Object.keys(m).sort().forEach(k => {
+    const x = new Date(k + 'T00:00');
+    run = prev && (x - prev) / 864e5 === 1 ? run + 1 : 1; best = Math.max(best, run); prev = x;
+  });
+  return {cur, best};
+}
+function readings() {
+  const out = [];
+  books.forEach(b => {
+    (b.historique || []).forEach(h => { if (h.fin) out.push({b, fin: h.fin, note: +h.note || 0}); });
+    if (b.statut === 'lu' && b.dateFin) out.push({b, fin: b.dateFin, note: +b.note || 0});
+  });
+  return out;
+}
+
+/* ---------- Stockage sur l'appareil ---------- */
+function call(fn, ...args) { return Promise.resolve().then(() => Local[fn](...args)); }
+const LS = 'mes-lectures-data';
+const Local = {
+  load() { try { return JSON.parse(localStorage.getItem(LS)) || {books: [], goal: 0}; } catch (e) { return {books: [], goal: 0}; } },
+  store(d) {
+    try { localStorage.setItem(LS, JSON.stringify(d)); }
+    catch (e) { toast('Mémoire pleine : retire quelques photos de couverture'); throw e; }
+  },
+  getData() { return this.load(); },
+  saveBook(b) { const d = this.load(); const i = d.books.findIndex(x => x.id === b.id); if (i >= 0) d.books[i] = b; else d.books.push(b); this.store(d); return b; },
+  deleteBook(id) { const d = this.load(); d.books = d.books.filter(x => x.id !== id); this.store(d); return true; },
+  setGoal(n) { const d = this.load(); d.goal = n; this.store(d); return n; },
+  replaceAll(d) { this.store({books: d.books, goal: d.goal || 0}); return true; },
+  async searchBooks(q) {
+    const isbn = q.replace(/[\s-]/g, ''), isIsbn = /^(97[89])?\d{9}[\dX]$/i.test(isbn);
+    try {
+      const j = await (await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent(isIsbn ? 'isbn:' + isbn : q))).json();
+      const out = (j.items || []).map(it => { const v = it.volumeInfo || {}, l = v.imageLinks || {};
+        return {titre: v.title || '', auteur: (v.authors || []).join(', '), pagesTotal: v.pageCount || '',
+          couverture: (l.thumbnail || l.smallThumbnail || '').replace(/^http:/, 'https:').replace('&edge=curl', '')}; }).filter(b => b.titre);
+      if (out.length) return out;
+    } catch (e) {}
+    const j = await (await fetch('https://openlibrary.org/search.json?limit=8&fields=title,author_name,number_of_pages_median,cover_i' +
+      (isIsbn ? '&isbn=' + isbn : '&q=' + encodeURIComponent(q)))).json();
+    return (j.docs || []).map(d => ({titre: d.title || '', auteur: (d.author_name || []).join(', '), pagesTotal: d.number_of_pages_median || '',
+      couverture: d.cover_i ? 'https://covers.openlibrary.org/b/id/' + d.cover_i + '-M.jpg' : ''})).filter(b => b.titre);
+  }
+};
+
+/* ---------- Affichage ---------- */
+function render() {
+  const c = counts(), nq = allQuotes().length;
+  $('#tabs').innerHTML = Object.keys(STATUTS).map(k =>
+    `<button class="tab ${ui.tab === k ? 'on' : ''}" data-tab="${k}">${STATUTS[k]}<span class="n">${c[k]}</span></button>`).join('') +
+    `<button class="tab ${ui.tab === 'citations' ? 'on' : ''}" data-tab="citations">Citations<span class="n">${nq}</span></button>` +
+    `<button class="tab ${ui.tab === 'stats' ? 'on' : ''}" data-tab="stats">Stats</button>`;
+  const on = $('#tabs .on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
+  const s = streaks(activity()).cur;
+  $('#flame').hidden = !s; $('#flame').textContent = '🔥 ' + s;
+  if (ui.tab === 'stats') return renderStats();
+  if (ui.tab === 'citations') return renderQuotesTab();
+  const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
+  const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['note', 'Meilleure note']];
+  const grid = prefs.view === 'grille';
+  $('#main').innerHTML = `<div class="tools">
+      <input id="q" type="search" placeholder="Chercher un titre, un auteur…" value="${esc(ui.q)}">
+      <select id="genre"><option value="">Tous les genres</option>${genres.map(g => `<option value="${esc(g)}" ${g === ui.genre ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
+      <select id="sort">${sorts.map(([v, t]) => `<option value="${v}" ${v === ui.sort ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? '☰' : '▦'}</button>
+    </div><div class="list ${grid ? 'grid' : ''}" id="list"></div>`;
+  renderCards();
+}
+
+function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.dateFin : b.statut === 'en_cours' ? b.dateDebut : '') || b.ajoute || ''; }
+
+function renderCards() {
+  const q = ui.q.trim().toLowerCase();
+  let l = books.filter(b => b.statut === ui.tab);
+  if (q) l = l.filter(b => [b.titre, b.auteur, b.genre, b.avis].join(' ').toLowerCase().includes(q));
+  if (ui.genre) l = l.filter(b => b.genre === ui.genre);
+  const by = {
+    recent: (a, b) => dateKey(b).localeCompare(dateKey(a)),
+    titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
+    auteur: (a, b) => (a.auteur || '').localeCompare(b.auteur || '', 'fr'),
+    note: (a, b) => (b.note || 0) - (a.note || 0)
+  };
+  l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
+  $('#list').innerHTML = l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
+    `<div class="empty">${q || ui.genre ? 'Aucun livre ne correspond.' : EMPTY[ui.tab]}</div>`;
+}
+
+function progress(b) {
+  const tot = +b.pagesTotal || 0, cur = +b.pageActuelle || 0;
+  return {tot, cur, pct: tot ? Math.min(100, Math.round(cur / tot * 100)) : 0};
+}
+
+function card(b) {
+  let extra = '', acts = '';
+  const fois = (b.historique || []).length;
+  if (b.statut === 'en_cours') {
+    const p = progress(b);
+    extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
+      : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
+    acts = `<button class="btn" data-act="pages">Où j'en suis</button><button class="btn" data-act="quote">＋ Citation</button><button class="btn pri" data-act="fini">J'ai fini ✓</button>`;
+  } else if (b.statut === 'a_lire') {
+    extra = b.pagesTotal ? `<div class="meta">${esc(b.pagesTotal)} pages</div>` : '';
+    acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut">📌 ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
+  } else if (b.statut === 'lu') {
+    extra = `<div class="meta">${b.note ? `<span class="stars">${stars(b.note)}</span>` : ''}${b.dateFin ? `<span>Fini le ${fdate(b.dateFin)}</span>` : ''}${fois ? `<span class="chip">Lu ${fois + 1} fois</span>` : ''}</div>` +
+      (b.avis ? `<div class="a avis">${esc(b.avis)}</div>` : '');
+  } else {
+    const p = progress(b);
+    extra = `<div class="meta">${p.tot && p.cur ? `<span>Arrêté p. ${p.cur} / ${p.tot}</span>` : ''}${b.dateFin ? `<span>le ${fdate(b.dateFin)}</span>` : ''}</div>`;
+    acts = `<button class="btn" data-act="resume">Reprendre</button>`;
+  }
+  return `<article class="card" data-id="${esc(b.id)}">${coverHtml(b)}<div class="info">
+      <div class="t">${b.epingle && b.statut === 'a_lire' ? '📌 ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
+      ${b.genre ? `<div class="meta"><span class="chip">${esc(b.genre)}</span></div>` : ''}
+      ${extra}${acts ? `<div class="acts">${acts}</div>` : ''}</div></article>`;
+}
+
+function gcard(b) {
+  let extra = '';
+  if (b.statut === 'en_cours') { const p = progress(b); if (p.tot) extra = `<div class="bar"><i style="width:${p.pct}%"></i></div>`; }
+  if (b.statut === 'lu' && b.note) extra = `<div class="stars" style="font-size:.8rem">${stars(b.note)}</div>`;
+  return `<article class="gcard card-g" data-id="${esc(b.id)}">${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
+    <div class="t">${esc(b.titre)}</div>${extra}</article>`;
+}
+
+/* ---------- Onglet Citations ---------- */
+function renderQuotesTab() {
+  $('#main').innerHTML = `<div class="tools"><input id="cq" type="search" placeholder="Chercher dans mes citations…" value="${esc(ui.cq)}"></div><div class="list" id="qlist"></div>`;
+  renderQuotes();
+}
+function renderQuotes() {
+  const q = ui.cq.trim().toLowerCase();
+  let l = allQuotes();
+  if (q) l = l.filter(x => [x.q.texte, x.b.titre, x.b.auteur].join(' ').toLowerCase().includes(q));
+  l.sort((a, b) => (b.q.date || '').localeCompare(a.q.date || ''));
+  $('#qlist').innerHTML = l.length ? l.map(x => `<article class="quote" data-book="${esc(x.b.id)}"><p>« ${esc(x.q.texte)} »</p>
+      <div class="a">— <b>${esc(x.b.titre)}</b>${x.b.auteur ? ', ' + esc(x.b.auteur) : ''}${x.q.page ? ' · p. ' + esc(x.q.page) : ''}</div></article>`).join('')
+    : `<div class="empty">${q ? 'Aucune citation ne correspond.' : 'Pas encore de citation.<br>Sur un livre en cours, appuie sur « ＋ Citation ».'}</div>`;
+}
+
+/* ---------- Statistiques ---------- */
+function renderStats() {
+  const all = readings();
+  const thisYear = new Date().getFullYear();
+  const years = [...new Set([thisYear, ...all.map(r => +r.fin.slice(0, 4)).filter(Boolean)])].sort((a, b) => b - a);
+  const y = ui.year;
+  const ly = all.filter(r => r.fin.startsWith(String(y)));
+  const pages = ly.reduce((s, r) => s + (+r.b.pagesTotal || 0), 0);
+  const noted = ly.filter(r => r.note > 0);
+  const moy = noted.length ? noted.reduce((s, r) => s + r.note, 0) / noted.length : 0;
+  const act = activity(), st = streaks(act);
+
+  // Pages lues : 8 dernières semaines (lundi → dimanche)
+  const monday = new Date(); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+  const weeks = [];
+  for (let w = 7; w >= 0; w--) { const s = new Date(monday); s.setDate(s.getDate() - 7 * w); weeks.push({start: s, n: 0}); }
+  Object.entries(act).forEach(([k, n]) => { const d = new Date(k + 'T00:00'); const w = weeks.findIndex(x => d >= x.start && d - x.start < 7 * 864e5); if (w >= 0) weeks[w].n += n; });
+  const wmax = Math.max(1, ...weeks.map(w => w.n));
+  const thisWeek = weeks[7].n;
+
+  const perM = Array(12).fill(0); ly.forEach(r => { const m = +r.fin.slice(5, 7); if (m) perM[m - 1]++; });
+  const max = Math.max(1, ...perM);
+  const g = {}; ly.forEach(r => { const k = r.b.genre || 'Sans genre'; g[k] = (g[k] || 0) + 1; });
+  const gl = Object.entries(g).sort((a, b) => b[1] - a[1]);
+  const pct = goal ? Math.min(100, Math.round(ly.length / goal * 100)) : 0;
+  const s = ly.length > 1 ? 's' : '';
+
+  $('#main').innerHTML = `
+    <div class="tools"><select id="year" aria-label="Année">${years.map(v => `<option ${v === y ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+    <div class="tiles">
+      <div class="tile"><b>${ly.length}</b><span>livre${s} lu${s} en ${y}</span></div>
+      <div class="tile"><b>${pages.toLocaleString('fr-FR')}</b><span>pages lues en ${y}</span></div>
+      <div class="tile"><b>${moy ? moy.toFixed(1).replace('.', ',') : '–'}</b><span>note moyenne / 5</span></div>
+      <div class="tile"><b>🔥 ${st.cur}</b><span>jour${st.cur > 1 ? 's' : ''} d'affilée · record ${st.best}</span></div>
+    </div>
+    ${y === thisYear ? `<div class="panel"><h3>Mon objectif ${y}</h3>
+      ${goal ? `<div class="meta" style="margin-bottom:6px">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
+             : '<div class="a">Pas encore d\'objectif. Combien de livres veux-tu lire cette année ?</div>'}
+      <div class="search" style="margin-top:10px"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
+    <div class="panel"><h3>Pages lues par semaine</h3>
+      <div class="a" style="margin:-4px 0 8px">Cette semaine : <b>${plural(thisWeek, 'page')}</b>${thisWeek ? ` · ${Math.round(thisWeek / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
+      <div class="chart green">${weeks.map(w => `<div><div class="col"><em>${w.n || ''}</em><i style="height:${w.n / wmax * 100}%"></i></div>${w.start.getDate()}/${w.start.getMonth() + 1}</div>`).join('')}</div>
+      <div class="a" style="font-size:.78rem;margin-top:6px">Compté à partir des pages que tu notes avec « Où j'en suis ».</div></div>
+    <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
+      `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
+    <div class="panel"><h3>Par genre</h3>${gl.length ? gl.map(([k, n]) =>
+      `<div class="hb"><span>${esc(k)}</span><div class="bar"><i style="width:${n / gl[0][1] * 100}%"></i></div><span>${n}</span></div>`).join('')
+      : `<div class="a">Aucun livre fini en ${y}.</div>`}</div>
+    ${bilan(y, ly)}
+    <div class="panel"><h3>Exporter ma liste</h3><div class="a" style="margin-bottom:10px">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
+      <div class="acts"><button class="btn pri" data-export="excel">📊 Excel</button><button class="btn pri" data-export="pdf">📄 PDF</button></div></div>
+    <div class="panel"><h3>💾 Sauvegarde</h3><div class="a" style="margin-bottom:10px">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
+      (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
+      <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>`;
+}
+
+function bilan(y, ly) {
+  if (!ly.length) return '';
+  const top = ly.slice().sort((a, b) => b.note - a.note || b.fin.localeCompare(a.fin)).slice(0, 5);
+  const byAuthor = {}; ly.forEach(r => { if (r.b.auteur) byAuthor[r.b.auteur] = (byAuthor[r.b.auteur] || 0) + 1; });
+  const author = Object.entries(byAuthor).sort((a, b) => b[1] - a[1])[0];
+  const withPages = ly.filter(r => +r.b.pagesTotal > 0).sort((a, b) => b.b.pagesTotal - a.b.pagesTotal);
+  const byDate = ly.slice().sort((a, b) => a.fin.localeCompare(b.fin));
+  const genres = {}; ly.forEach(r => { if (r.b.genre) genres[r.b.genre] = (genres[r.b.genre] || 0) + 1; });
+  const genre = Object.entries(genres).sort((a, b) => b[1] - a[1])[0];
+  const quotes = allQuotes().filter(x => (x.q.date || '').startsWith(String(y))).length;
+  const aband = books.filter(b => b.statut === 'abandon' && (b.dateFin || '').startsWith(String(y))).length;
+  const fact = (k, v) => v ? `<div class="fact"><span class="k">${k}</span><span>${v}</span></div>` : '';
+  const bk = r => `<b>${esc(r.b.titre)}</b>`;
+  return `<div class="panel"><h3>🎉 Mon bilan ${y}</h3>
+    <div class="lbl" style="margin-bottom:6px">Mon top ${top.length}</div>
+    <div class="top5">${top.map((r, i) => `<div><span class="rk">${i + 1}</span>${coverHtml(r.b, 'mini')}<span>${bk(r)}${r.note ? ` <span class="stars">${stars(r.note)}</span>` : ''}</span></div>`).join('')}</div>
+    <div class="facts">
+      ${fact('Auteur le plus lu', author ? `${esc(author[0])} (${plural(author[1], 'livre')})` : '')}
+      ${fact('Genre préféré', genre ? `${esc(genre[0])} (${plural(genre[1], 'livre')})` : '')}
+      ${fact('Le plus long', withPages[0] ? `${bk(withPages[0])} · ${withPages[0].b.pagesTotal} p.` : '')}
+      ${fact('Le plus court', withPages.length > 1 ? `${bk(withPages[withPages.length - 1])} · ${withPages[withPages.length - 1].b.pagesTotal} p.` : '')}
+      ${fact('Premier de l\'année', bk(byDate[0]) + ' · ' + fdate(byDate[0].fin))}
+      ${fact('Dernier fini', byDate.length > 1 ? bk(byDate[byDate.length - 1]) + ' · ' + fdate(byDate[byDate.length - 1].fin) : '')}
+      ${fact('Citations notées', quotes ? String(quotes) : '')}
+      ${fact('Abandonnés', aband ? String(aband) : '')}
+    </div></div>`;
+}
+
+/* ---------- Export, sauvegarde, restauration ---------- */
+const fdShort = s => s ? s.split('-').reverse().join('/') : '';
+const ORDER = {en_cours: 0, a_lire: 1, lu: 2, abandon: 3};
+const sortedBooks = () => books.slice().sort((a, b) => (ORDER[a.statut] - ORDER[b.statut]) || a.titre.localeCompare(b.titre, 'fr'));
+function download(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function backupInfo() {
+  const last = prefs.lastBackup;
+  if (!last) return '<b>Aucune sauvegarde pour l\'instant.</b>';
+  const days = Math.floor((Date.now() - new Date(last)) / 864e5);
+  return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.`;
+}
+function paintBackupBar() {
+  const last = prefs.lastBackup, bar = $('#backupBar');
+  const late = books.length >= 3 && (!last || Date.now() - new Date(last) > 30 * 864e5);
+  bar.hidden = !late;
+  if (late) bar.innerHTML = `💾 ${last ? 'Ta dernière sauvegarde date de plus d\'un mois.' : 'Pense à sauvegarder tes livres.'} <button class="btn pri" data-export="backup">Sauvegarder</button>`;
+}
+
+function doExport(kind) {
+  if (kind === 'excel') {
+    const rows = [['Titre', 'Auteur', 'Statut', 'Genre', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Mon avis']]
+      .concat(sortedBooks().map(b => [b.titre, b.auteur, STATUT_UN[b.statut], b.genre, b.note || '', fdShort(b.dateDebut), fdShort(b.dateFin), b.pagesTotal, b.avis]));
+    const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    download('mes-lectures.csv', csv, 'text/csv;charset=utf-8');
+    toast('Fichier Excel téléchargé');
+  } else if (kind === 'pdf') {
+    const groups = Object.keys(STATUTS).map(k => [k, sortedBooks().filter(b => b.statut === k)]).filter(g => g[1].length);
+    const quotes = allQuotes();
+    $('#print').innerHTML = `<h1>📚 Mes lectures</h1><div>Liste du ${fdate(today())} · ${plural(books.length, 'livre')}</div>` +
+      groups.map(([k, l]) => `<h2>${STATUTS[k]} (${l.length})</h2><table><tr><th>Titre</th><th>Auteur</th><th>Genre</th><th>Note</th><th>Fini le</th></tr>${l.map(b =>
+        `<tr><td><b>${esc(b.titre)}</b>${b.avis ? `<br><i>${esc(b.avis)}</i>` : ''}</td><td>${esc(b.auteur)}</td><td>${esc(b.genre)}</td><td>${stars(b.note)}</td><td>${fdShort(b.dateFin)}</td></tr>`).join('')}</table>`).join('') +
+      (quotes.length ? `<h2>Citations (${quotes.length})</h2>${quotes.map(x => `<blockquote>« ${esc(x.q.texte)} » — ${esc(x.b.titre)}${x.q.page ? ', p. ' + esc(x.q.page) : ''}</blockquote>`).join('')}` : '');
+    window.print();
+  } else if (kind === 'backup') {
+    const data = {app: 'mes-lectures', version: 1, date: new Date().toISOString(), goal, books};
+    download(`mes-lectures-sauvegarde-${today()}.json`, JSON.stringify(data), 'application/json');
+    prefs.lastBackup = new Date().toISOString(); savePrefs(); paintBackupBar();
+    if (ui.tab === 'stats') renderStats();
+    toast('Sauvegarde téléchargée 💾');
+  } else if (kind === 'restore') {
+    $('#pick_backup').value = ''; $('#pick_backup').click();
+  }
+}
+
+$('#pick_backup').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  let d;
+  try { d = JSON.parse(await f.text()); if (d.app !== 'mes-lectures' || !Array.isArray(d.books)) throw 0; }
+  catch (err) { return toast('Ce fichier n\'est pas une sauvegarde de l\'appli'); }
+  $('#modal').innerHTML = `<h2>Restaurer la sauvegarde ?</h2>
+    <p>Le fichier contient <b>${plural(d.books.length, 'livre')}</b> (sauvegarde du ${fdate((d.date || '').slice(0, 10))}).</p>
+    ${books.length ? `<p class="a">${books.length > 1 ? `Les ${books.length} livres actuellement dans l'appli seront <b>remplacés</b>` : `Le livre actuellement dans l'appli sera <b>remplacé</b>`}.</p>` : ''}
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="r_ok">Remplacer</button></div>`;
+  showM();
+  $('#r_ok').onclick = async () => {
+    closeM();
+    try {
+      await call('replaceAll', d);
+      books = d.books.map(norm); goal = +d.goal || 0;
+      render(); paintBackupBar(); toast('Livres restaurés ✓');
+    } catch (err) { toast('Restauration impossible'); }
+  };
+};
+
+/* ---------- Enregistrer / supprimer ---------- */
+async function save(b, msg) {
+  if (!b.id) b.id = newId();
+  if (!b.ajoute) b.ajoute = new Date().toISOString();
+  const i = books.findIndex(x => x.id === b.id), prev = i >= 0 ? books[i] : null;
+  if (i >= 0) books[i] = b; else books.push(b);
+  render(); if (msg) toast(msg);
+  try { await call('saveBook', b); }
+  catch (e) {
+    if (prev) books[books.findIndex(x => x.id === b.id)] = prev; else books = books.filter(x => x.id !== b.id);
+    render(); toast('Oups, pas enregistré. Réessaie.');
+  }
+}
+
+async function remove(b) {
+  const i = books.findIndex(x => x.id === b.id); if (i < 0) return;
+  books.splice(i, 1); render(); toast('Livre supprimé');
+  try { await call('deleteBook', b.id); }
+  catch (e) { books.splice(i, 0, b); render(); toast('Oups, pas supprimé. Réessaie.'); }
+}
+
+function quick(act, b) {
+  if (act === 'start' || act === 'resume') {
+    const nb = {...b, statut: 'en_cours', dateDebut: act === 'start' ? (b.dateDebut || today()) : b.dateDebut || today(), dateFin: ''};
+    logPage(nb, nb.pageActuelle || 0);
+    save(nb, act === 'start' ? 'Bonne lecture ! 📖' : 'C\'est reparti ! 📖');
+  }
+  else if (act === 'pin') save({...b, epingle: !b.epingle}, b.epingle ? 'Désépinglé' : 'Épinglé en haut 📌');
+  else if (act === 'fini') openForm({...b, statut: 'lu', dateFin: today(), pageActuelle: b.pagesTotal || b.pageActuelle}, {finish: true});
+  else if (act === 'pages') openPage(b);
+  else if (act === 'quote') openQuote(b);
+}
+
+/* ---------- Fenêtres ---------- */
+function showM() { $('#ov').classList.add('show'); $('#modal').scrollTop = 0; }
+function closeM() { $('#ov').classList.remove('show'); form = null; }
+
+function openPage(b) {
+  $('#modal').innerHTML = `<h2>Où en es-tu ?</h2><p class="a" style="margin-top:-6px">${esc(b.titre)}</p>
+    <div class="f"><label for="p_val">Page actuelle${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
+    <input id="p_val" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="p_ok">Enregistrer</button></div>`;
+  showM();
+  const inp = $('#p_val'); inp.focus(); inp.select();
+  const ok = () => {
+    const n = parseInt(inp.value, 10);
+    if (isNaN(n) || n < 0) return toast('Indique un numéro de page');
+    closeM();
+    const tot = +b.pagesTotal || 0;
+    const nb = {...b, pageActuelle: tot ? Math.min(n, tot) : n};
+    logPage(nb, nb.pageActuelle);
+    if (tot && n >= tot) return openForm({...nb, statut: 'lu', dateFin: today()}, {finish: true});
+    const d = n - (+b.pageActuelle || 0);
+    save(nb, d > 0 ? `+${plural(d, 'page')} 👏` : 'Page enregistrée');
+  };
+  $('#p_ok').onclick = ok;
+  inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
+}
+
+function openQuote(b) {
+  $('#modal').innerHTML = `<h2>Nouvelle citation</h2><p class="a" style="margin-top:-6px">${esc(b.titre)}</p>
+    <div class="f"><label for="c_txt">La phrase</label><textarea id="c_txt" rows="4" placeholder="Une phrase qui t'a marqué…"></textarea></div>
+    <div class="f"><label for="c_page">Page</label><input id="c_page" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="c_ok">Enregistrer</button></div>`;
+  showM(); $('#c_txt').focus();
+  $('#c_ok').onclick = () => {
+    const texte = $('#c_txt').value.trim(); if (!texte) return toast('Écris la citation');
+    closeM();
+    save({...b, citations: [...(b.citations || []), {texte, page: $('#c_page').value, date: today()}]}, 'Citation ajoutée ✍️');
+  };
+}
+
+function openForm(b, opts) {
+  opts = opts || {};
+  const isNew = !b;
+  const startStatut = ['en_cours', 'a_lire', 'lu', 'abandon'].includes(ui.tab) ? ui.tab : 'a_lire';
+  form = b ? {...b, citations: [...(b.citations || [])]} : {titre: '', auteur: '', genre: '', note: 0, couverture: '', statut: startStatut, citations: [], journal: [], historique: []};
+  if (isNew && form.statut === 'en_cours') form.dateDebut = today();
+  if (isNew && (form.statut === 'lu' || form.statut === 'abandon')) form.dateFin = today();
+  const genres = [...new Set([...GENRES, ...books.map(x => x.genre).filter(Boolean)])];
+  const hist = form.historique || [];
+  $('#modal').innerHTML = `
+    <h2>${opts.finish ? 'Bravo, livre terminé ! 🎉' : isNew ? 'Ajouter un livre' : 'Modifier le livre'}</h2>
+    <details ${isNew ? 'open' : ''}><summary>🔎 Chercher le livre en ligne (remplit tout seul)</summary>
+      <div class="search"><input id="s_q" type="search" placeholder="Titre, auteur ou ISBN…" enterkeyhint="search" value="${isNew ? '' : esc(form.titre + ' ' + (form.auteur || ''))}">
+      <button class="btn pri" id="s_go" type="button">Chercher</button></div>
+      <div style="margin-top:8px"><button class="btn" id="s_scan" type="button">📷 Scanner le code-barres</button></div>
+      <div class="res" id="s_res"></div></details>
+    <div class="prev" id="prev"></div>
+    <div class="search" id="linkbox" hidden style="margin-bottom:12px"><input id="f_link" placeholder="Coller le lien d'une image (https://…)"><button class="btn" id="f_linkok" type="button">OK</button></div>
+    <div class="f"><label for="f_titre">Titre *</label><input id="f_titre" value="${esc(form.titre)}"></div>
+    <div class="f"><label for="f_auteur">Auteur</label><input id="f_auteur" value="${esc(form.auteur)}"></div>
+    <div class="row">
+      <div class="f"><label for="f_statut">Statut</label><select id="f_statut">${Object.keys(STATUT_UN).map(k => `<option value="${k}" ${k === form.statut ? 'selected' : ''}>${STATUT_UN[k]}</option>`).join('')}</select></div>
+      <div class="f"><label for="f_genre">Genre</label><input id="f_genre" list="dl_genres" value="${esc(form.genre)}" placeholder="Choisir ou écrire"><datalist id="dl_genres">${genres.map(g => `<option value="${esc(g)}">`).join('')}</datalist></div>
+    </div>
+    <div class="row">
+      <div class="f" data-show="en_cours abandon"><label for="f_page">Page actuelle</label><input id="f_page" type="number" min="0" inputmode="numeric" value="${esc(form.pageActuelle)}"></div>
+      <div class="f"><label for="f_total">Nombre de pages</label><input id="f_total" type="number" min="0" inputmode="numeric" value="${esc(form.pagesTotal)}"></div>
+    </div>
+    <div class="row">
+      <div class="f" data-show="en_cours lu abandon"><label for="f_debut">Commencé le</label><input id="f_debut" type="date" value="${esc(form.dateDebut)}"></div>
+      <div class="f" data-show="lu abandon"><label for="f_fin" id="l_fin">Fini le</label><input id="f_fin" type="date" value="${esc(form.dateFin)}"></div>
+    </div>
+    ${hist.length ? `<div class="hist">Lectures précédentes : ${hist.map(h => `${fdate(h.fin)}${h.note ? ' ' + stars(h.note) : ''}`).join(' · ')}</div>` : ''}
+    <div class="f" data-show="lu"><label>Ma note</label><div class="starpick" id="f_note">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} étoile${n > 1 ? 's' : ''}">★</button>`).join('')}</div></div>
+    <div class="f"><label for="f_avis">Mon avis / mes notes</label><textarea id="f_avis" rows="3" placeholder="Ce que j'en retiens…">${esc(form.avis)}</textarea></div>
+    <div class="f"><span class="lbl">Citations</span><div class="qlist" id="f_quotes"></div>
+      <textarea id="f_qt" rows="2" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
+      <div class="search"><input id="f_qp" type="number" min="0" inputmode="numeric" placeholder="Page" style="max-width:110px"><button class="btn" id="f_qadd" type="button">＋ Ajouter la citation</button></div></div>
+    <div class="mfoot">${isNew ? '' : '<button class="btn del" id="f_del" type="button">Supprimer</button>'}
+      ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button">🔁 Relire</button>' : ''}<span class="sp"></span>
+      <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
+  showM();
+  syncShow(); paintStars(); paintPrev(); paintQuotes();
+
+  $('#f_statut').onchange = () => {
+    const s = $('#f_statut').value;
+    if (s !== 'a_lire' && !$('#f_debut').value) $('#f_debut').value = today();
+    if ((s === 'lu' || s === 'abandon') && !$('#f_fin').value) $('#f_fin').value = today();
+    syncShow();
+  };
+  $('#f_note').onclick = e => { const n = +(e.target.dataset.n || 0); if (!n) return; form.note = form.note === n ? 0 : n; paintStars(); };
+  $('#s_go').onclick = doSearch;
+  $('#s_q').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } };
+  $('#s_scan').onclick = () => { $('#pick_scan').value = ''; $('#pick_scan').click(); };
+  $('#s_res').onclick = e => {
+    const btn = e.target.closest('[data-res]'); if (!btn) return;
+    const x = lastRes[+btn.dataset.res];
+    $('#f_titre').value = x.titre; $('#f_auteur').value = x.auteur || '';
+    if (x.pagesTotal) $('#f_total').value = x.pagesTotal;
+    form.couverture = x.couverture || form.couverture || '';
+    $('#s_res').innerHTML = ''; paintPrev(); toast('Infos remplies ✓');
+  };
+  $('#f_linkok').onclick = () => {
+    const u = $('#f_link').value.trim();
+    if (!/^https:\/\//i.test(u)) return toast('Le lien doit commencer par https://');
+    form.couverture = u; $('#linkbox').hidden = true; paintPrev();
+  };
+  $('#f_qadd').onclick = () => {
+    const texte = $('#f_qt').value.trim(); if (!texte) return toast('Écris la citation');
+    form.citations.push({texte, page: $('#f_qp').value, date: today()});
+    $('#f_qt').value = ''; $('#f_qp').value = ''; paintQuotes();
+  };
+  $('#f_quotes').onclick = e => { const x = e.target.closest('[data-qdel]'); if (x) { form.citations.splice(+x.dataset.qdel, 1); paintQuotes(); } };
+  $('#f_save').onclick = () => {
+    collect();
+    if (!form.titre) { toast('Il faut au moins un titre'); $('#f_titre').focus(); return; }
+    const orig = books.find(x => x.id === form.id) || {};
+    if (form.statut === 'lu' && form.pagesTotal && !form.pageActuelle) form.pageActuelle = form.pagesTotal;
+    if (form.statut === 'en_cours' && (orig.statut !== 'en_cours' || +orig.pageActuelle !== +form.pageActuelle)) logPage(form, form.pageActuelle || 0);
+    if (form.statut === 'lu' && orig.statut !== 'lu' && form.pagesTotal) logPage(form, form.pagesTotal);
+    const b2 = form, moved = orig.statut && orig.statut !== b2.statut;
+    closeM();
+    save(b2, !orig.statut || moved ? `Rangé dans « ${STATUTS[b2.statut]} »` : 'Enregistré ✓');
+  };
+  const del = $('#f_del');
+  if (del) del.onclick = () => {
+    if (!del.classList.contains('sure')) { del.classList.add('sure'); del.textContent = 'Sûr ? Supprimer'; return; }
+    const id = form.id; closeM(); remove(books.find(x => x.id === id) || {id});
+  };
+  const rr = $('#f_reread');
+  if (rr) rr.onclick = () => {
+    const o = books.find(x => x.id === form.id); if (!o) return;
+    const nb = {...o, historique: [...(o.historique || []), {debut: o.dateDebut, fin: o.dateFin, note: o.note}],
+      statut: 'en_cours', dateDebut: today(), dateFin: '', pageActuelle: 0, note: 0};
+    logPage(nb, 0); closeM(); save(nb, 'Bonne relecture ! 🔁');
+  };
+  if (isNew) $('#s_q').focus();
+}
+
+function collect() {
+  const num = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? '' : n; };
+  Object.assign(form, {
+    titre: $('#f_titre').value.trim(), auteur: $('#f_auteur').value.trim(), statut: $('#f_statut').value,
+    genre: $('#f_genre').value.trim(), pageActuelle: num($('#f_page').value), pagesTotal: num($('#f_total').value),
+    dateDebut: $('#f_debut').value, dateFin: $('#f_fin').value, avis: $('#f_avis').value.trim()
+  });
+  const pending = $('#f_qt').value.trim();
+  if (pending) form.citations.push({texte: pending, page: $('#f_qp').value, date: today()});
+  if (form.statut !== 'lu' && form.statut !== 'abandon') form.dateFin = '';
+  if (form.statut !== 'a_lire') form.epingle = false;
+}
+function syncShow() {
+  const s = $('#f_statut').value;
+  document.querySelectorAll('#modal [data-show]').forEach(el => el.hidden = !el.dataset.show.split(' ').includes(s));
+  $('#l_fin').textContent = s === 'abandon' ? 'Arrêté le' : 'Fini le';
+}
+function paintStars() { document.querySelectorAll('#f_note button').forEach(b => b.classList.toggle('on', +b.dataset.n <= (form.note || 0))); }
+function paintQuotes() {
+  $('#f_quotes').innerHTML = form.citations.map((q, i) =>
+    `<div class="q"><p>« ${esc(q.texte)} »${q.page ? ` <span class="a">p. ${esc(q.page)}</span>` : ''}</p><button type="button" data-qdel="${i}" title="Retirer" aria-label="Retirer la citation">✕</button></div>`).join('');
+}
+function paintPrev() {
+  const has = !!safeUrl(form.couverture);
+  $('#prev').innerHTML = coverHtml({titre: ($('#f_titre') && $('#f_titre').value) || form.titre || '?', couverture: form.couverture}, 'big') +
+    `<div class="btns"><button class="btn" type="button" id="f_photo">📷 ${has ? 'Changer la' : 'Ajouter une'} couverture</button>
+     <button class="btn" type="button" id="f_linkbtn">🔗 Lien d'image</button>
+     ${has ? '<button class="btn" type="button" id="f_nocov">Retirer</button>' : ''}</div>`;
+  $('#f_photo').onclick = () => { $('#pick_cover').value = ''; $('#pick_cover').click(); };
+  $('#f_linkbtn').onclick = () => { $('#linkbox').hidden = !$('#linkbox').hidden; if (!$('#linkbox').hidden) $('#f_link').focus(); };
+  const x = $('#f_nocov'); if (x) x.onclick = () => { form.couverture = ''; paintPrev(); };
+}
+async function doSearch() {
+  const q = $('#s_q').value.trim(); if (!q) return;
+  const box = $('#s_res'); box.innerHTML = '<div class="a">Recherche…</div>';
+  try {
+    lastRes = (await call('searchBooks', q)) || [];
+    box.innerHTML = lastRes.length ? lastRes.map((x, i) =>
+      `<button type="button" data-res="${i}">${coverHtml(x, 'rc')}<span><b>${esc(x.titre)}</b><br><span class="a">${esc(x.auteur || 'Auteur inconnu')}${x.pagesTotal ? ' · ' + esc(x.pagesTotal) + ' p.' : ''}</span></span></button>`).join('')
+      : '<div class="a">Rien trouvé. Tu peux remplir à la main.</div>';
+  } catch (e) { box.innerHTML = '<div class="a">Recherche impossible pour l\'instant. Remplis à la main.</div>'; }
+}
+
+/* ---------- Photos : couverture et code-barres ---------- */
+function loadImage(file) {
+  return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = URL.createObjectURL(file); });
+}
+async function fileToCover(file) {
+  const img = await loadImage(file), W = 240, H = 360;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const k = Math.max(W / img.naturalWidth, H / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k;
+  c.getContext('2d').drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  let q = 0.8, d;
+  do { d = c.toDataURL('image/jpeg', q); q -= 0.1; } while (d.length > 45000 && q > 0.2);
+  URL.revokeObjectURL(img.src);
+  return d;
+}
+function loadZXing() {
+  if (window.ZXing) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+}
+async function decodeBarcode(file) {
+  const img = await loadImage(file);
+  const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  URL.revokeObjectURL(img.src);
+  if ('BarcodeDetector' in window) {
+    try { const r = await new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e']}).detect(c); if (r.length) return r[0].rawValue; } catch (e) {}
+  }
+  await loadZXing();
+  const r = await new ZXing.BrowserMultiFormatReader().decodeFromImageUrl(c.toDataURL('image/jpeg', 0.9));
+  return r.getText();
+}
+$('#pick_cover').onchange = async e => {
+  const f = e.target.files[0]; if (!f || !form) return;
+  try { form.couverture = await fileToCover(f); paintPrev(); toast('Couverture ajoutée ✓'); }
+  catch (err) { toast('Image illisible'); }
+};
+$('#pick_scan').onchange = async e => {
+  const f = e.target.files[0]; if (!f || !form) return;
+  $('#s_res').innerHTML = '<div class="a">Lecture du code-barres…</div>';
+  try {
+    const code = await decodeBarcode(f);
+    $('#s_q').value = code; doSearch();
+  } catch (err) {
+    $('#s_res').innerHTML = '<div class="a">Code-barres pas reconnu. Reprends la photo bien à plat et nette, ou tape les chiffres sous le code-barres (ISBN).</div>';
+  }
+};
+
+/* ---------- Clics et saisies ---------- */
+document.addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { ui.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  if (e.target.closest('[data-close]') || e.target.id === 'ov') return closeM();
+  if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
+  const ex = e.target.closest('[data-export]');
+  if (ex) return doExport(ex.dataset.export);
+  if (e.target.closest('[data-goal]')) {
+    goal = parseInt($('#goal').value, 10) || 0; renderStats();
+    toast(goal ? 'Objectif enregistré 🎯' : 'Objectif retiré');
+    call('setGoal', goal).catch(() => toast('Oups, objectif pas enregistré.'));
+    return;
+  }
+  const qt = e.target.closest('[data-book]');
+  if (qt) { const b = books.find(x => x.id === qt.dataset.book); if (b) openForm(b); return; }
+  const c = e.target.closest('.card, .gcard');
+  if (c) {
+    const b = books.find(x => x.id === c.dataset.id); if (!b) return;
+    const act = e.target.closest('[data-act]');
+    return act ? quick(act.dataset.act, b) : openForm(b);
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'q') { ui.q = e.target.value; renderCards(); }
+  if (e.target.id === 'cq') { ui.cq = e.target.value; renderQuotes(); }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'genre') { ui.genre = e.target.value; renderCards(); }
+  if (e.target.id === 'sort') { ui.sort = e.target.value; renderCards(); }
+  if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#ov').classList.contains('show')) closeM(); });
+$('#fab').onclick = () => openForm(null);
+
+/* ---------- Démarrage ---------- */
+(async function init() {
+  try {
+    const d = await call('getData');
+    books = (d.books || []).map(norm);
+    goal = +d.goal || 0;
+    const c = counts();
+    if (!c.en_cours && books.length) ui.tab = c.a_lire ? 'a_lire' : 'lu';
+    render(); paintBackupBar();
+  } catch (e) {
+    $('#main').innerHTML = `<div class="empty">Impossible de charger tes livres.<br><small>${esc(e.message || e)}</small></div>`;
+  }
+  // Demande au navigateur de ne jamais effacer les livres pour faire de la place
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  // Mode hors ligne + installation comme une appli
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>

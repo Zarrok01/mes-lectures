@@ -138,6 +138,41 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
 .bl{display:flex;gap:8px;align-items:center;font-size:.88rem;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 .bl .grow{flex:1;min-width:0}
 .clock{font-family:Georgia,serif;font-size:3.4rem;text-align:center;margin:10px 0;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chipb{border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.85rem;padding:5px 11px;border-radius:20px;cursor:pointer}
+.chipb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.check{display:flex;gap:8px;align-items:center;font-size:.9rem;margin:4px 0 12px;cursor:pointer}
+.nxspin{text-align:center;font-family:Georgia,serif;font-size:1.2rem;padding:28px 10px;color:var(--muted)}
+.nxcard{display:flex;gap:14px;align-items:flex-start;background:var(--accent-soft);border-radius:14px;padding:12px;margin:6px 0 4px}
+.nxcard .t{font-size:1.1rem}
+.cal{overflow-x:auto;padding-bottom:6px}
+.calm,.calg{display:grid;grid-auto-columns:12px;gap:2px}
+.calm{grid-template-rows:14px;grid-auto-flow:column;font-size:.64rem;color:var(--muted);white-space:nowrap}
+.calg{grid-template-rows:repeat(7,12px);grid-auto-flow:column}
+.calg i,.calleg i{display:block;width:12px;height:12px;border-radius:3px;background:var(--line);cursor:pointer}
+.calleg{display:flex;align-items:center;gap:3px;font-size:.72rem;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.calleg i{display:inline-block;cursor:default}.calleg .sp{flex:1}
+.calg .l1,.calleg .l1{background:rgba(95,155,98,.35)}.calg .l2,.calleg .l2{background:rgba(95,155,98,.6)}
+.calg .l3,.calleg .l3{background:rgba(70,135,74,.85)}.calg .l4,.calleg .l4{background:#2f6b34}
+.calg .l5,.calleg .l5{background:var(--accent)}
+.calg .f{opacity:.3}.calg .now{outline:2px solid var(--ink);outline-offset:-1px}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.badge{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:3px;font-size:.8rem}
+.badge.ok{border-color:var(--accent);background:var(--accent-soft)}
+.badge .be{font-size:1.7rem;filter:grayscale(1);opacity:.55}
+.badge.ok .be{filter:none;opacity:1}
+.badge span{color:var(--muted)}
+.badge .won{color:var(--green);font-weight:700}
+.badge .bar{margin-top:3px}
+.sugs{display:grid;gap:12px}
+.sug{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card)}
+.sugtop{display:flex;gap:12px}
+.sugres{font-size:.88rem;margin:10px 0 2px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;cursor:pointer}
+.sugres.open{display:block}
+.resum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem}
+.cpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px;margin-bottom:12px}
+.cpick button{border:2px solid var(--line);padding:0;border-radius:6px;overflow:hidden;cursor:pointer;background:var(--line);aspect-ratio:2/3}
+.cpick img{width:100%;height:100%;object-fit:cover;display:block}
 .notice{background:var(--accent-soft);color:var(--ink);font-size:.85rem;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
 #print{display:none}
 @media print{
@@ -204,6 +239,7 @@ const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE
 const FORMATS = {papier: '📖 Papier', numerique: '📱 Numérique', audio: '🎧 Audio'};
 const POSSESSION = {a_moi: 'Je l\'ai', emprunte: 'Emprunté (médiathèque, ami…)', prete: 'Prêté à quelqu\'un', non: 'Je ne l\'ai pas'};
 const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 const EMPTY = {
   en_cours: 'Aucune lecture en cours.<br>Va dans « À lire » et appuie sur « Commencer », ou ajoute un livre avec le bouton +.',
   a_lire: 'Ta liste de livres à lire est vide.<br>Ajoute un livre avec le bouton +, ou scanne-les avec 📦 Scan rapide.',
@@ -240,15 +276,47 @@ function toast(msg, action) {
   t._h = setTimeout(() => t.classList.remove('show', 'act'), action ? 6500 : 2400);
 }
 // Couverture : essaie les adresses une par une jusqu'à en trouver une qui existe
-function coverList(b) { return [b.couverture, ...(b._covers || b.covers || [])].map(safeUrl).filter((u, i, a) => u && a.indexOf(u) === i); }
+// Couverture choisie + couvertures de secours (si la première ne charge plus)
+// (si le livre a un ISBN, les couvertures des librairies servent toujours de roue de secours)
+function coverList(b) {
+  return [b.couverture, ...(b.coversAlt || []), ...(b._covers || b.covers || []), ...Recherche.isbnCovers(Recherche.toIsbn13(b.isbn || ''))]
+    .map(safeUrl).filter((u, i, a) => u && a.indexOf(u) === i);
+}
+// Une couverture visible à l'écran qui tarde : on force son chargement, puis si rien n'arrive
+// au bout d'environ 8 secondes, on passe à la source suivante
+setInterval(() => {
+  if (document.hidden) return;
+  document.querySelectorAll('img[data-alt]').forEach(i => {
+    if (i.complete || !i.dataset.alt) { delete i.dataset.wait; return; }
+    const r = i.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) return;
+    i.dataset.wait = (+i.dataset.wait || 0) + 1;
+    if (+i.dataset.wait === 1) i.loading = 'eager';
+    if (+i.dataset.wait >= 5) { delete i.dataset.wait; coverNext(i); }
+  });
+}, 2000);
+const brokenCovers = new Set();   // livres dont aucune couverture ne s'affiche (réparés par « Compléter mes livres »)
 function coverHtml(b, cls) {
   const list = coverList(b);
   const ini = esc((b.titre || '?').trim().charAt(0).toUpperCase());
   return `<div class="${cls || 'cover'} ph" style="background:hsl(${hue(b.titre)} 32% 48%)">${ini}${list.length ?
-    `<img src="${esc(list[0])}" data-alt="${esc(list.slice(1).join('|'))}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="coverOk(this)" onerror="coverNext(this)">` : ''}</div>`;
+    `<img src="${esc(list[0])}" data-alt="${esc(list.slice(1).join('|'))}"${b.id ? ` data-bid="${esc(b.id)}"` : ''} alt="" loading="lazy" referrerpolicy="no-referrer" onload="coverOk(this)" onerror="coverNext(this)">` : ''}</div>`;
 }
-window.coverNext = img => { const alt = (img.dataset.alt || '').split('|').filter(Boolean); if (!alt.length) return img.remove(); img.dataset.alt = alt.slice(1).join('|'); img.src = alt[0]; };
-window.coverOk = img => { if (img.naturalWidth <= 20) coverNext(img); };
+// Couverture choisie + jusqu'à 4 de secours, à partir d'une liste de candidates
+function setCovers(b, url, list) { b.couverture = url || ''; b.coversAlt = (list || []).filter(u => u && u !== url && !/^data:/.test(u)).slice(0, 4); }
+// Si un livre n'a toujours pas de couverture : recherche élargie en arrière-plan
+async function autoCover(id) {
+  const b = books.find(x => x.id === id); if (!b || b.couverture || !b.titre || b.aCompleter) return;
+  const l = await Recherche.chercherCouvertures(b, 5).catch(() => []);
+  const i = books.findIndex(x => x.id === id);
+  if (i >= 0 && l.length && !books[i].couverture) { books[i] = {...books[i]}; setCovers(books[i], l[0], l); Store.persist(); render(); }
+}
+window.coverNext = img => {
+  const alt = (img.dataset.alt || '').split('|').filter(Boolean);
+  if (!alt.length) { if (img.dataset.bid) brokenCovers.add(img.dataset.bid); return img.remove(); }
+  img.dataset.alt = alt.slice(1).join('|'); img.src = alt[0];
+};
+window.coverOk = img => { if (Recherche.placeholder(img.naturalWidth, img.naturalHeight)) coverNext(img); };
 function counts() { const c = {en_cours: 0, a_lire: 0, lu: 0, abandon: 0}; books.forEach(b => { if (b.statut in c) c[b.statut]++; }); return c; }
 function allQuotes() { const out = []; books.forEach(b => (b.citations || []).forEach((q, i) => out.push({b, q, i}))); return out; }
 function parseList(v) { if (Array.isArray(v)) return v; try { const x = JSON.parse(v || '[]'); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
@@ -351,8 +419,10 @@ function speed() {
 /* ---------- Affichage ---------- */
 function render() {
   const c = counts(), nq = allQuotes().length;
+  const sel = prefs.selection, neuf = sel && sel.items && sel.items.length && !sel.vu;
   $('#tabs').innerHTML = Object.keys(STATUTS).map(k =>
-    `<button class="tab ${ui.tab === k ? 'on' : ''}" data-tab="${k}">${STATUTS[k]}<span class="n">${c[k]}</span></button>`).join('') +
+    `<button class="tab ${ui.tab === k ? 'on' : ''}" data-tab="${k}">${STATUTS[k]}<span class="n">${c[k]}</span></button>` +
+    (k === 'a_lire' ? `<button class="tab ${ui.tab === 'decouvrir' ? 'on' : ''}" data-tab="decouvrir">✨ Découvrir${neuf ? '<span class="n" style="background:var(--accent);color:#fff">' + sel.items.length + '</span>' : ''}</button>` : '')).join('') +
     `<button class="tab ${ui.tab === 'citations' ? 'on' : ''}" data-tab="citations">Citations<span class="n">${nq}</span></button>` +
     `<button class="tab ${ui.tab === 'stats' ? 'on' : ''}" data-tab="stats">Stats</button>`;
   const on = $('#tabs .on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
@@ -361,6 +431,7 @@ function render() {
   paintNotice(); paintTimerPill();
   if (ui.tab === 'stats') return renderStats();
   if (ui.tab === 'citations') return renderQuotesTab();
+  if (ui.tab === 'decouvrir') return renderDecouvrir();
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
   const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note']];
@@ -372,6 +443,7 @@ function render() {
       <select id="own">${owns.map(([v, t]) => `<option value="${v}" ${v === ui.own ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="sort">${sorts.map(([v, t]) => `<option value="${v}" ${v === ui.sort ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? '☰' : '▦'}</button>
+      ${ui.tab === 'a_lire' && c.a_lire > 1 ? '<button class="btn pri" id="dice" title="Que lire ensuite ?">🎲 Que lire ensuite ?</button>' : ''}
     </div><div class="list ${grid ? 'grid' : ''}" id="list"></div>`;
   renderCards();
 }
@@ -418,7 +490,8 @@ function card(b) {
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
     acts = `<button class="btn" data-act="timer">⏱️ Lire</button><button class="btn" data-act="pages">Où j'en suis</button><button class="btn" data-act="quote">＋ Citation</button><button class="btn pri" data-act="fini">J'ai fini ✓</button>`;
   } else if (b.statut === 'a_lire') {
-    extra = b.pagesTotal ? `<div class="meta">${esc(b.pagesTotal)} pages</div>` : '';
+    extra = (b.pagesTotal ? `<div class="meta">${esc(b.pagesTotal)} pages</div>` : '') +
+      (b.resume ? `<div class="a resum">${esc(b.resume)}</div>` : '');
     acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut">📌 ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
   } else if (b.statut === 'lu') {
     extra = `<div class="meta">${b.note ? `<span class="stars">${stars(b.note)}</span>` : ''}${b.dateFin ? `<span>Fini le ${fdate(b.dateFin)}</span>` : ''}${fois ? `<span class="chip">Lu ${fois + 1} fois</span>` : ''}</div>` +
@@ -517,10 +590,12 @@ function renderStats() {
       ${goal ? `<div class="meta" style="margin-bottom:6px">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
              : '<div class="a">Pas encore d\'objectif. Combien de livres veux-tu lire cette année ?</div>'}
       <div class="search" style="margin-top:10px"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
+    ${defisPanel(y)}
     <div class="panel"><h3>Pages lues par semaine</h3>
       <div class="a" style="margin:-4px 0 8px">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
       <div class="chart green">${weeks.map(w => `<div><div class="col"><em>${w.n || ''}</em><i style="height:${w.n / wmax * 100}%"></i></div>${w.start.getDate()}/${w.start.getMonth() + 1}</div>`).join('')}</div>
       <div class="a" style="font-size:.78rem;margin-top:6px">Compté avec « Où j'en suis » et « ⏱️ Lire ».</div></div>
+    ${calendarPanel(y)}
     <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
       `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
     <div class="panel"><h3>Par genre</h3>${gl.length ? gl.map(([k, n]) =>
@@ -534,6 +609,348 @@ function renderStats() {
     <div class="panel"><h3>💾 Sauvegarde</h3><div class="a" style="margin-bottom:10px">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
       (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
       <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>`;
+  // Calendrier : on fait défiler jusqu'à aujourd'hui
+  const cal = $('#cal'), now = $('#cal .now');
+  if (cal && now) cal.scrollLeft = now.offsetLeft - cal.clientWidth + 60;
+}
+
+/* ---------- 🗓️ Calendrier de lecture (une case par jour) ---------- */
+function calendarPanel(y) {
+  const act = activity(), minBy = {}, finBy = {};
+  allSessions().forEach(s => { minBy[s.date] = (minBy[s.date] || 0) + (+s.min || 0); });
+  readings().forEach(r => { (finBy[r.fin] = finBy[r.fin] || []).push(r.b.titre); });
+  const start = new Date(y, 0, 1), offset = (start.getDay() + 6) % 7;   // lundi en haut
+  const days = Math.round((new Date(y, 11, 31) - start) / 864e5) + 1, t = today();
+  const cells = []; let jours = 0;
+  for (let i = 0; i < offset; i++) cells.push('<i style="visibility:hidden"></i>');
+  for (let i = 0; i < days; i++) {
+    const k = iso(new Date(y, 0, 1 + i)), p = Math.round(act[k] || 0), m = minBy[k] || 0;
+    const lvl = finBy[k] ? 5 : (p >= 100 || m >= 90) ? 4 : (p >= 50 || m >= 45) ? 3 : (p >= 20 || m >= 20) ? 2 : (p > 0 || m > 0 || act[k]) ? 1 : 0;
+    if (lvl) jours++;
+    cells.push(`<i class="l${lvl}${k > t ? ' f' : ''}${k === t ? ' now' : ''}" data-day="${k}"></i>`);
+  }
+  const months = MOIS_COURT.map((m, i) => `<span style="grid-column:${Math.floor((offset + Math.round((new Date(y, i, 1) - start) / 864e5)) / 7) + 1}">${m}</span>`).join('');
+  return `<div class="panel"><h3>🗓️ Mon année de lecture</h3>
+    <div class="a" style="margin:-4px 0 8px">${plural(jours, 'jour')} de lecture en ${y}</div>
+    <div class="cal" id="cal"><div class="calm">${months}</div><div class="calg">${cells.join('')}</div></div>
+    <div class="calleg"><span class="a" id="calinfo" style="font-size:.8rem">Touche un jour pour voir le détail.</span><span class="sp"></span>
+      moins <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> plus · <i class="l5"></i> livre fini</div></div>`;
+}
+function dayInfo(k) {
+  const p = Math.round(activity()[k] || 0);
+  const m = allSessions().filter(s => s.date === k).reduce((s, x) => s + (+x.min || 0), 0);
+  const fin = readings().filter(r => r.fin === k).map(r => r.b.titre);
+  const parts = [p ? plural(p, 'page') : '', m ? fdur(m) + ' chronométrées' : '', fin.length ? '🎉 fini : ' + fin.join(', ') : ''].filter(Boolean);
+  $('#calinfo').textContent = fdate(k) + ' : ' + (parts.length ? parts.join(' · ') : 'rien de noté');
+}
+
+/* ---------- 🏆 Défis et badges ---------- */
+function defis(y) {
+  const Y = String(y);
+  const ly = readings().filter(r => r.fin.startsWith(Y));
+  const genres = new Set(ly.map(r => r.b.genre).filter(Boolean)).size;
+  const pave = ly.filter(r => +r.b.pagesTotal > 500).length;
+  const sprint = ly.filter(r => r.b.dateDebut && r.b.dateFin === r.fin && (new Date(r.fin) - new Date(r.b.dateDebut)) / 864e5 < 7).length;
+  const ser = {}; ly.forEach(r => { if (r.b.serie) { const k = Recherche.norm(r.b.serie); ser[k] = (ser[k] || 0) + 1; } });
+  const act = activity(), actY = {}; Object.keys(act).filter(k => k.startsWith(Y)).forEach(k => actY[k] = act[k]);
+  const best = streaks(actY).best;
+  const cit = allQuotes().filter(x => (x.q.date || '').startsWith(Y)).length;
+  const minY = allSessions().filter(s => (s.date || '').startsWith(Y)).reduce((s, x) => s + (+x.min || 0), 0);
+  const emp = ly.filter(r => r.b.possession === 'emprunte').length;
+  const fmt = ly.filter(r => r.b.format === 'audio' || r.b.format === 'numerique').length;
+  let run = 0, bestM = 0, prev = 0;
+  [...new Set(ly.map(r => +r.fin.slice(5, 7)))].sort((a, b) => a - b).forEach(m => { run = m === prev + 1 ? run + 1 : 1; bestM = Math.max(bestM, run); prev = m; });
+  const relu = books.filter(b => (b.historique || []).length && ly.some(r => r.b.id === b.id)).length;
+  return [
+    ['premier', '🌱', 'Premier pas', 'Finir un livre', ly.length, 1],
+    ['dix', '📚', 'Bibliophile', 'Finir 10 livres', ly.length, 10],
+    ['vingtcinq', '🏛️', 'Grand lecteur', 'Finir 25 livres', ly.length, 25],
+    ['cinquante', '👑', 'Dévoreur', 'Finir 50 livres', ly.length, 50],
+    ['genres', '🌈', 'Explorateur', 'Lire 5 genres différents', genres, 5],
+    ['pave', '🧱', 'Pavé', 'Finir un livre de plus de 500 pages', pave, 1],
+    ['sprint', '⚡', 'Sprint', 'Finir un livre en moins d\'une semaine', sprint, 1],
+    ['serie', '🔗', 'Marathon', 'Lire 3 tomes d\'une même série', Math.max(0, ...Object.values(ser)), 3],
+    ['semaine', '🔥', 'Régulier', 'Lire 7 jours d\'affilée', best, 7],
+    ['mois', '🌕', 'Assidu', 'Lire 30 jours d\'affilée', best, 30],
+    ['constant', '📅', 'Constant', 'Finir un livre 3 mois de suite', bestM, 3],
+    ['citations', '✍️', 'Collectionneur', 'Noter 10 citations', cit, 10],
+    ['chrono', '⏱️', 'Concentré', 'Lire 10 h avec le chrono', Math.floor(minY / 60), 10],
+    ['mediatheque', '🏫', 'Habitué', 'Lire 3 livres empruntés', emp, 3],
+    ['format', '🎧', 'Touche-à-tout', 'Finir un livre audio ou numérique', fmt, 1],
+    ['relecture', '🔁', 'Fidèle', 'Relire un livre', relu, 1],
+    ...(goal ? [['objectif', '🎯', 'Objectif atteint', 'Lire ' + goal + ' livres dans l\'année', ly.length, goal]] : [])
+  ].map(([id, e, nom, desc, n, but]) => ({id, e, nom, desc, n: Math.min(n, but), but, ok: n >= but}));
+}
+function defisPanel(y) {
+  const d = defis(y), ok = d.filter(x => x.ok).length;
+  return `<div class="panel"><h3>🏆 Mes défis ${y}</h3><div class="a" style="margin:-4px 0 10px">${ok} / ${d.length} réussis</div>
+    <div class="badges">${d.map(x => `<div class="badge ${x.ok ? 'ok' : ''}"><div class="be">${x.e}</div><b>${esc(x.nom)}</b><span>${esc(x.desc)}</span>
+      ${x.ok ? '<span class="won">Réussi ✓</span>' : `<div class="bar"><i style="width:${Math.round(x.n / x.but * 100)}%"></i></div><span>${x.n} / ${x.but}</span>`}</div>`).join('')}</div></div>`;
+}
+// Félicite quand un nouveau défi est réussi (une fois par défi et par année)
+function checkBadges(silent) {
+  const y = new Date().getFullYear(), d = defis(y), won = d.filter(x => x.ok).map(x => x.id);
+  prefs.badges = prefs.badges || {};
+  const before = prefs.badges[y];
+  prefs.badges[y] = won; savePrefs();
+  if (silent || !before) return;
+  d.filter(x => x.ok && !before.includes(x.id)).forEach((x, i) => toastLater(`🏆 Défi réussi : ${x.e} ${x.nom} !`, 1400 + i * 2600));
+}
+// Attend que le message en cours (avec bouton) soit fini avant d'en afficher un autre
+function toastLater(msg, delay) {
+  setTimeout(function tryShow() { if ($('#toast').classList.contains('act')) return setTimeout(tryShow, 1500); toast(msg); }, delay || 1000);
+}
+
+/* ---------- 🎲 Que lire ensuite ? (dans ma liste, ou en ligne) ---------- */
+const pick = {len: '', genre: '', dispo: false, last: '', mode: 'liste', theme: ''};
+function themeChips(id, current) {
+  return `<div class="chips" id="${id}"><button type="button" data-v="" class="chipb ${!current ? 'on' : ''}">🎁 Surprise</button>${Recherche.THEMES.map(t =>
+    `<button type="button" data-v="${t.id}" class="chipb ${current === t.id ? 'on' : ''}">${t.e} ${esc(t.nom)}</button>`).join('')}</div>`;
+}
+function openNext() {
+  const pool = books.filter(b => b.statut === 'a_lire');
+  if (!pool.length && pick.mode === 'liste') pick.mode = 'ligne';
+  const genres = [...new Set(pool.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  if (pick.genre && !genres.includes(pick.genre)) pick.genre = '';
+  const lens = [['', 'Peu importe'], ['court', 'Court'], ['moyen', 'Moyen'], ['long', 'Long']];
+  const enLigne = pick.mode === 'ligne';
+  $('#modal').innerHTML = `<h2>🎲 Que lire ensuite ?</h2>
+    <div class="seg" id="nx_mode"><button type="button" data-v="liste" class="${!enLigne ? 'on' : ''}">📚 Dans ma liste</button><button type="button" data-v="ligne" class="${enLigne ? 'on' : ''}">🌍 En ligne</button></div>
+    ${enLigne ? `<div class="a" style="font-size:.86rem;margin-bottom:8px">Un livre que tu n'as pas encore, trouvé parmi les prix littéraires, les incontournables, les nouveautés et les livres préférés des lecteurs.</div>
+      <div class="lbl" style="margin-bottom:4px">Thème</div>${themeChips('nx_theme', pick.theme)}` : `
+      <div class="lbl" style="margin-bottom:4px">Longueur <span class="a" style="font-weight:400">(court : moins de 250 p. · long : plus de 450 p.)</span></div>
+      <div class="seg" id="nx_len">${lens.map(([k, v]) => `<button type="button" data-v="${k}" class="${pick.len === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      ${genres.length > 1 ? `<div class="lbl" style="margin-bottom:4px">Genre</div><div class="chips" id="nx_genre"><button type="button" data-v="" class="chipb ${!pick.genre ? 'on' : ''}">Peu importe</button>${genres.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.genre === g ? 'on' : ''}">${esc(g)}</button>`).join('')}</div>` : ''}
+      <label class="check"><input type="checkbox" id="nx_dispo" ${pick.dispo ? 'checked' : ''}> Seulement ceux que j'ai sous la main</label>`}
+    <div id="nx_res"></div>
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button><button class="btn pri" id="nx_go" type="button">🎲 Tirer au sort</button></div>`;
+  showM();
+  const choix = (sel, f) => { const el = $(sel); if (el) el.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; f(b.dataset.v); el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); }; };
+  choix('#nx_mode', v => { pick.mode = v; openNext(); });
+  choix('#nx_len', v => { pick.len = v; });
+  choix('#nx_genre', v => { pick.genre = v; });
+  choix('#nx_theme', v => { pick.theme = v; });
+  const d = $('#nx_dispo'); if (d) d.onchange = e => { pick.dispo = e.target.checked; };
+  $('#nx_go').onclick = () => enLigne ? drawOnline(pick.theme, $('#nx_res'), $('#nx_go')) : drawNext();
+}
+function nextCandidates() {
+  return books.filter(b => b.statut === 'a_lire').filter(b => {
+    const p = +b.pagesTotal || 0;
+    if (pick.len === 'court' && !(p && p < 250)) return false;
+    if (pick.len === 'moyen' && !(p >= 250 && p <= 450)) return false;
+    if (pick.len === 'long' && !(p > 450)) return false;
+    if (pick.genre && b.genre !== pick.genre) return false;
+    if (pick.dispo && !['a_moi', 'emprunte'].includes(b.possession)) return false;
+    return true;
+  });
+}
+async function drawNext() {
+  let c = nextCandidates();
+  if (c.length > 1) c = c.filter(b => b.id !== pick.last);
+  const box = $('#nx_res');
+  if (!c.length) { box.innerHTML = '<div class="hint">Aucun livre ne correspond à ces envies. Essaie d\'élargir un peu.</div>'; return; }
+  $('#nx_go').disabled = true;
+  for (let k = 0; k < 12; k++) { box.innerHTML = `<div class="nxspin">${esc(c[Math.floor(Math.random() * c.length)].titre)}</div>`; await new Promise(r => setTimeout(r, 55 + k * 14)); }
+  // Un peu plus de chances pour les livres épinglés et ceux à rendre bientôt
+  const w = b => 1 + (b.epingle ? 2 : 0) + (b.possession === 'emprunte' && b.pretRetour ? 3 : 0);
+  let r = Math.random() * c.reduce((s, b) => s + w(b), 0), b = c[0];
+  for (const x of c) { r -= w(x); if (r <= 0) { b = x; break; } }
+  pick.last = b.id;
+  const v = speed();
+  const why = [b.epingle ? '📌 épinglé' : '', b.possession === 'emprunte' && b.pretRetour ? '📥 à rendre le ' + fdate(b.pretRetour) : '',
+    b.pagesTotal ? b.pagesTotal + ' pages' + (v ? ' (≈ ' + fdur(b.pagesTotal / v * 60) + ')' : '') : ''].filter(Boolean).join(' · ');
+  box.innerHTML = `<div class="nxcard">${coverHtml(b, 'big')}<div style="min-width:0"><div class="t">${esc(b.titre)}</div><div class="a">${esc(b.auteur || '')}</div>
+    ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}<div class="a" style="font-size:.85rem;margin-top:4px">${why}</div>
+    <div class="acts"><button class="btn pri" id="nx_start" type="button">📖 Je commence</button><button class="btn" id="nx_again" type="button">Un autre</button></div></div></div>`;
+  $('#nx_go').disabled = false;
+  $('#nx_start').onclick = () => { closeM(); quick('start', b); };
+  $('#nx_again').onclick = drawNext;
+}
+
+/* ---------- ✨ Découvrir : tirage en ligne et sélection du mois ---------- */
+let lastOnline = null, selEnCours = false, selProgress = '';
+const moisCle = () => today().slice(0, 7);
+// « de mars », mais « d'octobre », « d'avril », « d'août »
+const moisNom = () => { const m = new Date().toLocaleDateString('fr-FR', {month: 'long'}); return (/^[aeiouéè]/i.test(m) ? 'd\'' : 'de ') + m; };
+// À ne pas proposer : déjà dans ma liste, refusé (« pas pour moi ») ou déjà proposé
+function dejaVu(x) {
+  const n = Recherche.norm(x.titre);
+  return !!findOwned(x) || (prefs.nonMerci || []).includes(n) || (prefs.proposes || []).includes(n);
+}
+function retenir(x) { prefs.proposes = [...(prefs.proposes || []), Recherche.norm(x.titre)].slice(-500); savePrefs(); }
+const libraireUrl = x => 'https://www.leslibraires.fr/recherche/?q=' + encodeURIComponent(x.isbn || (x.titre + ' ' + (x.auteur || '')));
+function sugCard(x, ctx, i) {
+  const own = findOwned(x);
+  return `<article class="sug" data-ctx="${ctx}" data-i="${i}">
+    <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
+      <div style="min-width:0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
+        <div class="meta" style="margin-top:4px"><span class="chip">${x.themeE} ${esc(x.themeNom)}</span><span class="chip">${esc(x.sourceNom)}</span></div>
+        <div class="a" style="font-size:.82rem;margin-top:3px">${esc(x.raison || '')}${x.pagesTotal ? ' · ' + x.pagesTotal + ' p.' : ''}</div></div></div>
+    ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
+    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
+      <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener">🛒 En librairie</a>
+      ${ctx === 'sel' && !own ? '<button class="btn small" type="button" data-sug="non">✕ Pas pour moi</button>' : ''}</div></article>`;
+}
+function addSuggestion(x) {
+  if (findOwned(x)) return toast('Déjà dans ta liste');
+  const b = bookFrom(x, 'a_lire');
+  b.id = newId(); setCovers(b, x.couverture, x.covers || []);
+  Object.assign(b, {resume: x.resume || '', sujets: x.sujets || [], genre: x.genre || b.genre, possession: 'non', resumeTente: true});
+  save(b, '＋ Ajouté à « À lire » 📚');
+}
+async function drawOnline(themeId, box, btn) {
+  if (btn) btn.disabled = true;
+  const t = Recherche.THEMES.find(x => x.id === themeId);
+  box.innerHTML = `<div class="nxspin">🌍 Je fouille ${t ? 'le thème ' + t.e + ' ' + esc(t.nom) : 'tous les thèmes'}…</div>`;
+  const x = await Recherche.decouvrir(themeId || '', {exclude: dejaVu}).catch(() => null);
+  if (btn) btn.disabled = false;
+  if (!x) { box.innerHTML = '<div class="hint">Rien trouvé cette fois (pas de connexion, ou catalogues occupés). Réessaie dans un instant.</div>'; return; }
+  retenir(x); lastOnline = x;
+  box.innerHTML = sugCard(x, 'tir', 0);
+}
+// Thèmes préférés d'après mes livres (pour que 2 des 5 livres du mois me ressemblent)
+function themesFavoris() {
+  const map = {'Roman': 'roman', 'Polar / Thriller': 'polar', 'SF / Fantasy': 'fantasy', 'BD / Manga': 'bd', 'Essai': 'essai',
+    'Développement perso': 'perso', 'Pro / VAE': 'social', 'Biographie': 'essai'};
+  const c = {}; books.forEach(b => { const t = map[b.genre]; if (t) c[t] = (c[t] || 0) + (b.statut === 'lu' ? 2 : 1); });
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => x[0]);
+}
+async function genSelection(force) {
+  const m = moisCle();
+  if (selEnCours || (!force && prefs.selection && prefs.selection.mois === m && (prefs.selection.items || []).length)) return;
+  selEnCours = true; selProgress = 'Préparation de ta sélection…';
+  if (ui.tab === 'decouvrir') renderDecouvrir();
+  const items = await Recherche.selection(themesFavoris(), dejaVu, (n, t) => {
+    selProgress = `Recherche du livre ${n + 1} sur 5${t ? ' (' + t.e + ' ' + t.nom + ')' : ''}…`;
+    const p = $('#selprog'); if (p) p.textContent = selProgress;
+  }).catch(() => []);
+  selEnCours = false;
+  if (items.length) {
+    items.forEach(retenir);
+    prefs.selection = {mois: m, items, vu: ui.tab === 'decouvrir'}; savePrefs();
+    if (ui.tab !== 'decouvrir') toastLater(`📬 Ta sélection ${moisNom()} est prête : 5 livres à découvrir !`, 400);
+  } else selProgress = '';
+  render();
+}
+function renderDecouvrir() {
+  const s = prefs.selection, actuelle = s && s.mois === moisCle() && (s.items || []).length;
+  if (actuelle && !s.vu) { s.vu = true; savePrefs(); return render(); }
+  $('#main').innerHTML = `
+    <div class="panel" style="margin-top:12px"><h3>📬 Ma sélection ${moisNom()}</h3>
+      <div class="a" style="margin:-4px 0 10px;font-size:.88rem">5 livres pour toi, dans 5 thèmes différents, trouvés à des endroits différents :
+        prix littéraires, incontournables, nouveautés et coups de cœur des lecteurs. Une nouvelle sélection arrive chaque mois.</div>
+      ${selEnCours ? `<div class="nxspin" id="selprog">${esc(selProgress)}</div>`
+        : actuelle ? `<div class="sugs">${s.items.map((x, i) => sugCard(x, 'sel', i)).join('')}</div>`
+        : `${selProgress === '' && s && s.mois !== moisCle() ? '' : ''}<button class="btn pri" id="selgo" type="button">📬 Préparer ma sélection</button>`}
+    </div>
+    <div class="panel"><h3>🎲 Tirage au sort en ligne</h3>
+      <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Choisis un thème (ou laisse faire le hasard) : je te trouve un livre que tu n'as pas encore.</div>
+      ${themeChips('dc_theme', pick.theme)}
+      <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="dc_go" type="button">🎲 Tirer au sort</button></div>
+      <div id="dc_res">${lastOnline ? sugCard(lastOnline, 'tir', 0) : ''}</div></div>`;
+  const ch = $('#dc_theme');
+  ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
+  $('#dc_go').onclick = () => drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
+  const go = $('#selgo'); if (go) go.onclick = () => genSelection(true);
+}
+// Clic sur une suggestion : ajouter, refuser (remplacée par une autre), lire le résumé en entier
+async function onSuggestion(e) {
+  const more = e.target.closest('[data-more]'); if (more) { more.classList.toggle('open'); return true; }
+  const a = e.target.closest('[data-sug]'); if (!a) return false;
+  const card = a.closest('.sug'), ctx = card.dataset.ctx, i = +card.dataset.i;
+  const items = ctx === 'sel' ? prefs.selection.items : [lastOnline];
+  const x = items[i]; if (!x) return true;
+  if (a.dataset.sug === 'add') { addSuggestion(x); card.outerHTML = sugCard(x, ctx, i); return true; }
+  if (a.dataset.sug === 'non') {
+    prefs.nonMerci = [...(prefs.nonMerci || []), Recherche.norm(x.titre)].slice(-300); savePrefs();
+    card.innerHTML = '<div class="nxspin">Je cherche un autre livre…</div>';
+    const y = await Recherche.decouvrir(x.theme, {exclude: b => dejaVu(b) || items.some(z => Recherche.norm(z.titre) === Recherche.norm(b.titre))}).catch(() => null);
+    if (y) { retenir(y); items[i] = y; } else items.splice(i, 1);
+    savePrefs(); renderDecouvrir();
+    return true;
+  }
+  return false;
+}
+
+/* ---------- 📤 Partager mon bilan en image ---------- */
+function loadCors(list) {
+  return new Promise(async res => {
+    for (const u of list) {
+      const ok = await new Promise(r => {
+        const i = new Image(); const t = setTimeout(() => r(null), 6000);
+        if (!/^data:/.test(u)) i.crossOrigin = 'anonymous';
+        i.onload = () => { clearTimeout(t); r(Recherche.placeholder(i.naturalWidth, i.naturalHeight) ? null : i); };
+        i.onerror = () => { clearTimeout(t); r(null); };
+        i.src = u;
+      });
+      if (ok) return res(ok);
+    }
+    res(null);
+  });
+}
+async function shareBilan(y) {
+  toast('Création de l\'image (quelques secondes)…');
+  const Y = String(y), ly = readings().filter(r => r.fin.startsWith(Y));
+  if (!ly.length) return toast('Aucun livre fini cette année');
+  const W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, W, H); grad.addColorStop(0, '#c0623a'); grad.addColorStop(1, '#4a2213');
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(255,255,255,.06)'; [[180, 120, 260], [950, 1250, 320], [1000, 300, 160]].forEach(([x, yy, r]) => { g.beginPath(); g.arc(x, yy, r, 0, 7); g.fill(); });
+  const fit = (t, max) => { t = String(t); while (g.measureText(t).width > max && t.length > 3) t = t.slice(0, -2).trim() + '…'; return t; };
+  g.textAlign = 'center'; g.fillStyle = '#fff';
+  g.font = '600 46px Georgia, serif'; g.fillText('📚 Mon année lecture', W / 2, 135);
+  g.font = 'bold 130px Georgia, serif'; g.fillText(Y, W / 2, 275);
+  const pages = ly.reduce((s, r) => s + (+r.b.pagesTotal || 0), 0);
+  const minY = allSessions().filter(s => (s.date || '').startsWith(Y)).reduce((s, x) => s + (+x.min || 0), 0);
+  const act = activity(), actY = {}; Object.keys(act).filter(k => k.startsWith(Y)).forEach(k => actY[k] = act[k]);
+  const stats = [[ly.length, ly.length > 1 ? 'livres lus' : 'livre lu'], [pages.toLocaleString('fr-FR'), 'pages'],
+    minY >= 60 ? [Math.round(minY / 60) + ' h', 'de lecture'] : [streaks(actY).best, 'jours d\'affilée']];
+  stats.forEach(([v, l], i) => {
+    const x = W / 6 + i * W / 3;
+    g.fillStyle = '#fff'; g.font = 'bold 80px Georgia, serif'; g.fillText(String(v), x, 420);
+    g.fillStyle = 'rgba(255,255,255,.8)'; g.font = '32px system-ui, sans-serif'; g.fillText(l, x, 468);
+  });
+  const top = ly.slice().sort((a, b) => b.note - a.note || b.fin.localeCompare(a.fin)).slice(0, 5);
+  g.fillStyle = '#fff'; g.font = '600 38px Georgia, serif'; g.fillText(top.length > 1 ? 'Mon top ' + top.length : 'Mon livre de l\'année', W / 2, 580);
+  const cw = 168, ch = 252, gap = 24, x0 = (W - (top.length * cw + (top.length - 1) * gap)) / 2;
+  for (let i = 0; i < top.length; i++) {
+    const r = top[i], x = x0 + i * (cw + gap), y0 = 620;
+    // Certaines sources interdisent de recopier leurs images : on essaie aussi celles qui l'autorisent
+    let img = await loadCors([...coverList(r.b), ...Recherche.isbnCovers(Recherche.toIsbn13(r.b.isbn || ''))]);
+    if (!img) img = await loadCors(await Recherche.chercherCouvertures(r.b, 6).catch(() => []));
+    g.save(); g.beginPath(); g.roundRect(x, y0, cw, ch, 14); g.clip();
+    if (img) {
+      const k = Math.max(cw / img.naturalWidth, ch / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k;
+      g.drawImage(img, x + (cw - w) / 2, y0 + (ch - h) / 2, w, h);
+    } else {
+      g.fillStyle = `hsl(${hue(r.b.titre)} 32% 48%)`; g.fillRect(x, y0, cw, ch);
+      g.fillStyle = '#fff'; g.font = 'bold 26px Georgia, serif';
+      const words = r.b.titre.split(' '); let line = '', yy = y0 + 70;
+      for (const wd of words) { if (g.measureText(line + ' ' + wd).width > cw - 24 && line) { g.fillText(line, x + cw / 2, yy); line = wd; yy += 32; if (yy > y0 + ch - 20) break; } else line = (line + ' ' + wd).trim(); }
+      if (yy <= y0 + ch - 20) g.fillText(line, x + cw / 2, yy);
+    }
+    g.restore();
+    g.fillStyle = '#fff'; g.font = 'bold 34px Georgia, serif'; g.fillText(String(i + 1), x + cw / 2, y0 + ch + 46);
+    if (r.note) { g.fillStyle = '#ffd27a'; g.font = '26px system-ui, sans-serif'; g.fillText('★'.repeat(r.note), x + cw / 2, y0 + ch + 82); }
+  }
+  const byA = {}; ly.forEach(r => { if (r.b.auteur) byA[r.b.auteur] = (byA[r.b.auteur] || 0) + 1; });
+  const byG = {}; ly.forEach(r => { if (r.b.genre) byG[r.b.genre] = (byG[r.b.genre] || 0) + 1; });
+  const fa = Object.entries(byA).sort((a, b) => b[1] - a[1])[0], fg = Object.entries(byG).sort((a, b) => b[1] - a[1])[0];
+  const longest = ly.filter(r => +r.b.pagesTotal).sort((a, b) => b.b.pagesTotal - a.b.pagesTotal)[0];
+  const facts = [fg ? '❤️ Genre préféré : ' + fg[0] : '', fa && fa[1] > 1 ? '✍️ Auteur le plus lu : ' + fa[0] : '', longest ? '🧱 Le plus long : ' + longest.b.titre + ' (' + longest.b.pagesTotal + ' p.)' : '',
+    defis(y).filter(x => x.ok).length ? '🏆 ' + plural(defis(y).filter(x => x.ok).length, 'défi') + ' réussi' + (defis(y).filter(x => x.ok).length > 1 ? 's' : '') : ''].filter(Boolean).slice(0, 4);
+  g.font = '32px system-ui, sans-serif'; g.fillStyle = '#fff';
+  facts.forEach((t, i) => g.fillText(fit(t, W - 140), W / 2, 1010 + i * 56));
+  g.fillStyle = 'rgba(255,255,255,.6)'; g.font = '26px system-ui, sans-serif'; g.fillText('Mes lectures', W / 2, H - 46);
+  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+  if (!blob) return toast('Impossible de créer l\'image');
+  const file = new File([blob], `mon-annee-lecture-${Y}.png`, {type: 'image/png'});
+  if (navigator.canShare && navigator.canShare({files: [file]})) {
+    try { await navigator.share({files: [file], title: 'Mon année lecture ' + Y}); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  download(file.name, blob, 'image/png'); toast('Image téléchargée 📸');
 }
 
 function seriesPanel() {
@@ -571,7 +988,7 @@ function bilan(y, ly) {
   const aband = books.filter(b => b.statut === 'abandon' && (b.dateFin || '').startsWith(String(y))).length;
   const fact = (k, v) => v ? `<div class="fact"><span class="k">${k}</span><span>${v}</span></div>` : '';
   const bk = r => `<b>${esc(r.b.titre)}</b>`;
-  return `<div class="panel"><h3>🎉 Mon bilan ${y}</h3>
+  return `<div class="panel"><h3 style="display:flex;align-items:center;gap:8px">🎉 Mon bilan ${y}<span style="flex:1"></span><button class="btn pri small" data-share="${y}">📤 Partager</button></h3>
     <div class="lbl" style="margin-bottom:6px">Mon top ${top.length}</div>
     <div class="top5">${top.map((r, i) => `<div><span class="rk">${i + 1}</span>${coverHtml(r.b, 'mini')}<span>${bk(r)}${r.note ? ` <span class="stars">${stars(r.note)}</span>` : ''}</span></div>`).join('')}</div>
     <div class="facts">
@@ -652,6 +1069,7 @@ function save(b, msg, action) {
   const i = books.findIndex(x => x.id === b.id);
   if (i >= 0) books[i] = b; else books.push(b);
   render(); if (msg) toast(msg, action);
+  checkBadges();
   return Store.persist();
 }
 function remove(b) {
@@ -760,6 +1178,7 @@ function openForm(b, opts) {
       <div class="srcs" id="s_st"></div>
       <div class="res" id="s_res"></div></details>
     <div class="prev" id="prev"></div>
+    <div id="coverPick" hidden></div>
     <div class="search" id="linkbox" hidden style="margin-bottom:12px"><input id="f_link" placeholder="Coller le lien d'une image (https://…)"><button class="btn" id="f_linkok" type="button">OK</button></div>
     <div class="f"><label for="f_titre">Titre *</label><input id="f_titre" value="${esc(form.aCompleter ? '' : form.titre)}" placeholder="${form.aCompleter ? 'Titre du livre' : ''}"></div>
     <div class="f"><label for="f_auteur">Auteur</label><input id="f_auteur" value="${esc(form.auteur)}"></div>
@@ -781,6 +1200,10 @@ function openForm(b, opts) {
     </div>
     ${hist.length ? `<div class="hist">Lectures précédentes : ${hist.map(h => `${fdate(h.fin)}${h.note ? ' ' + stars(h.note) : ''}`).join(' · ')}</div>` : ''}
     <div class="f" data-show="lu"><label>Ma note</label><div class="starpick" id="f_note">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} étoile${n > 1 ? 's' : ''}">★</button>`).join('')}</div></div>
+    <details id="resBox" ${form.resume ? 'open' : ''}><summary>📝 Résumé${(form.sujets || []).length ? ' et thèmes' : ''}</summary>
+      <div class="f"><textarea id="f_resume" rows="5" placeholder="Le résumé s'ajoute tout seul quand l'appli trouve le livre.">${esc(form.resume)}</textarea></div>
+      <div class="meta" id="f_sujets" style="margin:-4px 0 8px">${(form.sujets || []).map(s => `<span class="chip">${esc(s)}</span>`).join('')}</div>
+      <button class="btn small" id="f_getres" type="button" style="margin-bottom:10px">🔄 Chercher le résumé</button></details>
     <div class="f"><label for="f_avis">Mon avis / mes notes</label><textarea id="f_avis" rows="3" placeholder="Ce que j'en retiens…">${esc(form.avis)}</textarea></div>
     <div class="f"><span class="lbl">Citations</span><div class="qlist" id="f_quotes"></div>
       <textarea id="f_qt" rows="2" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
@@ -813,6 +1236,8 @@ function openForm(b, opts) {
     syncShow();
   };
   $('#f_pos').onchange = syncLoan;
+  $('#f_getres').onclick = () => fetchResume({titre: $('#f_titre').value, auteur: $('#f_auteur').value, isbn: $('#f_isbn').value,
+    serie: $('#f_serie').value, tome: $('#f_tome').value}, $('#f_getres'));
   $('#f_titre').oninput = () => { if (!coverList(form).length) paintPrev(); };
   $('#f_note').onclick = e => { const n = +(e.target.dataset.n || 0); if (!n) return; form.note = form.note === n ? 0 : n; paintStars(); };
   $('#s_go').onclick = () => doSearch();
@@ -826,7 +1251,7 @@ function openForm(b, opts) {
   $('#f_linkok').onclick = () => {
     const u = $('#f_link').value.trim();
     if (!/^https:\/\//i.test(u)) return toast('Le lien doit commencer par https://');
-    form.couverture = u; form._covers = null; $('#linkbox').hidden = true; paintPrev();
+    setCovers(form, u, []); form._covers = null; $('#linkbox').hidden = true; paintPrev();
   };
   $('#f_qadd').onclick = () => {
     const texte = $('#f_qt').value.trim(); if (!texte) return toast('Écris la citation');
@@ -838,7 +1263,10 @@ function openForm(b, opts) {
     collect();
     if (!form.titre) { toast('Il faut au moins un titre'); $('#f_titre').focus(); return; }
     const f = form;
-    if (!f.couverture && (f._covers || []).length) { $('#f_save').textContent = 'Couverture…'; f.couverture = await Promise.race([Recherche.couverture(f._covers), new Promise(r => setTimeout(() => r(''), 3500))]); }
+    if (!f.couverture && (f._covers || []).length) {
+      $('#f_save').textContent = 'Couverture…';
+      setCovers(f, await Promise.race([Recherche.couverture(f._covers), new Promise(r => setTimeout(() => r(''), 3500))]), f._covers);
+    }
     delete f._covers;
     const orig = books.find(x => x.id === f.id) || {};
     if (f.statut === 'lu' && f.pagesTotal && !f.pageActuelle) f.pageActuelle = f.pagesTotal;
@@ -847,6 +1275,9 @@ function openForm(b, opts) {
     const moved = orig.statut && orig.statut !== f.statut;
     closeM();
     save(f, !orig.statut || moved ? `Rangé dans « ${STATUTS[f.statut]} »` : 'Enregistré ✓');
+    if (f.couverture) brokenCovers.delete(f.id);
+    if (!f.couverture) autoCover(f.id);
+    if (!f.resume && !f.resumeTente) autoResume(f.id);
     if (f.statut === 'lu' && orig.statut !== 'lu') afterFinish(f);
   };
   const del = $('#f_del');
@@ -871,7 +1302,7 @@ function collect() {
     titre: $('#f_titre').value.trim(), auteur: $('#f_auteur').value.trim(), statut: $('#f_statut').value,
     serie: $('#f_serie').value.trim(), tome: num($('#f_tome').value),
     genre: $('#f_genre').value.trim(), pageActuelle: num($('#f_page').value), pagesTotal: num($('#f_total').value),
-    dateDebut: $('#f_debut').value, dateFin: $('#f_fin').value, avis: $('#f_avis').value.trim(),
+    dateDebut: $('#f_debut').value, dateFin: $('#f_fin').value, avis: $('#f_avis').value.trim(), resume: $('#f_resume').value.trim(),
     format: $('#f_format').value, possession: $('#f_pos').value, pretNom: $('#f_pnom').value.trim(), pretRetour: $('#f_pret').value,
     isbn: Recherche.toIsbn13($('#f_isbn').value) || $('#f_isbn').value.replace(/[^0-9X]/gi, ''), editeur: $('#f_edit').value.trim(), annee: $('#f_annee').value.trim()
   });
@@ -902,12 +1333,76 @@ function paintQuotes() {
 function paintPrev() {
   const has = coverList(form).length > 0;
   $('#prev').innerHTML = coverHtml({titre: ($('#f_titre') && $('#f_titre').value) || form.titre || '?', couverture: form.couverture, _covers: form._covers}, 'big') +
-    `<div class="btns"><button class="btn" type="button" id="f_photo">📷 ${has ? 'Changer la' : 'Ajouter une'} couverture</button>
+    `<div class="btns"><button class="btn" type="button" id="f_find">🔍 ${has ? 'Autre' : 'Trouver une'} couverture</button>
+     <button class="btn" type="button" id="f_photo">📷 Photo</button>
      <button class="btn" type="button" id="f_linkbtn">🔗 Lien d'image</button>
      ${has ? '<button class="btn" type="button" id="f_nocov">Retirer</button>' : ''}</div>`;
+  $('#f_find').onclick = findCovers;
   $('#f_photo').onclick = () => { $('#pick_cover').value = ''; $('#pick_cover').click(); };
   $('#f_linkbtn').onclick = () => { $('#linkbox').hidden = !$('#linkbox').hidden; if (!$('#linkbox').hidden) $('#f_link').focus(); };
-  const x = $('#f_nocov'); if (x) x.onclick = () => { form.couverture = ''; form._covers = null; paintPrev(); };
+  const x = $('#f_nocov'); if (x) x.onclick = () => { setCovers(form, '', []); form._covers = null; paintPrev(); };
+}
+
+// Résumé dans la fiche ouverte
+function showResume(resume, sujets) {
+  if (!form || !$('#f_resume')) return;
+  $('#f_resume').value = resume || '';
+  form.sujets = sujets && sujets.length ? sujets : (form.sujets || []);
+  $('#f_sujets').innerHTML = form.sujets.map(s => `<span class="chip">${esc(s)}</span>`).join('');
+  if (resume) $('#resBox').open = true;
+  form.resumeTente = true;
+}
+async function fetchResume(x, bouton) {
+  const f = form;
+  if (bouton) { bouton.disabled = true; bouton.textContent = 'Recherche…'; }
+  const r = await Recherche.resume(x).catch(() => ({}));
+  if (form !== f) return;
+  if (bouton) { bouton.disabled = false; bouton.textContent = '🔄 Chercher le résumé'; }
+  if (r.resume) showResume(r.resume, r.sujets);
+  else if (bouton) toast('Pas de résumé trouvé pour ce livre');
+  if (!$('#f_genre').value && r.genre) $('#f_genre').value = r.genre;
+  f.resumeTente = true;
+}
+// En arrière-plan, un livre à la fois : ajoute résumé, thèmes et genre aux livres qui n'en ont pas
+const resumeQueue = [];
+let resumeBusy = false;
+function autoResume(id) {
+  if (!resumeQueue.includes(id)) resumeQueue.push(id);
+  if (resumeBusy) return;
+  resumeBusy = true;
+  (async () => {
+    while (resumeQueue.length) {
+      const b = books.find(x => x.id === resumeQueue.shift());
+      if (!b || b.resume || b.aCompleter) continue;
+      const r = await Recherche.resume(b).catch(() => ({}));
+      const i = books.findIndex(x => x.id === b.id); if (i < 0) continue;
+      const nb = {...books[i], resumeTente: true};
+      if (r.resume) nb.resume = r.resume;
+      if (r.sujets && r.sujets.length && !(nb.sujets || []).length) nb.sujets = r.sujets;
+      if (!nb.genre && r.genre) nb.genre = r.genre;
+      books[i] = nb; Store.persist(); if (r.resume && ui.tab === nb.statut) renderCards();
+      await new Promise(res => setTimeout(res, 800));
+    }
+    resumeBusy = false;
+  })();
+}
+
+// Montre toutes les couvertures trouvées pour ce livre : on touche la bonne
+async function findCovers() {
+  const f = form, box = $('#coverPick');
+  const b = {titre: $('#f_titre').value.trim(), auteur: $('#f_auteur').value.trim(), isbn: $('#f_isbn').value, serie: $('#f_serie').value.trim(), tome: $('#f_tome').value};
+  if (!b.titre && !Recherche.toIsbn13(b.isbn)) return toast('Indique d\'abord le titre');
+  box.hidden = false; box.innerHTML = '<div class="a">Recherche des couvertures…</div>';
+  const l = await Recherche.chercherCouvertures(b, 12).catch(() => []);
+  if (form !== f) return;
+  if (!l.length) { box.innerHTML = '<div class="hint">Aucune couverture trouvée en ligne. Tu peux prendre le livre en photo 📷.</div>'; return; }
+  box.innerHTML = `<div class="lbl" style="margin-bottom:6px">Touche la bonne couverture :</div><div class="cpick">${l.map((u, i) =>
+    `<button type="button" data-cov="${i}"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer"></button>`).join('')}</div>`;
+  box.onclick = e => {
+    const c = e.target.closest('[data-cov]'); if (!c) return;
+    const u = l[+c.dataset.cov];
+    setCovers(form, u, l); form._covers = null; box.hidden = true; paintPrev(); toast('Couverture choisie ✓');
+  };
 }
 
 /* ---------- Recherche dans la fiche ---------- */
@@ -970,13 +1465,21 @@ function fillFrom(x) {
   if (x.isbn) $('#f_isbn').value = x.isbn;
   if (x.editeur) $('#f_edit').value = x.editeur;
   if (x.annee) $('#f_annee').value = x.annee;
+  if (x.resume && !$('#f_resume').value.trim()) showResume(x.resume, x.sujets);
+  else if (!$('#f_resume').value.trim()) fetchResume(x);
   if (!$('#f_genre').value && x.genre) $('#f_genre').value = x.genre;
   if (!f.couverture || f.aCompleter) { f.couverture = ''; f._covers = x.covers || []; paintPrev(); }
   $('#s_res').innerHTML = ''; $('#s_st').innerHTML = '';
   $('#modal details').open = false;
   toast('Infos remplies ✓');
   // En arrière-plan : vraie couverture + infos manquantes (pages, ISBN…)
-  Recherche.couverture(x.covers).then(u => { if (form === f && u && !f.couverture) { f.couverture = u; f._covers = null; paintPrev(); } });
+  Recherche.couverture(x.covers).then(async u => {
+    if (form !== f || f.couverture) return;
+    if (u) { setCovers(f, u, x.covers); f._covers = null; return paintPrev(); }
+    // Aucune des couvertures habituelles : recherche élargie (titre, auteur, autres éditions…)
+    const l = await Recherche.chercherCouvertures({titre: x.titre, auteur: x.auteur, isbn: x.isbn, serie: x.serie, tome: x.tome}, 5).catch(() => []);
+    if (form === f && !f.couverture && l.length) { setCovers(f, l[0], l); f._covers = null; paintPrev(); }
+  });
   if (!x.pagesTotal || !x.isbn) Recherche.completer(x).then(y => {
     if (form !== f) return;
     if (!$('#f_total').value && y.pagesTotal) $('#f_total').value = y.pagesTotal;
@@ -1020,7 +1523,7 @@ async function decodeBarcode(file) {
 }
 $('#pick_cover').onchange = async e => {
   const f = e.target.files[0]; if (!f || !form) return;
-  try { form.couverture = await fileToCover(f); form._covers = null; paintPrev(); toast('Couverture ajoutée ✓'); }
+  try { setCovers(form, await fileToCover(f), []); form._covers = null; paintPrev(); toast('Couverture ajoutée ✓'); }
   catch (err) { toast('Image illisible'); }
 };
 $('#pick_scan').onchange = async e => {
@@ -1129,8 +1632,10 @@ async function bulkCode(c) {
     const b = bookFrom(x, dest);
     b.id = newId();
     row(`${coverHtml({titre: b.titre, _covers: x.covers}, 'mini')}<span class="grow">✓ <b>${esc(b.titre)}</b>${b.tome ? ' T.' + esc(b.tome) : ''}<br><span class="a">${esc(b.auteur)}</span></span>`);
-    b.couverture = await Recherche.couverture(x.covers);
+    setCovers(b, await Recherche.couverture(x.covers), x.covers);
     books.push(b); bulkAdded++; render(); Store.persist();
+    if (!b.couverture) autoCover(b.id);
+    if (x.resume) { b.resume = x.resume; b.sujets = x.sujets || []; b.resumeTente = true; Store.persist(); } else autoResume(b.id);
   } else {
     const b = {...blankBook(dest), id: newId(), titre: 'Livre ' + isbn, isbn, aCompleter: true};
     books.push(b); bulkAdded++; render(); Store.persist();
@@ -1232,8 +1737,27 @@ function openSettings() {
 }
 
 /* ---------- Compléter automatiquement les fiches existantes ---------- */
-const needsFill = b => !b.aCompleter && b.titre && (!b.couverture || !b.pagesTotal || !b.isbn);
+const needsFill = b => !b.aCompleter && b.titre && (!b.couverture || brokenCovers.has(b.id) || !b.pagesTotal || (!b.resume && !b.resumeTente));
+// Résumé, thèmes et genre (une seule tentative par livre)
+async function fillResume(b) {
+  if (b.resume) return false;
+  const r = await Recherche.resume(b).catch(() => ({}));
+  const i = books.findIndex(z => z.id === b.id); if (i < 0) return false;
+  const nb = {...books[i], resumeTente: true};
+  if (r.resume) nb.resume = r.resume;
+  if (r.sujets && r.sujets.length && !(nb.sujets || []).length) nb.sujets = r.sujets;
+  if (!nb.genre && r.genre) nb.genre = r.genre;
+  books[i] = nb;
+  return !!r.resume;
+}
 async function fillOne(b) {
+  // Il ne manque que le résumé : pas besoin de tout rechercher
+  if (b.couverture && !brokenCovers.has(b.id) && b.pagesTotal) return fillResume(b);
+  const changed = await fillFiche(b);
+  const apres = books.find(z => z.id === b.id) || b;
+  return (await fillResume(apres)) || changed;
+}
+async function fillFiche(b) {
   const n = Recherche.norm, sn = Recherche.surname;
   let res = [], byIsbn = false;
   if (b.isbn && Recherche.toIsbn13(b.isbn)) { res = await Recherche.parIsbn(Recherche.toIsbn13(b.isbn)).catch(() => []); byIsbn = res.length > 0; }
@@ -1242,14 +1766,27 @@ async function fillOne(b) {
   const same = res.filter(r => (n(r.titre) === n(b.titre) || (b.serie && r.serie && n(r.serie) === n(b.serie) && String(r.tome) === String(b.tome)))
     && (!sn(b.auteur) || sn(r.auteur) === sn(b.auteur)) && (!b.tome || !r.tome || String(r.tome) === String(b.tome)));
   const x = same.find(r => r.langue === 'fre') || same[0];
-  if (!x) return false;
-  const y = (!x.pagesTotal || !x.isbn) ? await Recherche.completer(x) : x;
   const nb = {...books.find(z => z.id === b.id)};
+  const coverMissing = !nb.couverture || brokenCovers.has(b.id);
+  if (!x) {
+    // Fiche introuvable : on peut au moins chercher une couverture
+    if (!coverMissing) return false;
+    const l = await Recherche.chercherCouvertures(nb, 5).catch(() => []);
+    if (!l.length) return false;
+    setCovers(nb, l[0], l); brokenCovers.delete(b.id);
+    const i = books.findIndex(z => z.id === b.id); if (i >= 0) books[i] = nb;
+    return true;
+  }
+  const y = (!x.pagesTotal || !x.isbn) ? await Recherche.completer(x) : x;
   // Trouvé par le titre : on ne connaît pas l'édition exacte → pas d'ISBN ni d'éditeur (ce serait peut-être faux)
   for (const f of byIsbn ? ['auteur', 'pagesTotal', 'isbn', 'editeur', 'annee', 'genre'] : ['auteur', 'pagesTotal', 'genre']) if (!nb[f] && y[f]) nb[f] = y[f];
   // Série : seulement si le livre n'en a pas, que la fiche vient d'un catalogue (BnF/Sudoc) et que le titre colle
   if (!nb.serie && x.serie && x.tome && (x.sources || []).some(s => s === 'BnF' || s === 'Sudoc') && n(x.titre) === n(b.titre)) { nb.serie = x.serie; nb.tome = x.tome; }
-  if (!nb.couverture) nb.couverture = await Recherche.couverture(y.covers);
+  if (coverMissing) {
+    let u = await Recherche.couverture(y.covers), list = y.covers;
+    if (!u) { list = await Recherche.chercherCouvertures(nb, 5).catch(() => []); u = list[0] || ''; }
+    if (u) { setCovers(nb, u, list); brokenCovers.delete(b.id); }
+  }
   const i = books.findIndex(z => z.id === b.id); if (i >= 0) books[i] = nb;
   return true;
 }
@@ -1275,6 +1812,10 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-close]') || e.target.id === 'ov') return closeM();
   if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
+  if (e.target.closest('#dice')) return openNext();
+  if (e.target.closest('[data-more], [data-sug]')) return onSuggestion(e);
+  const day = e.target.closest('[data-day]'); if (day) return dayInfo(day.dataset.day);
+  const sh = e.target.closest('[data-share]'); if (sh) return shareBilan(+sh.dataset.share);
   const ex = e.target.closest('[data-export]');
   if (ex) return doExport(ex.dataset.export);
   if (e.target.closest('[data-goal]')) {
@@ -1324,6 +1865,9 @@ $('#fab').onclick = () => openForm(null);
     const c = counts();
     if (!c.en_cours && books.length) ui.tab = c.a_lire ? 'a_lire' : 'lu';
     render();
+    checkBadges(true);
+    // Une fois par mois : préparer la sélection de 5 livres (en arrière-plan, s'il y a internet)
+    if (navigator.onLine !== false) setTimeout(() => genSelection(), 4000);
     if (prefs.timer) paintTimerPill();
   } catch (e) {
     $('#main').innerHTML = `<div class="empty">Impossible de charger tes livres.<br><small>${esc(e.message || e)}</small></div>`;

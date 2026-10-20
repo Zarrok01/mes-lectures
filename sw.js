@@ -1,10 +1,10 @@
 // Permet à l'appli de s'ouvrir même sans internet, et garde les couvertures en mémoire.
 // Change ce numéro à chaque mise à jour de l'appli pour forcer le rafraîchissement.
-const CACHE = 'mes-lectures-v3';
+const CACHE = 'mes-lectures-v5';
 const COVERS = 'mes-lectures-couvertures';
 const FILES = ['./', 'index.html', 'recherche.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 const COVER_HOSTS = ['covers.openlibrary.org', 'archive.org', 'catalogue.bnf.fr', 'images-na.ssl-images-amazon.com',
-  'books.google.com', 'books.googleusercontent.com', 'mzstatic.com'];
+  'books.google.com', 'books.googleusercontent.com', 'mzstatic.com', 'di-static.com', 'epagine.fr'];
 const MAX_COVERS = 1500;
 
 self.addEventListener('install', e => {
@@ -37,7 +37,8 @@ self.addEventListener('fetch', e => {
   }
 
   // Couvertures : gardées en mémoire après le premier affichage (s'affichent vite et hors ligne).
-  if (req.destination === 'image' && COVER_HOSTS.some(h => url.hostname.endsWith(h))) {
+  // (pas pour les images chargées en mode « cors », utilisées pour fabriquer l'image du bilan)
+  if (req.destination === 'image' && req.mode !== 'cors' && COVER_HOSTS.some(h => url.hostname.endsWith(h))) {
     e.respondWith(caches.open(COVERS).then(c => c.match(req).then(hit => hit || fetch(req).then(res => {
       if (res.ok || res.type === 'opaque') { c.put(req, res.clone()); trimCovers(); }
       return res;

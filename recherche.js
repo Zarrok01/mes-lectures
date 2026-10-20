@@ -72,16 +72,24 @@ const Recherche = (() => {
     g.chain = p;
     return p;
   }
+  // Si un catalogue nous bloque (plusieurs échecs de suite), on le laisse tranquille 5 minutes
+  const pause = {}, echecs = {};
   async function fetchT(url, ms, retry) {
     const host = new URL(url).hostname;
+    if (pause[host] && Date.now() < pause[host]) { const e = new Error('en pause'); e.status = 503; throw e; }
     await gate(host);
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms || 10000);
     try {
       const r = await fetch(url, {signal: ctl.signal});
       if ((r.status === 429 || r.status === 503) && GAPS[host] && !retry) { await sleep(2000); return fetchT(url, ms, true); }
+      echecs[host] = 0;
       return r;
     } catch (e) {
-      if (GAPS[host] && !retry && e.name !== 'AbortError') { await sleep(1500); return fetchT(url, ms, true); }
+      if (GAPS[host] && e.name !== 'AbortError') {
+        echecs[host] = (echecs[host] || 0) + 1;
+        if (echecs[host] >= 3) { pause[host] = Date.now() + 5 * 60e3; echecs[host] = 0; }
+        if (!retry && !(pause[host] > Date.now())) { await sleep(1500); return fetchT(url, ms, true); }
+      }
       throw e;
     } finally { clearTimeout(t); }
   }
@@ -114,6 +122,22 @@ const Recherche = (() => {
     const toks = String(m || '').replace(/[.,;]/g, ' ').split(/\s+/).filter(Boolean);
     if (!toks.length || toks.length > 12) return '';
     return toks.every(t => /^\p{Lu}/u.test(t) || /^\p{Ll}['’]\p{Lu}/u.test(t) || PARTICLES.has(t.toLowerCase())) ? m : '';
+  }
+  // Résumé lisible : sans balises HTML, sans « Prix du roman FNAC » en tête, 1 500 caractères au plus
+  function cleanResume(s) {
+    s = String(s || '');
+    if (!s) return '';
+    // (deux passes : certaines sources envoient du HTML « codé deux fois »)
+    for (let k = 0; k < 2 && /[<&]/.test(s); k++)
+      s = new DOMParser().parseFromString('<div>' + s.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n') + '</div>', 'text/html').body.textContent;
+    s = s.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    // On retire les paragraphes techniques (EPUB, format…) et la publicité du début (prix, « élu… », ventes)
+    const technique = p => /\b(epub|fichier|mise en page fixe|format num[ée]rique|version num[ée]rique|ce livre num[ée]rique|cet e-?book|liseuse|texte int[ée]gral\.?$|cet ouvrage a fait l.objet|[ée]dition num[ée]rique|table des mati[èe]res (interactive|dynamique))\b/i.test(p);
+    const pub = p => p.length < 280 && /(\bprix (?!de vente)[a-zé]|r[ée]compens[ée]|laur[ée]at|\b[ée]lue? (roman|livre|meilleur)|best-?seller|meilleures? ventes?|coup de c(œ|oe)ur des libraires|vendus? à plus|exemplaires vendus|ph[ée]nom[èe]ne (mondial|de librairie)|d[ée]j[àa] culte)/i.test(p);
+    let paras = s.split(/\n+/).map(p => p.trim()).filter(p => p && !technique(p));
+    while (paras.length > 1 && pub(paras[0])) paras.shift();
+    s = paras.join('\n');
+    return s.length > 1500 ? s.slice(0, 1500).replace(/\s+\S*$/, '') + '…' : s;
   }
   // « Une aventure d'Astérix. » → « Astérix » ; « Les aventures de Tintin » → « Tintin »
   const cleanSerie = s => clean(s).replace(/^(une |les )?aventures? (de |d'|d’|du |des )/i, '').replace(/[\s.,;:]+$/, '');
@@ -163,11 +187,16 @@ const Recherche = (() => {
     const editeur = clean(((pub.find(x => x.c) || {}).c || [''])[0]);
     const annee = (pub.map(x => (x.d || [''])[0]).join(' ').match(/\d{4}/) || [''])[0];
     const collections = (F['225'] || []).map(x => (x.a || [''])[0]).filter(Boolean);
+    // Résumé de l'éditeur (330) et sujets (606 : sujets, 608 : forme du texte, sans les mentions techniques)
+    const resume = cleanResume(first('330', 'a'));
+    const sujets = [...(F['606'] || []), ...(F['608'] || [])].map(x => clean((x.a || [''])[0]))
+      .filter(s => s && !/enregistrement|édition phonographique|édition commerciale|édition de poche|^lecture$|texte imprimé|ressource|livre numérique|^oeuvre d'origine|^ouvrages? pour/i.test(s));
     return {
       titre: clean(titre), sousTitre: clean(sousTitre), serie: cleanSerie(serie), tome,
       auteur, pagesTotal: pages > 0 && pages < 5000 ? pages : '',
       editeur, annee, langue: first('101', 'a'), isbn: toIsbn13(first('010', 'a')),
-      indices: collections
+      resume, sujets: [...new Set(sujets)].slice(0, 6),
+      indices: [...collections, ...sujets]
     };
   }
 
@@ -232,6 +261,7 @@ const Recherche = (() => {
           pagesTotal: v.pageCount || '', editeur: clean(v.publisher), annee: (v.publishedDate || '').slice(0, 4),
           langue: v.language === 'fr' ? 'fre' : v.language || '', isbn: ids.find(x => x.startsWith('97')) || '', isbns: ids,
           covers: (l.thumbnail || l.smallThumbnail) ? [(l.thumbnail || l.smallThumbnail).replace(/^http:/, 'https:').replace('&edge=curl', '')] : [],
+          resume: v.language === 'fr' ? cleanResume(v.description) : '', sujets: v.categories || [],
           indices: v.categories || [], source: 'Google'
         };
       }).filter(b => b.titre && (!isbn || b.isbns.includes(isbn)));
@@ -243,9 +273,12 @@ const Recherche = (() => {
 
   function storeTitle(t) {
     return clean(t)
-      .replace(/\s+[-–]\s+(Prix|Lauréat|Grand Prix|Le phénomène|Best[- ]?seller|Nouvelle édition|Édition collector|Le livre événement|Le roman événement|Coup de cœur).*$/i, '')
+      .replace(/\s+[-–]\s+(Prix|Lauréat|Grand Prix|Le phénomène|Best[- ]?seller|Nouvelle édition|Édition collector|Le livre événement|Le roman événement|Coup de cœur|Nouveau roman|Le nouveau roman|Le nouveau|Nouveauté|Roman \d{4}|Le roman de l'année).*$/i, '')
       .replace(/\s*\((?:Fiche de lecture|Résumé|Analyse)[^)]*\)\s*$/i, '')
-      .replace(/\s*\((?:Enhanced Edition|Édition enrichie|Edition enrichie|Version enrichie|ebook)\)\s*$/i, '').trim();
+      .replace(/\s*\((?:Enhanced Edition|Édition enrichie|Edition enrichie|Version enrichie|ebook)\)\s*$/i, '')
+      .replace(/\s*\((?:Prix|Grand Prix|Lauréat|Sélection|Finaliste)[^)]*\)/gi, '')
+      .replace(/\s+[-–]\s+\d+e?\s*(éd\.?|édition)\s*$/i, '')
+      .replace(/\s*\((?:avec|pr[ée]face|[ée]dition|nouvelle [ée]dition|inclus|version)[^)]*\)/gi, '').trim();
   }
   async function apple(q) {
     const j = await getJson('https://itunes.apple.com/search?country=fr&media=ebook&limit=15&term=' + encodeURIComponent(q), 8000);
@@ -254,6 +287,8 @@ const Recherche = (() => {
       auteur: (r.artistName || '').split(/\s*&\s*/).slice(0, 3).join(', '),
       annee: (r.releaseDate || '').slice(0, 4), langue: 'fre', isbn: '', pagesTotal: '',
       covers: r.artworkUrl100 ? [r.artworkUrl100.replace(/\d+x\d+bb/, '600x600bb')] : [],
+      resume: cleanResume(r.description).replace(/^(Prix [^\n.]{2,40}|Lauréat[^\n.]{2,40}|Best-?seller[^\n.]{0,40})\s+/i, ''),
+      sujets: (r.genres || []).filter(g => g !== 'Livres'), note: r.averageUserRating || 0, avis: r.userRatingCount || 0, prix: r.price,
       indices: r.genres || [], source: 'Apple'
     })).filter(b => b.titre);
   }
@@ -277,7 +312,7 @@ const Recherche = (() => {
     [/science-fiction|science fiction|fantasy|fantastique|imaginaire|dystop|anticipation/i, 'SF / Fantasy'],
     [/biograph|mémoires|autobiograph|témoignage/i, 'Biographie'],
     [/développement personnel|developpement personnel|self-help|bien-être|psychologie positive|motivation/i, 'Développement perso'],
-    [/travail social|éducat|educat|action sociale|protection de l.enfance|médico-social|pédagog|vae/i, 'Pro / VAE'],
+    [/travail social|éducat|educat|action sociale|protection de l.enfance|médico-social|pédagog|vae|parentalit|autorité \(psych|psychologie de l.enfant|enfants -- psychologie|relation parent/i, 'Pro / VAE'],
     [/essai|histoire|philosoph|sociolog|politique|sciences humaines|économie|society/i, 'Essai'],
     [/roman|fiction|littérature|literature|novel|nouvelles/i, 'Roman']
   ];
@@ -299,7 +334,7 @@ const Recherche = (() => {
     return all.flat();
   }
 
-  const FIELDS = ['titre', 'sousTitre', 'serie', 'tome', 'auteur', 'pagesTotal', 'editeur', 'annee', 'langue', 'isbn'];
+  const FIELDS = ['titre', 'sousTitre', 'serie', 'tome', 'auteur', 'pagesTotal', 'editeur', 'annee', 'langue', 'isbn', 'resume'];
   const PRIO_ISBN = ['BnF', 'Sudoc', 'Google', 'Open Library', 'DNB'];
 
   // Même édition vue par plusieurs sources → une seule fiche, champ par champ.
@@ -319,6 +354,7 @@ const Recherche = (() => {
       (r.covers || []).forEach(c => { if (c && !m.covers.includes(c)) m.covers.push(c); });
       (r.indices || []).forEach(c => m.indices.push(c));
     });
+    m.sujets = [...new Set(sorted.flatMap(r => r.sujets || []))].slice(0, 6);
     m.genre = guessGenre(m.indices);
     return m;
   }
@@ -337,10 +373,23 @@ const Recherche = (() => {
     if (!recs.length) return [];
     const m = mergeSame(recs, PRIO_ISBN);
     m.isbn = isbn;
-    m.covers.push('https://covers.openlibrary.org/b/isbn/' + isbn + '-L.jpg?default=false');
-    if (i10) m.covers.push('https://images-na.ssl-images-amazon.com/images/P/' + i10 + '.08.LZZZZZZZ.jpg');
+    // Couvertures : librairies françaises d'abord (Decitre, Epagine : rapides et fiables),
+    // puis BnF (belle qualité mais parfois lente ou indisponible), puis le reste
+    m.covers = [...new Set([...isbnCovers(isbn).slice(0, 2), ...m.covers, ...isbnCovers(isbn).slice(2)])];
     m.score = 99;
     return [m];
+  }
+
+  /* ---------- Couvertures à partir d'un ISBN ---------- */
+  function isbnCovers(isbn) {
+    if (!isbn) return [];
+    const i10 = isbn10(isbn);
+    return [
+      'https://products-images.di-static.com/image/livre/' + isbn + '-475x500-1.jpg',   // Decitre
+      'https://images.epagine.fr/' + isbn.slice(-3) + '/' + isbn + '_1_75.jpg',          // librairies indépendantes
+      'https://covers.openlibrary.org/b/isbn/' + isbn + '-L.jpg?default=false',
+      ...(i10 ? ['https://images-na.ssl-images-amazon.com/images/P/' + i10 + '.08.LZZZZZZZ.jpg'] : [])
+    ];
   }
 
   /* ---------- Recherche par titre / auteur ---------- */
@@ -399,8 +448,7 @@ const Recherche = (() => {
       if (ed) for (const f of ['isbn', 'pagesTotal', 'editeur', 'annee']) m[f] = ed[f] || m[f];
       // Couvertures : édition de référence d'abord, puis Apple (belle qualité), puis le reste
       const appleCov = g.filter(r => r.source === 'Apple').flatMap(r => r.covers);
-      m.covers = [...new Set([...(ed ? ed.covers : []), ...appleCov, ...m.covers])];
-      if (m.isbn) m.covers.push('https://covers.openlibrary.org/b/isbn/' + m.isbn + '-L.jpg?default=false');
+      m.covers = [...new Set([...isbnCovers(m.isbn).slice(0, 1), ...appleCov, ...(ed ? ed.covers : []), ...m.covers, ...isbnCovers(m.isbn)])];
 
       // Pertinence
       const hay = ' ' + norm([m.titre, m.sousTitre, m.serie, m.tome, m.auteur].join(' ')) + ' ';
@@ -443,8 +491,10 @@ const Recherche = (() => {
     if (!m) return r;
     let serie = m[1].replace(/[\s,:–-]+$/, '').trim(), titre = m[3] ? m[3].trim() : '';
     // « Astérix - L'Iris blanc - n°40 » : série, puis titre du volume
-    const parts = serie.split(/\s+[-–]\s+/);
+    // (sauf si la partie suivante parle juste de l'édition : « One Piece - Édition originale - Tome 100 »)
+    const parts = serie.split(/\s+[-–]\s+/).filter(p => !/^(nouvelle |)[ée]dition|^int[ée]grale|^version|^collector/i.test(p));
     if (parts.length > 1) { serie = parts[0]; titre = titre || parts.slice(1).join(' - '); }
+    else if (parts.length === 1) serie = parts[0];
     return {...r, serie: r.serie || cleanSerie(serie), tome: String(+m[2]), titre: titre || serie};
   }
 
@@ -497,10 +547,12 @@ const Recherche = (() => {
   }
 
   /* ---------- Trouver la meilleure couverture qui existe vraiment ---------- */
+  // Images « pas de couverture » renvoyées par certains sites (taille fixe reconnaissable)
+  const placeholder = (w, h) => w <= 20 || h <= 20 || (w === 154 && h === 173);
   function probe(src, ms) {
     return new Promise(res => {
       const i = new Image(); const t = setTimeout(() => res(false), ms || 7000);
-      i.onload = () => { clearTimeout(t); res(i.naturalWidth > 20 && i.naturalHeight > 20); };
+      i.onload = () => { clearTimeout(t); res(!placeholder(i.naturalWidth, i.naturalHeight)); };
       i.onerror = () => { clearTimeout(t); res(false); };
       i.referrerPolicy = 'no-referrer'; i.src = src;
     });
@@ -512,12 +564,226 @@ const Recherche = (() => {
     return '';
   }
 
+  // Cherche toutes les couvertures possibles d'un livre (par ISBN, titre, auteur, série) et ne garde que celles qui existent
+  async function chercherCouvertures(b, max) {
+    const list = [...isbnCovers(toIsbn13(b.isbn || ''))];
+    const titre = clean(String(b.titre || '').replace(/["*?]/g, ' ')), sn = surname(b.auteur);
+    if (titre) {
+      const nt = norm(titre).slice(0, 14), ns = norm(b.serie || '');
+      const meme = r => {
+        const rt = norm(r.titre), rs = norm(r.serie || '');
+        const titreOk = rt.startsWith(nt) || nt.startsWith(rt.slice(0, 14)) ||
+          (ns && (rs === ns || rt.startsWith(ns)) && (!b.tome || String(r.tome) === String(b.tome) || rt.includes(' ' + b.tome)));
+        return titreOk && (!sn || !surname(r.auteur) || norm(r.auteur).includes(sn));
+      };
+      const qApple = (b.serie && b.tome ? b.serie + ' ' + b.tome : titre) + (sn ? ' ' + sn : '');
+      const [ap, bn, ol] = await Promise.all([
+        apple(qApple).then(r => r.map(splitTome)).catch(() => []),
+        bnf('bib.title all "' + titre + '"' + (sn ? ' and bib.author all "' + sn + '"' : '') + ' and bib.doctype any "a"', 8).catch(() => []),
+        openLibraryText(titre + (sn ? ' ' + sn : '')).catch(() => [])
+      ]);
+      ap.filter(meme).forEach(r => list.push(...r.covers));
+      bn.filter(meme).forEach(r => list.push(...r.covers, ...isbnCovers(r.isbn).slice(0, 2)));
+      ol.filter(meme).forEach(r => list.push(...r.covers));
+    }
+    const uniq = [...new Set(list.filter(Boolean))].slice(0, 24);
+    const ok = await Promise.all(uniq.map(u => probe(u, 8000).then(x => x ? u : '')));
+    return ok.filter(Boolean).slice(0, max || 12);
+  }
+
+  /* ---------- Résumé, sujets et genre d'un livre ---------- */
+  // Cherche le résumé de l'éditeur (BnF) ou la présentation d'Apple Books, en vérifiant que c'est bien le même livre
+  async function resume(b) {
+    const titre = clean(String(b.titre || '').replace(/["*?]/g, ' ')), sn = surname(b.auteur);
+    if (!titre) return {resume: '', sujets: [], genre: ''};
+    const nt = norm(titre);
+    const meme = r => { const rt = norm(r.titre); return (rt === nt || rt.startsWith(nt) || nt.startsWith(rt)) && (!sn || norm(r.auteur).includes(sn)); };
+    const isbn = toIsbn13(b.isbn || '');
+    const [bn, ap] = await Promise.all([
+      (isbn ? bnf('bib.isbn adj "' + isbn + '"', 1) : Promise.resolve([]))
+        .then(r => r.length && r[0].resume ? r : bnf('bib.title all "' + titre + '"' + (sn ? ' and bib.author all "' + sn + '"' : '') + ' and bib.doctype any "a"', 6)).catch(() => []),
+      apple(titre + (sn ? ' ' + sn : '')).then(r => r.map(splitTome)).catch(() => [])
+    ]);
+    const okB = bn.filter(r => r.resume && (isbn && r.isbn === isbn || meme(r)));
+    const okA = ap.filter(r => r.resume && (meme(r) || (b.serie && norm(r.serie || '') === norm(b.serie) && String(r.tome) === String(b.tome)) ||
+      (!b.serie && norm(r.serie || '') === nt && (!sn || norm(r.auteur).includes(sn)))));
+    const bnfFr = okB.find(r => r.langue === 'fre') || okB[0];
+    const r = bnfFr || okA[0];
+    const sujets = [...new Set([...(bnfFr ? bnfFr.sujets : []), ...(okA[0] ? okA[0].sujets : [])])].slice(0, 6);
+    return {resume: r ? r.resume : '', sujets, genre: guessGenre([...sujets, ...(okA[0] ? okA[0].indices : [])])};
+  }
+
+  /* ---------- Découverte : des livres à découvrir, par thème ---------- */
+  // rayon : rayons Apple Books acceptés pour ce thème (Apple mélange tout dans ses recherches)
+  const THEMES = [
+    {id: 'roman', nom: 'Roman', e: '📖', prix: [['Q187300', 'Prix Goncourt'], ['Q755723', 'Prix Renaudot'], ['Q18945', 'Prix Femina'], ['Q58352', 'Prix Médicis'], ['Q930356', 'Goncourt des lycéens'], ['Q1543399', 'Prix Interallié']], wd: [], bnf: 'roman', apple: ['roman', 'roman français'], rayon: /romans et littérature|littérature/i, genre: 'Roman'},
+    {id: 'polar', nom: 'Polar / Thriller', e: '🔍', prix: [['Q1475121', 'Prix du Quai des Orfèvres']], wd: ['Q208505'], bnf: 'policier', apple: ['thriller', 'polar'], rayon: /policier|suspense|thriller/i, genre: 'Polar / Thriller'},
+    {id: 'sf', nom: 'Science-fiction', e: '🚀', prix: [['Q255032', 'Prix Hugo']], wd: ['Q24925'], bnf: 'science-fiction', apple: ['science-fiction'], rayon: /science-fiction/i, genre: 'SF / Fantasy'},
+    {id: 'fantasy', nom: 'Fantasy', e: '🐉', prix: [['Q63475727', 'Grand Prix de l\'Imaginaire']], wd: ['Q132311'], bnf: 'fantasy', apple: ['fantasy'], rayon: /fantasy|fantastique/i, genre: 'SF / Fantasy'},
+    {id: 'bd', nom: 'BD', e: '💬', prix: [['Q2004825', 'Fauve d\'or d\'Angoulême']], wd: [], bnf: 'bande dessinée', apple: ['bande dessinée'], rayon: /bandes? dessinées|bd|comics|romans graphiques/i, genre: 'BD / Manga'},
+    {id: 'manga', nom: 'Manga', e: '🗾', prix: [], wd: ['Q8274'], bnf: 'manga', apple: ['manga'], rayon: /manga/i, genre: 'BD / Manga'},
+    {id: 'histoire', nom: 'Roman historique', e: '🏰', prix: [], wd: ['Q192239'], bnf: 'roman historique', apple: ['roman historique'], rayon: /historique/i, genre: 'Roman'},
+    {id: 'essai', nom: 'Essai', e: '💡', prix: [], wd: ['Q35760'], bnf: 'essai', apple: ['essai'], rayon: /sciences humaines|histoire|politique|philosophie|société|sociologie|essais/i, genre: 'Essai'},
+    {id: 'perso', nom: 'Développement perso', e: '🌱', prix: [], wd: [], bnf: 'développement personnel', apple: ['développement personnel'], rayon: /développement personnel|bien-être|psychologie|motivation/i, genre: 'Développement perso'},
+    {id: 'social', nom: 'Éducation & social', e: '🤝', prix: [], wd: [], references: true, bnf: 'travail social', apple: ['éducation bienveillante', 'parentalité', 'travail social'], rayon: /éducation|enseignement|parentalité|famille|enfance|psychologie|travail social|sciences humaines/i, minAvis: 5, genre: 'Pro / VAE'},
+    {id: 'romance', nom: 'Romance', e: '💞', prix: [], wd: ['Q858330', 'Q738473'], bnf: 'roman sentimental', apple: ['romance'], rayon: /romance|sentiment|amour/i, genre: 'Roman'},
+    {id: 'classique', nom: 'Classiques', e: '🏛️', prix: [], wd: [], classiques: true, bnf: '', apple: [], genre: 'Roman'}
+  ];
+  // Grands classiques (liste choisie : plus fiable et instantané)
+  const CLASSIQUES = ['Les Misérables|Victor Hugo', 'Notre-Dame de Paris|Victor Hugo', 'Madame Bovary|Gustave Flaubert', 'L\'Éducation sentimentale|Gustave Flaubert',
+    'Le Rouge et le Noir|Stendhal', 'La Chartreuse de Parme|Stendhal', 'Le Père Goriot|Honoré de Balzac', 'Eugénie Grandet|Honoré de Balzac',
+    'Germinal|Émile Zola', 'L\'Assommoir|Émile Zola', 'Au Bonheur des Dames|Émile Zola', 'Bel-Ami|Guy de Maupassant', 'Une vie|Guy de Maupassant',
+    'Le Comte de Monte-Cristo|Alexandre Dumas', 'Les Trois Mousquetaires|Alexandre Dumas', 'L\'Étranger|Albert Camus', 'La Peste|Albert Camus',
+    'Le Petit Prince|Antoine de Saint-Exupéry', 'Vol de nuit|Antoine de Saint-Exupéry', 'Le Grand Meaulnes|Alain-Fournier', 'Candide|Voltaire',
+    'Les Liaisons dangereuses|Choderlos de Laclos', 'La Princesse de Clèves|Madame de La Fayette', 'Le Horla|Guy de Maupassant',
+    'Vingt mille lieues sous les mers|Jules Verne', 'Le Tour du monde en quatre-vingts jours|Jules Verne', 'Les Fleurs du mal|Charles Baudelaire',
+    'Thérèse Raquin|Émile Zola', 'Voyage au bout de la nuit|Louis-Ferdinand Céline', 'La Condition humaine|André Malraux', 'Le Lys dans la vallée|Honoré de Balzac',
+    'Les Chants de Maldoror|Lautréamont', 'Bonjour tristesse|Françoise Sagan', 'L\'Écume des jours|Boris Vian', 'Les Mots|Jean-Paul Sartre', 'La Nausée|Jean-Paul Sartre',
+    'Mémoires d\'Hadrien|Marguerite Yourcenar', 'L\'Amant|Marguerite Duras', 'La Vie devant soi|Romain Gary', 'La Promesse de l\'aube|Romain Gary',
+    'Le Silence de la mer|Vercors', 'Les Raisins de la colère|John Steinbeck', 'Des souris et des hommes|John Steinbeck', '1984|George Orwell',
+    'La Ferme des animaux|George Orwell', 'Orgueil et Préjugés|Jane Austen', 'Jane Eyre|Charlotte Brontë', 'Les Hauts de Hurle-Vent|Emily Brontë',
+    'Crime et Châtiment|Fiodor Dostoïevski', 'Anna Karénine|Léon Tolstoï', 'Cent ans de solitude|Gabriel García Márquez', 'Le Vieil Homme et la Mer|Ernest Hemingway',
+    'Gatsby le Magnifique|F. Scott Fitzgerald', 'Le Portrait de Dorian Gray|Oscar Wilde', 'Frankenstein|Mary Shelley', 'Dracula|Bram Stoker',
+    'Le Maître et Marguerite|Mikhaïl Boulgakov', 'Le Procès|Franz Kafka', 'La Métamorphose|Franz Kafka', 'Ne tirez pas sur l\'oiseau moqueur|Harper Lee']
+    .map(s => { const [titre, auteur] = s.split('|'); return {titre, auteur, raison: 'Un grand classique'}; });
+  // Livres de référence en éducation, enfance et travail social (vérifiés en ligne avant d'être proposés)
+  const REFERENCES = ['Éduquer sans punir|Thomas Gordon', 'Parler pour que les enfants écoutent, écouter pour que les enfants parlent|Adele Faber',
+    'Au cœur des émotions de l\'enfant|Isabelle Filliozat', 'J\'ai tout essayé !|Isabelle Filliozat', 'Pour une enfance heureuse|Catherine Gueguen',
+    'Un merveilleux malheur|Boris Cyrulnik', 'Les Vilains Petits Canards|Boris Cyrulnik', 'Psychanalyse des contes de fées|Bruno Bettelheim',
+    'Les mots sont des fenêtres (ou bien ce sont des murs)|Marshall B. Rosenberg', 'L\'enfant et la peur d\'apprendre|Serge Boimare',
+    'Libres enfants de Summerhill|A. S. Neill', 'Pédagogie des opprimés|Paulo Freire', 'Surveiller et punir|Michel Foucault', 'Asiles|Erving Goffman',
+    'Stigmate|Erving Goffman', 'La Misère du monde|Pierre Bourdieu', 'Les Héritiers|Pierre Bourdieu', 'Psychologie de l\'enfant|Jean Piaget',
+    'La Cause des enfants|Françoise Dolto', 'Lorsque l\'enfant paraît|Françoise Dolto', 'Le cerveau de votre enfant|Daniel J. Siegel']
+    .map(s => { const [titre, auteur] = s.split('|'); return {titre, auteur, raison: 'Un livre de référence'}; });
+
+  // Résumé Wikipédia d'une œuvre connue (meilleur que la présentation d'une édition)
+  async function wikipedia(titre, auteur) {
+    try {
+      const j = await getJson('https://fr.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(titre.replace(/ /g, '_')), 6000);
+      const sn = surname(auteur);
+      if (j.type !== 'standard' || !j.extract || (sn && !norm(j.extract + ' ' + (j.description || '')).includes(sn))) return '';
+      return cleanResume(j.extract);
+    } catch (e) { return ''; }
+  }
+  const SOURCES_DECOUVERTE = {prix: '🏆 Primé', genre: '🌍 Incontournable', bnf: '🆕 Nouveauté', apple: '⭐ Aimé des lecteurs'};
+
+  // Petite mémoire (15 jours) pour ne pas redemander les mêmes listes à chaque tirage
+  async function memo(key, fn) {
+    try { const c = JSON.parse(localStorage.getItem('ml-cache-' + key)); if (c && Date.now() - c.t < 15 * 864e5 && c.v.length) return c.v; } catch (e) {}
+    const v = await fn();
+    try { if (v.length) localStorage.setItem('ml-cache-' + key, JSON.stringify({t: Date.now(), v})); } catch (e) {}
+    return v;
+  }
+  async function wikidata(q) {
+    const j = await getJson('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000);
+    const seen = new Set();
+    return j.results.bindings.map(b => ({titre: clean(b.titre.value), auteur: clean(b.auteur ? b.auteur.value : ''), annee: b.annee ? b.annee.value : ''}))
+      .filter(b => b.titre && b.auteur && !/^Q\d+$/.test(b.titre) && !seen.has(norm(b.titre)) && seen.add(norm(b.titre)));
+  }
+  const candPrix = t => memo('prix-' + t.id, async () => (await Promise.all(t.prix.map(([qid, nom]) => wikidata(
+    `SELECT ?titre ?auteur (MAX(YEAR(?d)) AS ?annee) WHERE { ?l p:P166 ?s . ?s ps:P166 wd:${qid} . OPTIONAL { ?s pq:P585 ?d } ?l wdt:P50 ?a .
+     ?l rdfs:label ?titre FILTER(LANG(?titre)='fr') ?a rdfs:label ?auteur FILTER(LANG(?auteur)='fr') } GROUP BY ?titre ?auteur ORDER BY DESC(?annee) LIMIT 40`)
+    .then(l => l.map(b => ({...b, raison: nom + (b.annee ? ' ' + b.annee : '')}))).catch(() => [])))).flat());
+  const candGenre = t => t.classiques ? Promise.resolve(CLASSIQUES) : t.references ? Promise.resolve(REFERENCES) : memo('genre-' + t.id, async () => (await Promise.all(t.wd.map(qid => wikidata(
+    `SELECT ?titre ?auteur ?links WHERE { ?l wdt:P136 wd:${qid} ; wikibase:sitelinks ?links ; wdt:P50 ?a . FILTER(?links >= 8) VALUES ?t { wd:Q7725634 wd:Q8261 wd:Q47461344 wd:Q571 wd:Q21198342 wd:Q1760610 } ?l wdt:P31 ?t .
+       ?l rdfs:label ?titre FILTER(LANG(?titre)='fr') ?a rdfs:label ?auteur FILTER(LANG(?auteur)='fr') } ORDER BY DESC(?links) LIMIT 100`)
+    .then(l => l.map(b => ({...b, raison: 'Un incontournable du genre'}))).catch(() => [])))).flat());
+  const candApple = t => memo('apple-' + t.id, async () => {
+    const all = (await Promise.all(t.apple.map(term => getJson('https://itunes.apple.com/search?country=fr&media=ebook&limit=150&term=' + encodeURIComponent(term), 10000)
+      .then(j => j.results || []).catch(() => [])))).flat();
+    // Seulement les livres payants (pas les tomes offerts en promotion) bien notés par beaucoup de lecteurs, un par auteur
+    const parAuteur = new Set();
+    return all.filter(r => r.price > 0 && (r.userRatingCount || 0) >= (t.minAvis || 25) && (r.averageUserRating || 0) >= 4 && !JUNK.test(r.trackName)
+        && (!t.rayon || (r.genres || []).some(g => t.rayon.test(g)))
+        // pas de titres « bourrés de mots-clés » ni d'éditeur à la place de l'auteur
+        && !/\b(livre|roman)\s+\S+\s*,\s*(livre|roman)\b/i.test(r.trackName) && !/[ée]ditions?\b/i.test(r.artistName || ''))
+      .sort((a, b) => b.userRatingCount - a.userRatingCount)
+      .filter(r => !parAuteur.has(r.artistName) && parAuteur.add(r.artistName))
+      .map(r => ({titre: storeTitle(r.trackName), auteur: (r.artistName || '').split(/\s*&\s*/)[0], raison: 'Très apprécié des lecteurs (' + String(r.averageUserRating).replace('.', ',') + '★, ' + r.userRatingCount + ' avis)'}));
+  });
+  async function candBnf(t) {
+    // Parutions de l'année (ou de l'an dernier) avec un résumé d'éditeur : signe d'un vrai livre « en librairie »
+    const y = new Date().getFullYear(), annee = Math.random() < 0.6 ? y : y - 1;
+    const q = 'bib.anywhere all "' + t.bnf + '" and bib.date adj "' + annee + '" and bib.doctype any "a"';
+    const n = +((await getText(SRU + '&recordSchema=dublincore&maximumRecords=0&query=' + encodeURIComponent(q))).match(/<srw:numberOfRecords>(\d+)/) || [0, 0])[1];
+    if (!n) return [];
+    const start = 1 + Math.floor(Math.random() * Math.max(1, Math.min(n, 400) - 30));
+    const doc = xml(await getText(SRU + '&recordSchema=unimarcXchange&maximumRecords=30&startRecord=' + start + '&query=' + encodeURIComponent(q)));
+    return [...doc.getElementsByTagNameNS(NS_SRW, 'record')].map(r => {
+      const ark = ((r.getElementsByTagNameNS(NS_SRW, 'recordIdentifier')[0] || {}).textContent || '').trim();
+      return {...parseUnimarc(r), source: 'BnF', covers: ark ? ['https://catalogue.bnf.fr/couverture?&appName=NE&idArk=' + ark + '&couverture=1'] : [], raison: 'Nouveauté ' + annee, fiche: true};
+    }).filter(b => b.titre && b.auteur && b.resume && b.resume.length > 120 && b.isbn && b.langue === 'fre'
+      // le genre deviné doit coller au thème (pas de BD dans « Roman »)
+      && (!guessGenre(b.indices) || guessGenre(b.indices) === t.genre || (t.id === 'social' && /Pro|Essai/.test(guessGenre(b.indices)))));
+  }
+
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const sourcesDe = t => [t.prix.length ? 'prix' : '', (t.wd.length || t.classiques || t.references) ? 'genre' : '', t.bnf ? 'bnf' : '', t.apple.length ? 'apple' : ''].filter(Boolean);
+
+  // Tire au sort un livre à découvrir. exclude(livre) → true pour écarter (déjà dans ma liste, déjà proposé…)
+  async function decouvrir(themeId, opts) {
+    opts = opts || {};
+    const t = THEMES.find(x => x.id === themeId) || THEMES[Math.floor(Math.random() * THEMES.length)];
+    const srcs = opts.source && sourcesDe(t).includes(opts.source) ? [opts.source, ...shuffle(sourcesDe(t).filter(s => s !== opts.source))] : shuffle(sourcesDe(t));
+    const exclude = opts.exclude || (() => false);
+    for (const src of srcs) {
+      let cands = [];
+      try { cands = src === 'prix' ? await candPrix(t) : src === 'genre' ? await candGenre(t) : src === 'apple' ? await candApple(t) : await candBnf(t); } catch (e) { cands = []; }
+      let essais = 0;
+      for (const c of shuffle(cands)) {
+        if (exclude(c)) continue;
+        if (++essais > 5) break;
+        let x = null;
+        if (c.fiche) x = c;   // fiche BnF déjà complète
+        else {
+          // On retrouve l'édition française : d'abord Apple (léger), sinon la recherche complète
+          const nt = norm(c.titre), sn = surname(c.auteur);
+          const meme = r => (norm(r.titre).startsWith(nt.slice(0, 18)) || nt.startsWith(norm(r.titre).slice(0, 18))) && norm(r.auteur).includes(sn);
+          const ap = (await apple(c.titre + ' ' + c.auteur).catch(() => [])).map(splitTome).filter(r => !JUNK.test(r.titre));
+          x = ap.find(meme) || null;
+          if (x) x = {...x, sources: ['Apple'], sujets: x.sujets || []};
+          else x = (await parTexte(c.titre + ' ' + c.auteur).catch(() => [])).find(meme) || null;
+          if (x) {
+            x = {...x, raison: c.raison};
+            if (!x.pagesTotal) { const y = await completer(x).catch(() => x); x = {...x, pagesTotal: y.pagesTotal || '', isbn: x.isbn || y.isbn || '', covers: [...(x.covers || []), ...(y.covers || [])]}; }
+          }
+        }
+        if (!x || exclude(x)) continue;
+        const cov = await couverture(x.covers) || (await chercherCouvertures(x, 3).catch(() => []))[0];
+        if (!cov) continue;   // une suggestion sans couverture donne moins envie : on passe à la suivante
+        // Œuvre connue : le résumé Wikipédia raconte l'histoire (la présentation d'une édition parle souvent des notes et préfaces)
+        const blabla = r => !r || r.length < 150 || /[ée]dition (illustr[ée]e|enrichie|annot[ée]e|int[ée]grale|num[ée]rique|augment[ée]e)|pr[ée]face|dossier (p[ée]dagogique|sur l.auteur)|biographie de l.auteur|notes et commentaires|texte int[ée]gral|cet ouvrage a fait l.objet|illustrations originales/i.test(r.slice(0, 250));
+        if ((src === 'genre' || src === 'prix') && blabla(x.resume)) { const w = await wikipedia(c.titre, c.auteur); if (w) x.resume = w; }
+        if (!x.resume) { const r = await resume(x).catch(() => ({})); if (r.resume) x.resume = r.resume; if (r.sujets && r.sujets.length) x.sujets = r.sujets; }
+        const sourceNom = src === 'genre' && t.references ? '📚 Référence' : src === 'genre' && t.classiques ? '🏛️ Classique' : SOURCES_DECOUVERTE[src];
+        return {...x, couverture: cov, theme: t.id, themeNom: t.nom, themeE: t.e, source: src, sourceNom,
+          raison: src === 'genre' && t.references ? 'Un livre de référence' : x.raison, genre: t.genre};
+      }
+    }
+    return null;
+  }
+
+  // Sélection du mois : 5 livres, 5 thèmes différents, sources variées. favoris = thèmes préférés de la personne
+  async function selection(favoris, exclude, onProgress) {
+    const ids = [...new Set([...shuffle(favoris || []).slice(0, 2), ...shuffle(THEMES.map(t => t.id))])];
+    const ordreSources = shuffle(Object.keys(SOURCES_DECOUVERTE));
+    const out = [], dejaPris = new Set();
+    for (let k = 0; k < ids.length && out.length < 5; k++) {
+      if (onProgress) onProgress(out.length, THEMES.find(t => t.id === ids[k]));
+      const x = await decouvrir(ids[k], {source: ordreSources[out.length % ordreSources.length],
+        exclude: b => exclude(b) || dejaPris.has(norm(b.titre))}).catch(() => null);
+      if (x) { out.push(x); dejaPris.add(norm(x.titre)); }
+    }
+    return out;
+  }
+
   const api = {
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
-    parIsbn, parTexte, completer, couverture,
+    parIsbn, parTexte, completer, couverture, chercherCouvertures, isbnCovers, placeholder,
+    resume, decouvrir, selection, THEMES, SOURCES_DECOUVERTE,
     setGoogleKey(k) { googleKey = k || ''; googleBlockedUntil = 0; },
     dernierStatut: {},
-    _rank: rank, _parseUnimarc: parseUnimarc
+    _rank: rank, _parseUnimarc: parseUnimarc, _candBnf: candBnf, _candPrix: candPrix
   };
   return api;
 })();

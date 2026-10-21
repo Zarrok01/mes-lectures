@@ -2,6 +2,8 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
+<!-- Sécurité : l'appli ne peut parler qu'aux catalogues de livres listés ici (pas de code ni d'envoi vers d'autres sites) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://catalogue.bnf.fr https://www.sudoc.fr https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://itunes.apple.com https://services.dnb.de https://query.wikidata.org https://fr.wikipedia.org; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mes lectures</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -271,9 +273,11 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .chip.pg{color:var(--ink);border-color:var(--ink)}
 .inconnus{margin-top:6px}
 .ailleurs{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-bottom:8px}
-#rq_cats,#dc_theme,#nx_theme,#nx_cat{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-#rq_cats::-webkit-scrollbar,#dc_theme::-webkit-scrollbar,#nx_theme::-webkit-scrollbar,#nx_cat::-webkit-scrollbar{display:none}
-#rq_cats .chipb,#dc_theme .chipb,#nx_theme .chipb,#nx_cat .chipb{flex:0 0 auto}
+#rq_cats,#rq_sous,#cv_sous,#dc_theme,#nx_theme,#nx_cat{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#rq_cats::-webkit-scrollbar,#rq_sous::-webkit-scrollbar,#cv_sous::-webkit-scrollbar,#dc_theme::-webkit-scrollbar,#nx_theme::-webkit-scrollbar,#nx_cat::-webkit-scrollbar{display:none}
+#rq_cats .chipb,#rq_sous .chipb,#cv_sous .chipb,#dc_theme .chipb,#nx_theme .chipb,#nx_cat .chipb{flex:0 0 auto}
+/* Zones tactiles plus confortables (petits boutons, puces, choix) */
+.btn.small,.chipb{min-height:36px}.seg button{min-height:40px}.btn{min-height:38px}
 </style>
 </head>
 <body>
@@ -327,11 +331,14 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 /* =====================================================================
    Mes lectures : l'appli
    ===================================================================== */
+// Numéro de version : le même dans index.html, recherche.js et sw.js (sinon, la mise en ligne est incomplète)
+const VERSION = '2026.10.20-2';
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
 const STATUT_UN = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lu', abandon: 'Abandonné'};
 const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Jeunesse', 'Autre'];
 const FORMATS = {papier: '📖 Papier', numerique: '📱 Numérique', audio: '🎧 Audio'};
 const POSSESSION = {a_moi: 'Je l\'ai', emprunte: 'Emprunté (médiathèque, ami…)', prete: 'Prêté à quelqu\'un', non: 'Je ne l\'ai pas'};
+const PAGES_SOURCES = {edition: 'nombre de pages de cette édition (d\'après son ISBN)', estimation: 'estimé : nombre de pages d\'une autre édition du livre', manuel: 'nombre de pages tapé à la main'};
 const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 const EMPTY = {
@@ -344,7 +351,9 @@ const EMPTY = {
 const ACCUEIL = `<div style="font-size:1.6rem;margin-bottom:6px">👋</div><b style="color:var(--ink)">Ta bibliothèque est vide.</b><br>
   Ajoute ton premier livre avec le bouton ＋.<br><br>Tu avais déjà l'appli ?
   <div style="margin-top:10px"><button class="btn pri" type="button" data-export="restore">📂 J'ai une sauvegarde : récupérer mes livres</button></div>
-  <div style="font-size:.8rem;margin-top:8px">(le fichier « mes-lectures-sauvegarde-… », dans tes Téléchargements, ton Drive ou tes mails)</div>`;
+  <div style="font-size:.8rem;margin-top:8px">(le fichier « mes-lectures-sauvegarde-… », dans tes Téléchargements, ton Drive ou tes mails)</div>
+  <div style="font-size:.8rem;margin-top:10px">Tes livres ont disparu d'un coup ? Avant d'en ajouter, vérifie que l'appli s'ouvre bien avec <b>Chrome</b>
+  (Paramètres du téléphone → Applis → Navigateur par défaut) : chaque navigateur garde sa propre liste.</div>`;
 
 let books = [], goal = 0, form = null, lastRes = [];
 const ui = {tab: 'en_cours', q: '', cq: '', genre: '', cat: '', own: '', sort: 'recent', year: new Date().getFullYear()};
@@ -422,7 +431,7 @@ window.coverNext = img => {
 };
 window.coverOk = img => { if (Recherche.placeholder(img.naturalWidth, img.naturalHeight)) coverNext(img); };
 function counts() { const c = {en_cours: 0, a_lire: 0, lu: 0, abandon: 0}; books.forEach(b => { if (b.statut in c) c[b.statut]++; }); return c; }
-function allQuotes() { const out = []; books.forEach(b => (b.citations || []).forEach((q, i) => out.push({b, q, i}))); return out; }
+function allQuotes() { return unFois('quotes', () => { const out = []; books.forEach(b => (b.citations || []).forEach((q, i) => out.push({b, q, i}))); return out; }); }
 function parseList(v) { if (Array.isArray(v)) return v; try { const x = JSON.parse(v || '[]'); return Array.isArray(x) ? x : []; } catch (e) { return []; } }
 // Remet chaque fiche en bon état (au démarrage et à la restauration d'une sauvegarde) : bons types, dates valides.
 // Une sauvegarde abîmée ou trafiquée ne peut ainsi ni bloquer l'appli, ni y glisser du code.
@@ -451,8 +460,11 @@ function norm(b) {
   out.sessions = objets(b.sessions).map(x => ({...x, date: jour(x.date), min: Math.max(0, +x.min || 0)})).filter(x => x.date);
   out.coversAlt = mots(b.coversAlt);
   out.sujets = mots(b.sujets);
-  out.classements = objets(b.classements).filter(k => typeof k.l === 'string' && typeof k.c === 'string').map(k => ({c: k.c, l: k.l, ...(typeof k.s === 'string' ? {s: k.s} : {})}));
+  // (c : numéro de champ du catalogue, toujours 3 chiffres : « 606 », « 676 »… ; tout autre contenu est écarté)
+  out.classements = objets(b.classements).filter(k => typeof k.l === 'string' && typeof k.c === 'string' && /^\d{3}$/.test(k.c)).map(k => ({c: k.c, l: k.l, ...(typeof k.s === 'string' ? {s: k.s} : {})}));
   out.catNon = mots(b.catNon); out.catOui = mots(b.catOui);
+  // D'où vient le nombre de pages : édition exacte (ISBN), estimation (une autre édition), ou tapé à la main
+  out.pagesSource = out.pagesTotal && Object.keys(PAGES_SOURCES).includes(b.pagesSource) ? b.pagesSource : '';
   return out;
 }
 const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : '';
@@ -506,6 +518,48 @@ const Store = {
   },
   // Copie de secours : écrite seulement quand la mémoire principale refuse un enregistrement
   secours() { try { return JSON.parse(localStorage.getItem(CLE + '-data')); } catch (e) { return null; } },
+  // Plusieurs fenêtres peuvent ouvrir la même bibliothèque (l'appli + un onglet Chrome du site, deux onglets…).
+  // Chaque fenêtre retient la version qu'elle a lue (vu) et les livres tels qu'elle les a lus ou écrits (base) :
+  // si une autre fenêtre a enregistré entre-temps, on fusionne livre par livre au lieu d'écraser ses changements.
+  moi: newId(), vu: '', base: new Map(), baseGoal: 0,
+  retenir(d) { this.vu = d.savedAt || ''; this.base = new Map((d.books || []).map(b => [b.id, b])); this.baseGoal = d.goal || 0; },
+  // Mes changements depuis « base » (livres modifiés, ajoutés, supprimés), appliqués sur la liste « autre »
+  fusion(mes, autre, base) {
+    const m = new Map(autre.map(b => [b.id, b])), ids = new Set(mes.map(b => b.id));
+    for (const b of mes) if (base.get(b.id) !== b) m.set(b.id, b);
+    for (const id of base.keys()) if (!ids.has(id)) m.delete(id);
+    return [...m.values()];
+  },
+  // Écrit dans une seule transaction (deux fenêtres ne peuvent pas écrire en même temps) ;
+  // renvoie ce qui a été écrit, avec « fusion » si les changements d'une autre fenêtre ont été repris
+  ecrire(mes, monGoal) {
+    return this.db().then(db => new Promise((res, rej) => {
+      const t = db.transaction('kv', 'readwrite'), st = t.objectStore('kv');
+      let out = null;
+      const ecrit = (l, g, fusion) => {
+        const savedAt = new Date().toISOString();
+        out = {books: l, goal: g, savedAt, fusion};
+        st.put({books: l, goal: g, savedAt}, 'data'); st.put({savedAt, par: this.moi}, 'version');
+      };
+      // (« à jour » : personne n'a écrit depuis ma dernière lecture ou écriture)
+      const aJour = v => !v || !this.vu || (v.savedAt || '') <= this.vu || v.par === this.moi;
+      const rv = st.get('version');
+      rv.onsuccess = () => {
+        const v = rv.result;
+        if (v && aJour(v)) return ecrit(mes, monGoal, false);
+        // (pas encore de « version » : mémoire écrite par une version plus ancienne de l'appli → on regarde la date des livres)
+        const rd = st.get('data');
+        rd.onsuccess = () => {
+          const d = rd.result;
+          if (!d || aJour(v || {savedAt: d.savedAt})) return ecrit(mes, monGoal, false);
+          const autres = (d.books || []).map(norm);
+          ecrit(this.fusion(mes, autres, this.base), monGoal !== this.baseGoal ? monGoal : entier(d.goal) || 0, true);
+        };
+      };
+      t.oncomplete = () => res(out); t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error || new Error('enregistrement interrompu'));
+    }));
+  },
   async load() {
     const secours = this.secours();
     if (!this.fallback) {
@@ -531,26 +585,54 @@ const Store = {
     return secours || {books: [], goal: 0};
   },
   persist() {
-    if (this.bloque) return Promise.resolve();
+    // Mémoire illisible au démarrage : on n'écrit rien (pour ne rien écraser), et on le dit
+    if (this.bloque) { paintNotice(); return Promise.reject(new Error('mémoire illisible')).catch(() => {}); }
+    // Un enregistrement attend déjà son tour : il prendra aussi ce changement (il lit les livres au moment d'écrire)
+    if (this.attente) return this.queue;
+    this.attente = true;
     this.queue = this.queue.then(async () => {
-      const snap = {books, goal, savedAt: new Date().toISOString()};
+      this.attente = false;
+      const mes = books.slice(), monGoal = goal;
       let ok = false;
       if (!this.fallback) {
         try {
-          await this.set('data', snap); ok = true;
+          const out = await this.ecrire(mes, monGoal); ok = true;
+          if (out.fusion) {
+            // Une autre fenêtre avait enregistré : ses changements + les miens (y compris ceux faits pendant l'écriture)
+            books = this.fusion(books, out.books, new Map(mes.map(b => [b.id, b]))); goal = goal !== monGoal ? goal : out.goal;
+            this.retenir(out);
+            if (!fenetreOuverte()) render(); else this.aRafraichir = true;
+          } else this.retenir(out);
           // La mémoire principale remarche : la copie de secours ne sert plus
           if (localStorage.getItem(CLE + '-data')) localStorage.removeItem(CLE + '-data');
+          if (this.canal) this.canal.postMessage({savedAt: out.savedAt, par: this.moi});
         } catch (e) {}
       }
-      if (!ok) localStorage.setItem(CLE + '-data', JSON.stringify(snap));   // peut échouer aussi (mémoire pleine)
+      if (!ok) localStorage.setItem(CLE + '-data', JSON.stringify({books: mes, goal: monGoal, savedAt: new Date().toISOString()}));   // peut échouer aussi (mémoire pleine)
       if (this.erreur) { this.erreur = false; paintNotice(); }
     }).catch(() => {
       this.erreur = true; paintNotice();
       toast('⚠️ Pas enregistré : mémoire du téléphone pleine ?');
     });
     return this.queue;
+  },
+  // Une autre fenêtre a enregistré : on relit la bibliothèque (en gardant ce que je n'ai pas encore enregistré)
+  async relire() {
+    if (this.bloque || this.fallback || this.attente) return;
+    let v, d;
+    try { v = await this.get('version'); if (!v || (v.savedAt || '') <= this.vu || v.par === this.moi) return; d = await this.get('data'); }
+    catch (e) { return; }
+    if (!d || (d.savedAt || '') <= this.vu) return;
+    const autres = (d.books || []).map(norm);
+    books = this.fusion(books, autres, this.base); goal = goal !== this.baseGoal ? goal : entier(d.goal) || 0;
+    this.retenir({...d, books: autres});
+    // (une fiche en cours de saisie n'est pas fermée : l'affichage sera rafraîchi à sa fermeture)
+    if (!fenetreOuverte()) render(); else this.aRafraichir = true;
   }
 };
+if ('BroadcastChannel' in window) { Store.canal = new BroadcastChannel(CLE); Store.canal.onmessage = () => Store.relire(); }
+// En revenant sur l'appli (ou l'onglet), on vérifie qu'une autre fenêtre n'a rien changé entre-temps
+document.addEventListener('visibilitychange', () => { if (!document.hidden) Store.relire(); });
 
 /* ---------- Journal de lecture (pages par jour, série, vitesse) ---------- */
 function logPage(b, page, date) {
@@ -558,7 +640,13 @@ function logPage(b, page, date) {
   b.journal = (b.journal || []).filter(e => e.date !== date).concat({date, page: +page || 0})
     .sort((x, y) => x.date.localeCompare(y.date)).slice(-400);
 }
-function activity() {
+// Calculs sur toute la bibliothèque, partagés pendant UN affichage (sinon refaits 5 à 8 fois pour l'onglet Stats) ;
+// hors affichage (clic sur un jour, défis…), ils sont toujours recalculés : jamais de résultat périmé
+let cacheRendu = null;
+const unFois = (k, f) => !cacheRendu ? f() : k in cacheRendu ? cacheRendu[k] : (cacheRendu[k] = f());
+function avecCache(f) { return function () { const avant = cacheRendu; cacheRendu = avant || {}; try { return f.apply(this, arguments); } finally { cacheRendu = avant; } }; }
+function activity() { return unFois('activity', calcActivity); }
+function calcActivity() {
   const m = {};
   books.forEach(b => {
     const j = b.journal || [];
@@ -577,7 +665,8 @@ function streaks(m) {
   });
   return {cur, best};
 }
-function readings() {
+function readings() { return unFois('readings', calcReadings); }
+function calcReadings() {
   const out = [];
   books.forEach(b => {
     (b.historique || []).forEach(h => { if (h.fin) out.push({b, fin: h.fin, note: +h.note || 0}); });
@@ -585,7 +674,7 @@ function readings() {
   });
   return out;
 }
-function allSessions() { return books.flatMap(b => (b.sessions || []).map(s => ({...s, b}))); }
+function allSessions() { return unFois('sessions', () => books.flatMap(b => (b.sessions || []).map(s => ({...s, b})))); }
 // Vitesse de lecture (pages par heure) à partir des séances chronométrées
 let vitesseAffichage = null;   // (gardée le temps d'un affichage de liste)
 function speed() {
@@ -595,7 +684,8 @@ function speed() {
 }
 
 /* ---------- Affichage ---------- */
-function render() {
+const render = avecCache(renderTout);
+function renderTout() {
   const c = counts(), nq = allQuotes().length;
   const sel = prefs.selection, neuf = sel && sel.items && sel.items.length && !sel.vu;
   $('#tabs').innerHTML = Object.keys(STATUTS).map(k =>
@@ -613,10 +703,13 @@ function render() {
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
   // Catégories présentes dans cet onglet (un livre peut compter dans plusieurs)
-  const nCat = {}; let sansCat = 0;
-  books.filter(b => b.statut === ui.tab).forEach(b => { const cs = catsDe(b); if (!cs.length) sansCat++; cs.forEach(c => nCat[c.id] = (nCat[c.id] || 0) + 1); });
+  const nCat = {}, nSous = {}; let sansCat = 0;
+  books.filter(b => b.statut === ui.tab).forEach(b => {
+    const cs = catsDe(b); if (!cs.length) sansCat++; cs.forEach(c => nCat[c.id] = (nCat[c.id] || 0) + 1);
+    sousDe(b).forEach(z => nSous[z.id] = (nSous[z.id] || 0) + 1);
+  });
   const cats = Recherche.CATS.filter(c => nCat[c.id]);
-  if (ui.cat && ui.cat !== '_aucune' && !nCat[ui.cat]) ui.cat = '';
+  if (ui.cat && ui.cat.startsWith('sous:') ? !nSous[ui.cat.slice(5)] : ui.cat && ui.cat !== '_aucune' && !nCat[ui.cat]) ui.cat = '';
   if (ui.cat === '_aucune' && !sansCat) ui.cat = '';
   const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note'], ['pages', 'Les plus courts']];
   const owns = [['', 'Tous les livres'], ['a_moi', 'Ceux que j\'ai'], ['emprunte', 'Empruntés'], ['prete', 'Prêtés'], ['numerique', 'Numériques'], ['audio', 'Audio'], ['completer', 'À compléter']];
@@ -624,7 +717,8 @@ function render() {
   $('#main').innerHTML = `<div class="tools">
       <input id="q" type="search" placeholder="Chercher dans mes livres…" value="${esc(ui.q)}">
       <select id="genre"><option value="">Tous les genres</option>${genres.map(g => `<option value="${esc(g)}" ${g === ui.genre ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
-      ${cats.length ? `<select id="cat" aria-label="Catégorie"><option value="">Toutes les catégories</option>${cats.map(c => `<option value="${c.id}" ${c.id === ui.cat ? 'selected' : ''}>${c.e} ${esc(c.nom)} (${nCat[c.id]})</option>`).join('')}${sansCat ? `<option value="_aucune" ${ui.cat === '_aucune' ? 'selected' : ''}>❔ Sans catégorie (${sansCat})</option>` : ''}</select>` : ''}
+      ${cats.length ? `<select id="cat" aria-label="Catégorie"><option value="">Toutes les catégories</option>${cats.map(c => `<option value="${c.id}" ${c.id === ui.cat ? 'selected' : ''}>${c.e} ${esc(c.nom)} (${nCat[c.id]})</option>` +
+        Recherche.SOUS.filter(z => z.cat === c.id && nSous[z.id]).map(z => `<option value="sous:${z.id}" ${'sous:' + z.id === ui.cat ? 'selected' : ''}>      › ${esc(z.nom)} (${nSous[z.id]})</option>`).join('')).join('')}${sansCat ? `<option value="_aucune" ${ui.cat === '_aucune' ? 'selected' : ''}>❔ Sans catégorie (${sansCat})</option>` : ''}</select>` : ''}
       <select id="own">${owns.map(([v, t]) => `<option value="${v}" ${v === ui.own ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select id="sort">${sorts.map(([v, t]) => `<option value="${v}" ${v === ui.sort ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? '☰' : '▦'}</button>
@@ -643,7 +737,7 @@ function renderCards() {
   // La recherche regarde aussi les autres onglets : on dit où se trouvent les autres livres qui correspondent
   const ailleurs = q ? Object.keys(STATUTS).filter(k => k !== ui.tab).map(k => [k, books.filter(b => b.statut === k && trouve(b)).length]).filter(x => x[1]) : [];
   if (ui.genre) l = l.filter(b => b.genre === ui.genre);
-  if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : catsDe(b).some(c => c.id === ui.cat));
+  if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : ui.cat.startsWith('sous:') ? sousDe(b).some(z => z.id === ui.cat.slice(5)) : catsDe(b).some(c => c.id === ui.cat));
   if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
   const by = {
     recent: (a, b) => dateKey(b).localeCompare(dateKey(a)),
@@ -683,7 +777,7 @@ function card(b) {
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
     acts = `<button class="btn" data-act="timer">⏱️ Lire</button><button class="btn" data-act="pages">Où j'en suis</button><button class="btn" data-act="quote">＋ Citation</button><button class="btn pri" data-act="fini">J'ai fini ✓</button>`;
   } else if (b.statut === 'a_lire') {
-    extra = (b.pagesTotal ? `<div class="meta">${esc(b.pagesTotal)} pages</div>` : '') +
+    extra = (b.pagesTotal ? `<div class="meta"${b.pagesSource === 'estimation' ? ` title="${PAGES_SOURCES.estimation}"` : ''}>${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} pages</div>` : '') +
       (b.resume ? `<div class="a resum">${esc(b.resume)}</div>` : '');
     acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut">📌 ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
   } else if (b.statut === 'lu') {
@@ -711,19 +805,26 @@ function gcard(b) {
 /* ---------- Bandeau d'alerte (retours de prêt, sauvegarde) ---------- */
 function paintNotice() {
   const bar = $('#notice');
+  if (Store.bloque) {
+    bar.innerHTML = `⚠️ <b>Tes livres ne peuvent pas être lus pour l'instant</b> : rien n'est enregistré tant que ce n'est pas réparé (pour ne rien écraser).
+      Ferme complètement l'appli et rouvre-la. <button class="btn pri small" type="button" onclick="location.reload()">🔄 Réessayer</button>`;
+    bar.hidden = false; return;
+  }
   if (Store.erreur) {
     bar.innerHTML = `⚠️ <b>Tes dernières modifications ne sont pas enregistrées</b> (mémoire du téléphone pleine ?). Libère de la place, puis réessaie. Par précaution, fais une sauvegarde.
       <button class="btn small" type="button" data-resave>Réessayer</button><button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.hidden = false; return;
   }
   const due = books.filter(b => b.possession === 'emprunte' && b.pretRetour && b.pretRetour <= addDays(3)).sort((a, b) => a.pretRetour.localeCompare(b.pretRetour))[0];
-  const last = prefs.lastBackup, late = books.length >= 3 && (!last || Date.now() - new Date(last) > 30 * 864e5);
+  // Rappel : jamais sauvegardé, ou dernière sauvegarde de plus d'une semaine ET des changements depuis
+  // (les livres ne vivent que dans la mémoire de Chrome : effacer ses données les effacerait)
+  const last = prefs.lastBackup, late = books.length >= 3 && (!last || (Date.now() - new Date(last) > 7 * 864e5 && Store.vu > last));
   if (due) {
     const lateRet = due.pretRetour < today();
     bar.innerHTML = `📥 « ${esc(due.titre)} » ${lateRet ? 'devait être rendu le' : 'est à rendre le'} <b>${fdate(due.pretRetour)}</b> <button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
     bar.hidden = false;
   } else if (late) {
-    bar.innerHTML = `💾 ${last ? 'Ta dernière sauvegarde date de plus d\'un mois.' : 'Pense à sauvegarder tes livres.'} <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
+    bar.innerHTML = `💾 ${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'} <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.hidden = false;
   } else bar.hidden = true;
 }
@@ -735,7 +836,7 @@ function renderQuotesTab() {
 }
 function renderQuotes() {
   const q = Recherche.norm(ui.cq);
-  let l = allQuotes();
+  let l = allQuotes().slice();   // (copie : le tri ci-dessous ne doit pas toucher le calcul partagé)
   if (q) l = l.filter(x => Recherche.norm([x.q.texte, x.b.titre, x.b.auteur].join(' ')).includes(q));
   l.sort((a, b) => (b.q.date || '').localeCompare(a.q.date || ''));
   $('#qlist').innerHTML = l.length ? l.map(x => `<article class="quote" data-book="${esc(x.b.id)}"><p>« ${esc(x.q.texte)} »</p>
@@ -744,7 +845,8 @@ function renderQuotes() {
 }
 
 /* ---------- Statistiques ---------- */
-function renderStats() {
+const renderStats = avecCache(renderStatsTout);
+function renderStatsTout() {
   const all = readings();
   const thisYear = new Date().getFullYear();
   const years = [...new Set([thisYear, ...all.map(r => +r.fin.slice(0, 4)).filter(Boolean)])].sort((a, b) => b - a);
@@ -815,6 +917,7 @@ function renderStats() {
 /* ---------- 🏷️ Ma bibliothèque par catégorie ---------- */
 // Catégories déduites des classements des catalogues (BnF, Sudoc…) : un livre peut en avoir plusieurs
 const catsDe = b => Recherche.categories(b);
+const sousDe = b => Recherche.sousCategories(b);   // sous-catégories (Politique › Relations internationales…)
 const sansClassement = () => books.filter(b => !b.aCompleter && b.titre && !b.classTente && !(b.classements || []).length);
 function categoriesPanel() {
   if (!books.length) return '';
@@ -834,7 +937,12 @@ function categoriesPanel() {
 const catView = {sort: 'titre'};
 function openCategorie(id) {
   const cat = Recherche.CATS.find(c => c.id === id);
-  const l = books.filter(b => id === '_aucune' ? !catsDe(b).length : catsDe(b).some(c => c.id === id));
+  const tous = books.filter(b => id === '_aucune' ? !catsDe(b).length : catsDe(b).some(c => c.id === id));
+  // Sous-catégories présentes (pour affiner)
+  const nS = {}; tous.forEach(b => sousDe(b).filter(z => z.cat === id).forEach(z => nS[z.id] = (nS[z.id] || 0) + 1));
+  const sous = Recherche.SOUS.filter(z => nS[z.id]);
+  if (catView.sous && !nS[catView.sous]) catView.sous = '';
+  const l = catView.sous ? tous.filter(b => sousDe(b).some(z => z.id === catView.sous)) : tous;
   const by = {
     titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
     auteur: (a, b) => (a.auteur || '~').localeCompare(b.auteur || '~', 'fr') || a.titre.localeCompare(b.titre, 'fr'),
@@ -844,13 +952,15 @@ function openCategorie(id) {
   $('#modal').innerHTML = `<h2>${cat ? cat.e + ' ' + esc(cat.nom) : '❔ Sans catégorie'} <span class="a" style="font-weight:400">(${plural(l.length, 'livre')})</span></h2>
     <div class="lbl" style="margin-bottom:4px">Trier par</div>
     <div class="seg" id="cv_sort">${[['titre', 'Titre'], ['auteur', 'Auteur'], ['pages', 'Pages']].map(([k, v]) => `<button type="button" data-v="${k}" class="${catView.sort === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+    ${sous.length ? `<div class="lbl" style="margin-bottom:4px">Affiner</div><div class="chips" id="cv_sous"><button type="button" data-v="" class="chipb ${!catView.sous ? 'on' : ''}">Tout (${tous.length})</button>${sous.map(z => `<button type="button" data-v="${z.id}" class="chipb ${catView.sous === z.id ? 'on' : ''}">${esc(z.nom)} (${nS[z.id]})</button>`).join('')}</div>` : ''}
     ${id === '_aucune' ? '<div class="hint">Les catalogues ne donnent pas (encore) de classement pour ces livres. Ouvre un livre → 🏷️ Catégories pour lui en ajouter une à la main.</div>' : ''}
     <div class="catlist">${l.map(b => `<button type="button" class="catline" data-open="${esc(b.id)}">${coverHtml(b, 'mini')}<span class="grow"><b>${esc(b.titre)}</b><br>
       <span class="a">${esc(b.auteur || 'Auteur inconnu')}${b.pagesTotal ? ' · ' + esc(b.pagesTotal) + ' p.' : ''}</span><br>
-      <span class="chip">${STATUT_UN[b.statut] || ''}</span> ${catsDe(b).filter(c => c.id !== id).map(c => `<span class="chip">${c.e} ${esc(c.nom)}</span>`).join(' ')}</span></button>`).join('')}</div>
+      <span class="chip">${STATUT_UN[b.statut] || ''}</span> ${sousDe(b).filter(z => z.cat === id).map(z => `<span class="chip">› ${esc(z.nom)}</span>`).join(' ')} ${catsDe(b).filter(c => c.id !== id).map(c => `<span class="chip">${c.e} ${esc(c.nom)}</span>`).join(' ')}</span></button>`).join('')}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
   showM();
   $('#cv_sort').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; catView.sort = b.dataset.v; openCategorie(id); };
+  const cs = $('#cv_sous'); if (cs) cs.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; catView.sous = b.dataset.v; openCategorie(id); };
 }
 // Classements d'un livre déjà enregistré (une seule tentative réussie par livre ; en cas de panne réseau, on réessaiera)
 async function fillClass(b) {
@@ -1043,7 +1153,7 @@ async function drawNext() {
 }
 
 /* ---------- ✨ Découvrir : tirage en ligne et sélection du mois ---------- */
-let lastOnline = null, selEnCours = false, selProgress = '';
+let selEnCours = false, selProgress = '';
 const moisCle = () => today().slice(0, 7);
 // « de mars », mais « d'octobre », « d'avril », « d'août »
 const moisNom = () => { const m = new Date().toLocaleDateString('fr-FR', {month: 'long'}); return (/^[aeiouéè]/i.test(m) ? 'd\'' : 'de ') + m; };
@@ -1064,7 +1174,7 @@ function sugCard(x, ctx, i) {
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
     <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
       <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener">🛒 En librairie</a>
-      ${ctx === 'sel' && !own ? '<button class="btn small" type="button" data-sug="non">✕ Pas pour moi</button>' : ''}</div></article>`;
+      ${(ctx === 'sel' || ctx === 'tir') && !own ? '<button class="btn small" type="button" data-sug="non">✕ Pas pour moi</button>' : ''}</div></article>`;
 }
 function addSuggestion(x) {
   if (findOwned(x)) return toast('Déjà dans ta liste');
@@ -1079,18 +1189,32 @@ function addSuggestion(x) {
   });
   if (!b.classTente && !(b.classements || []).length) autoClass(b.id);
 }
+// 5 livres par demande, affichés au fur et à mesure dans une rangée qu'on fait défiler
+const PAR_TIRAGE = 5;
+let lastTirage = [];
+function tirageHtml(items, enCours) {
+  return (items.length ? `<div class="sugs" id="tirRow">${items.map((x, i) => sugCard(x, 'tir', i)).join('')}</div>` : '') +
+    (enCours ? `<div class="nxspin">${enCours}</div>`
+      : items.length ? `<div class="a" style="font-size:.8rem;text-align:center;margin-top:4px">${plural(items.length, 'livre')} · fais glisser pour tous les voir</div>` : '');
+}
 async function drawOnline(themeId, box, btn) {
   if (btn) btn.disabled = true;
   const t = Recherche.THEMES_TIRAGE.find(x => x.id === themeId);
-  box.innerHTML = `<div class="nxspin">🌍 Je fouille ${t ? 'le thème ' + t.e + ' ' + esc(t.nom) : 'tous les thèmes'}…</div>`;
-  const x = await Recherche.decouvrir(themeId || '', {exclude: dejaVu}).catch(() => null);
+  const items = []; lastTirage = items;
+  const deja = b => dejaVu(b) || items.some(z => Recherche.norm(z.titre) === Recherche.norm(b.titre));
+  for (let k = 0; k < PAR_TIRAGE + 3 && items.length < PAR_TIRAGE; k++) {
+    if (lastTirage !== items) return;   // (un autre tirage a été lancé entre-temps)
+    box.innerHTML = tirageHtml(items, `🌍 Je cherche le livre ${items.length + 1} sur ${PAR_TIRAGE}${t ? ' · ' + t.e + ' ' + esc(t.nom) : ''}…`);
+    const x = await Recherche.decouvrir(themeId || '', {exclude: deja}).catch(() => null);
+    if (x && !deja(x)) { retenir(x); items.push(x); }
+  }
   if (btn) btn.disabled = false;
-  if (!x) { box.innerHTML = '<div class="hint">Rien trouvé cette fois (pas de connexion, ou catalogues occupés). Réessaie dans un instant.</div>'; return; }
-  retenir(x); lastOnline = x;
-  box.innerHTML = sugCard(x, 'tir', 0);
+  if (lastTirage !== items) return;
+  box.innerHTML = items.length ? tirageHtml(items) : '<div class="hint">Rien trouvé cette fois (pas de connexion, ou catalogues occupés). Réessaie dans un instant.</div>';
 }
 /* ---------- 🎯 Tirage « d'après mes lectures » ---------- */
-// Goûts calculés SUR LE TÉLÉPHONE (rien n'est envoyé), à partir des catégories, genres et auteurs de mes livres.
+// Goûts calculés SUR LE TÉLÉPHONE (le profil n'est jamais envoyé ; seules les recherches qui en découlent partent
+// vers les catalogues : nom d'auteur, sujet, série), à partir des catégories, genres et auteurs de mes livres.
 // On ne compte que des thèmes de lecture et des auteurs : jamais d'opinion.
 const THEME_DE_CAT = {politique: 'cat:politique', histoire: 'cat:histoire', philo: 'cat:philo', psycho: 'cat:psycho', socio: 'cat:socio', eco: 'cat:eco',
   sciences: 'cat:sciences', bio: 'cat:bio', education: 'cat:education', social: 'cat:social', art: 'cat:art', droit: 'cat:droit', religion: 'cat:religion',
@@ -1111,45 +1235,105 @@ function mesGouts() {
   return {themes, aimes};
 }
 const auHasard = l => l[Math.floor(Math.random() * l.length)];
+const melange = l => l.map(x => [Math.random(), x]).sort((u, v) => u[0] - v[0]).map(x => x[1]);
+const perso = (x, e, nom, raison) => x && {...x, theme: x.theme || '', themeE: e, themeNom: nom, sourceNom: '🎯 D’après tes lectures', raison};
+// Ce que révèlent mes livres (calculé sur le téléphone) : livres aimés, séries en cours, auteurs, sujets précis
+function monProfil() {
+  const lus = books.filter(b => b.statut === 'lu');
+  const aimes = lus.filter(b => b.note >= 4);
+  // Les livres qui me ressemblent le plus : lus et bien notés, sinon lus, sinon ceux que je lis ou veux lire
+  const base = (aimes.length ? aimes : lus.length ? lus.filter(b => !(b.note && b.note <= 2)) : books.filter(b => b.statut === 'en_cours' || b.statut === 'a_lire'))
+    .slice().sort((u, v) => (v.note || 0) - (u.note || 0) || (v.dateFin || '').localeCompare(u.dateFin || ''));
+  // Séries dont je n'ai pas encore le tome suivant
+  const series = [], vuesS = new Set();
+  books.filter(b => b.serie && b.tome && (b.statut === 'lu' || b.statut === 'en_cours') && !(b.note && b.note <= 2))
+    .sort((u, v) => (+v.tome) - (+u.tome)).forEach(b => {
+      const k = Recherche.norm(b.serie); if (vuesS.has(k)) return; vuesS.add(k);
+      if (!books.some(x => Recherche.norm(x.serie) === k && +x.tome === +b.tome + 1)) series.push(b);
+    });
+  // Auteurs (un livre par auteur)
+  const auteurs = [], vusA = new Set();
+  base.forEach(b => { const sn = Recherche.surname(b.auteur); if (b.auteur && sn && !vusA.has(sn)) { vusA.add(sn); auteurs.push(b); } });
+  // Sujets précis de ces livres : sous-catégories et sujets des catalogues (« Révolution française », « Protection de l'enfance »…)
+  const sujets = [], vusSj = new Set();
+  base.slice(0, 12).forEach(b => {
+    sousDe(b).filter(z => (Recherche.SOUS.find(y => y.id === z.id) || {}).rech).forEach(z => { if (!vusSj.has(z.id)) { vusSj.add(z.id); sujets.push({sous: z.id, cat: z.cat, nom: z.nom, livre: b}); } });
+    (b.classements || []).filter(k => k.c === '606').forEach(k => {
+      const l = k.l.split(' -- ')[0].trim(), n = Recherche.norm(l);
+      if (l && n.length > 3 && !vusSj.has(n)) { vusSj.add(n); sujets.push({texte: l, nom: l, livre: b}); }
+    });
+  });
+  return {base, series, auteurs, sujets, themes: mesGouts().themes};
+}
+// Éditions françaises d'abord (les autres catalogues renvoient parfois une traduction finnoise ou anglaise)
+const enFrancais = l => { const fr = l.filter(r => r.langue === 'fre'); return fr.length ? fr : l.filter(r => !r.langue); };
+const avecCouverture = async x => { const u = await Recherche.couverture([...(x.covers || []), ...Recherche.isbnCovers(Recherche.toIsbn13(x.isbn || ''))]).catch(() => ''); return u ? {...x, couverture: u} : x; };
+// La suite d'une série que je lis
+async function suiteDeSerie(b, exclude) {
+  const n = +b.tome + 1, k = Recherche.norm(b.serie);
+  const r = enFrancais(await Recherche.parTexte(b.serie + ' ' + n).catch(() => [])).find(x => Recherche.norm(x.serie || '') === k && +x.tome === n && !exclude(x));
+  return r ? perso(await avecCouverture(r), '📚', 'Suite de série', `Suite de « ${b.serie} » (tome ${n}) : tu as lu le tome ${b.tome}`) : null;
+}
 // Un autre livre d'un auteur que j'ai aimé (que je n'ai pas encore)
-async function livreMemeAuteur(b) {
+async function livreMemeAuteur(b, exclude) {
+  exclude = exclude || dejaVu;
   const nom = b.auteur.split(',')[0].trim(), sn = Recherche.surname(nom);
   if (!sn) return null;
-  const res = (await Recherche.parTexte(nom).catch(() => [])).filter(r => Recherche.surname(r.auteur) === sn && !dejaVu(r));
-  for (const r of res.slice(0, 8).sort(() => Math.random() - 0.5).slice(0, 4)) {
-    const cov = await Recherche.couverture(r.covers || []) || (await Recherche.chercherCouvertures(r, 2).catch(() => []))[0];
-    if (!cov) continue;
-    const resume = r.resume || (await Recherche.resume(r).catch(() => ({}))).resume || '';
-    return {...r, resume, couverture: cov, theme: '', themeE: '✍️', themeNom: 'Même auteur', source: 'auteur', sourceNom: '🎯 D’après tes lectures',
-      raison: `Parce que tu as aimé « ${b.titre} » (${'★'.repeat(b.note)})`};
+  const res = enFrancais((await Recherche.parTexte(nom).catch(() => [])).filter(r => Recherche.surname(r.auteur) === sn && !exclude(r)));
+  for (const r of melange(res.slice(0, 8)).slice(0, 4)) {
+    const x = await avecCouverture(r);
+    if (!x.couverture) continue;
+    return perso(x, '✍️', 'Même auteur', b.note >= 4 ? `Parce que tu as aimé « ${b.titre} » (${'★'.repeat(b.note)})` : `Du même auteur que « ${b.titre} »`);
   }
   return null;
 }
+// Un livre sur le même sujet précis qu'un livre que j'ai aimé
+async function memeSujet(sj, exclude) {
+  const r = await Recherche.parTheme(sj.sous ? {cat: sj.cat, sous: sj.sous, max: 0} : {texte: sj.nom, max: 0}, {});
+  let l = r.res;
+  // La BnF ne répond pas (ou rien) : on cherche ce sujet dans les autres catalogues (Apple Books, Open Library…)
+  if (!l.length) l = enFrancais(await Recherche.parTexte(sj.nom.replace(/&.*$/, '')).catch(() => []));
+  for (const x of melange(l.slice(0, 12))) {
+    if (exclude(x)) continue;
+    return perso(await avecCouverture(x), '🔗', 'Même sujet', `Même sujet que « ${sj.livre.titre} » : ${sj.nom}`);
+  }
+  return null;
+}
+// Un livre de mes catégories préférées
+async function deMesThemes(themes, exclude) {
+  let r = Math.random() * themes.reduce((t, z) => t + z[1], 0), id = themes[0][0];
+  for (const [k, w] of themes) { r -= w; if (r <= 0) { id = k; break; } }
+  const t = Recherche.THEMES_TIRAGE.find(z => z.id === id);
+  const x = await Recherche.decouvrir(id, {exclude}).catch(() => null);
+  return x && t ? {...x, sourceNom: '🎯 D’après tes lectures', raison: `Tu lis souvent « ${t.nom} »` + (x.raison ? ' · ' + x.raison : '')} : null;
+}
 async function drawPerso(box, btn) {
-  const g = mesGouts();
-  if (!g.themes.length && !g.aimes.length) {
+  const p = monProfil();
+  if (!p.base.length && !p.themes.length) {
     box.innerHTML = '<div class="hint">Je ne te connais pas encore assez 🙂 Ajoute quelques livres (et note ceux que tu as lus). En attendant, voici un tirage au hasard.</div>';
     await new Promise(r => setTimeout(r, 1200));
     return drawOnline('', box, btn);
   }
   if (btn) btn.disabled = true;
-  box.innerHTML = '<div class="nxspin">🎯 Je cherche d’après tes lectures…</div>';
-  let x = null;
-  // Une fois sur deux : un auteur que tu as aimé (s'il y en a) ; sinon une de tes catégories préférées
-  if (g.aimes.length && (Math.random() < 0.5 || !g.themes.length)) x = await livreMemeAuteur(auHasard(g.aimes)).catch(() => null);
-  if (!x && g.themes.length) {
-    // Tirage pondéré : les catégories que tu lis le plus ont plus de chances
-    let r = Math.random() * g.themes.reduce((t, z) => t + z[1], 0), id = g.themes[0][0];
-    for (const [k, w] of g.themes) { r -= w; if (r <= 0) { id = k; break; } }
-    const t = Recherche.THEMES_TIRAGE.find(z => z.id === id);
-    x = await Recherche.decouvrir(id, {exclude: dejaVu}).catch(() => null);
-    if (x && t) x = {...x, sourceNom: '🎯 D’après tes lectures', raison: `Tu lis souvent « ${t.nom} »` + (x.raison ? ' · ' + x.raison : '')};
+  const items = []; lastTirage = items;
+  const deja = b => dejaVu(b) || items.some(z => Recherche.norm(z.titre) === Recherche.norm(b.titre));
+  // 5 propositions variées : suite d'une série, auteurs aimés, mêmes sujets, puis mes catégories préférées
+  const etapes = [
+    ...p.series.slice(0, 1).map(b => () => suiteDeSerie(b, deja)),
+    ...melange(p.auteurs.slice(0, 6)).slice(0, 2).map(b => () => livreMemeAuteur(b, deja)),
+    ...melange(p.sujets.slice(0, 8)).slice(0, 2).map(sj => () => memeSujet(sj, deja))
+  ];
+  if (p.themes.length) for (let k = 0; k < 4; k++) etapes.push(() => deMesThemes(p.themes, deja));
+  for (const f of etapes) {
+    if (items.length >= PAR_TIRAGE) break;
+    if (lastTirage !== items) return;
+    box.innerHTML = tirageHtml(items, `🎯 Je cherche d’après tes lectures (${items.length + 1} sur ${PAR_TIRAGE})…`);
+    const x = await f().catch(() => null);
+    if (x && !deja(x)) { retenir(x); items.push(x); }
   }
-  if (!x && g.aimes.length) x = await livreMemeAuteur(auHasard(g.aimes)).catch(() => null);
   if (btn) btn.disabled = false;
-  if (!x) { box.innerHTML = '<div class="hint">Rien trouvé cette fois (pas de connexion, ou catalogues occupés). Réessaie dans un instant.</div>'; return; }
-  retenir(x); lastOnline = x;
-  box.innerHTML = sugCard(x, 'tir', 0);
+  if (lastTirage !== items) return;
+  box.innerHTML = items.length ? tirageHtml(items) : '<div class="hint">Rien trouvé cette fois (pas de connexion, ou catalogues occupés). Réessaie dans un instant.</div>';
 }
 // Le choix « D'après mes lectures » / « Au hasard » (gardé d'une fois sur l'autre)
 const inspiration = () => prefs.tirage === 'hasard' ? 'hasard' : 'perso';
@@ -1160,7 +1344,7 @@ function inspiHtml(id) {
     ${perso ? `<div class="a" style="font-size:.85rem;margin:-2px 0 10px">${noms.length || g.aimes.length
       ? `Je m'inspire de tes livres${noms.length ? ' : tu lis surtout <b>' + noms.map(esc).join('</b>, <b>') + '</b>' : ''}${g.aimes.length ? (noms.length ? ', et ' : ' : ') + 'tu as aimé ' + plural(new Set(g.aimes.map(b => b.auteur)).size, 'auteur') : ''}.`
       : 'Ajoute et note quelques livres : je m\'inspirerai de tes lectures.'}
-      <span style="font-size:.78rem">(calculé sur ton téléphone, rien n'est envoyé)</span></div>` : ''}`;
+      <span style="font-size:.78rem">(tes goûts sont calculés sur ton téléphone ; pour trouver les livres, seules des recherches partent vers les catalogues : un nom d'auteur, un sujet, un titre de série)</span></div>` : ''}`;
 }
 function wireInspi(id, refaire) {
   const el = $('#' + id); if (!el) return;
@@ -1209,7 +1393,7 @@ function renderDecouvrir() {
       ${inspiHtml('dc_inspi')}
       ${inspiration() === 'hasard' ? themeChips('dc_theme', pick.theme) : ''}
       <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="dc_go" type="button">🎲 Tirer au sort</button></div>
-      <div id="dc_res">${lastOnline ? sugCard(lastOnline, 'tir', 0) : ''}</div></div>`;
+      <div id="dc_res">${lastTirage.length ? tirageHtml(lastTirage) : ''}</div></div>`;
   const ch = $('#dc_theme');
   if (ch) ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
   wireInspi('dc_inspi', renderDecouvrir);
@@ -1227,7 +1411,7 @@ function renderDecouvrir() {
 // (les livres dont le nombre de pages n'est pas connu ne sont jamais mêlés aux résultats quand il y a une limite)
 const rech = {cat: prefs.rechCat || '', texte: '', max: +prefs.rechMax || 0, etat: '', res: [], inconnus: [], trop: 0, examines: 0, enCours: 0,
   fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastMax: 0,
-  par: prefs.rechPar || 'theme', lastPar: 'theme'};
+  par: prefs.rechPar || 'theme', lastPar: 'theme', sous: '', lastSous: ''};
 // Chercher par : thème (ou sujet), auteur, titre
 const RECH_PAR = {
   theme: {nom: '🏷️ Thème', aide: 'Choisis un thème ou écris un sujet (géopolitique, écologie, féminisme…).', place: 'Un sujet : géopolitique, écologie, féminisme…'},
@@ -1236,6 +1420,12 @@ const RECH_PAR = {
 };
 const LIMITES = [[100, '100 p.'], [200, '200 p.'], [300, '300 p.'], [500, '500 p.'], [0, 'Sans limite']];
 const catNom = id => { const c = Recherche.CATS.find(z => z.id === id); return c ? c.e + ' ' + c.nom : ''; };
+// Sous-thèmes du thème choisi (ceux qu'on peut chercher à la BnF)
+function rechSousChips() {
+  const l = Recherche.SOUS.filter(z => z.cat === rech.cat && z.rech);
+  if (!l.length) return '';
+  return `<div class="lbl" style="margin-bottom:4px">Affiner</div><div class="chips" id="rq_sous"><button type="button" data-v="" class="chipb ${!rech.sous ? 'on' : ''}">Tout le thème</button>${l.map(z => `<button type="button" data-v="${z.id}" class="chipb ${rech.sous === z.id ? 'on' : ''}">${esc(z.nom)}</button>`).join('')}</div>`;
+}
 function rechChips() {
   const n = Recherche.norm(rech.texte), l = Recherche.THEMES_RECHERCHE;
   const vis = n && !rech.cat ? l.filter(c => Recherche.norm(c.nom + ' ' + c.mots.join(' ')).includes(n)) : l;
@@ -1249,7 +1439,7 @@ function rechPanel() {
     <div class="seg" id="rq_par">${Object.entries(RECH_PAR).map(([k, v]) => `<button type="button" data-v="${k}" class="${rech.par === k ? 'on' : ''}">${v.nom}</button>`).join('')}</div>
     <div class="a" style="margin:-2px 0 10px;font-size:.88rem">${m.aide} Puis choisis une longueur maximale : je cherche des livres en français dans le catalogue de la BnF.</div>
     <div class="search"><input id="rq" type="search" enterkeyhint="search" placeholder="${esc(m.place)}" value="${esc(rech.texte)}" aria-label="${esc(m.nom.slice(3))}"></div>
-    ${rech.par === 'theme' ? `<div class="chips" id="rq_cats" style="margin-top:8px">${rechChips()}</div>` : '<div style="height:10px"></div>'}
+    ${rech.par === 'theme' ? `<div class="chips" id="rq_cats" style="margin-top:8px">${rechChips()}</div>${rechSousChips()}` : '<div style="height:10px"></div>'}
     <div class="lbl" style="margin-bottom:4px">Longueur maximale</div>
     <div class="seg" id="rq_max">${LIMITES.map(([v, t]) => `<button type="button" data-v="${v}" class="${rech.max === v ? 'on' : ''}">${t}</button>`).join('')}</div>
     <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="rq_go" type="button">🔎 Chercher</button>
@@ -1267,7 +1457,8 @@ function rechCard(x, ctx, i) {
     <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
       <div style="min-width:0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || 'Auteur inconnu')}</div>
         <div class="meta" style="margin-top:4px"><span class="chip pg">📄 ${pages}</span>${ids.slice(0, 3).map(id => `<span class="chip">${esc(catNom(id))}</span>`).join('')}</div>
-        <div class="a" style="font-size:.8rem;margin-top:3px">${edition ? 'Édition ' + esc(edition) : 'Édition inconnue'}${x.pagesTotal ? ' (pages de cette édition' + autres + ')' : ''} · BnF${x.raison ? '<br>' + esc(x.raison) : ''}</div></div></div>
+        <div class="a" style="font-size:.8rem;margin-top:3px">${(x.sources || [])[0] === 'Apple' ? 'Livre trouvé sur Apple Books (nombre de pages non indiqué)'
+          : (edition ? 'Édition ' + esc(edition) : 'Édition inconnue') + (x.pagesTotal ? ' (pages de cette édition' + autres + ')' : '') + ' · BnF'}${x.raison ? '<br>' + esc(x.raison) : ''}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
     <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
       <button class="btn small" type="button" data-sug="fiche">📄 Fiche</button>
@@ -1276,11 +1467,12 @@ function rechCard(x, ctx, i) {
 function rechResultats() {
   if (!rech.etat) return '';
   const quoi = rech.lastPar === 'auteur' ? `de « ${esc(rech.lastTexte)} »` : rech.lastPar === 'titre' ? `intitulé « ${esc(rech.lastTexte)} »`
-    : rech.lastCat ? `« ${catNom(rech.lastCat)} »` : `sur « ${esc(rech.lastTexte)} »`;
+    : rech.lastCat ? `« ${catNom(rech.lastCat)}${rech.lastSous ? ' › ' + esc((Recherche.SOUS.find(z => z.id === rech.lastSous) || {}).nom || '') : ''} »` : `sur « ${esc(rech.lastTexte)} »`;
   const lim = rech.lastMax ? ` de ${rech.lastMax} pages ou moins` : '';
   const vus = rech.examines + rech.enCours;
   let h = '';
   if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a" style="font-size:.82rem;margin-bottom:6px">Pour les romans, le sujet écrit n\'est pas pris en compte (les catalogues ne classent pas les romans par sujet).</div>';
+  if (rech.note === 'bnf' && rech.etat !== 'busy') h += '<div class="hint">⏸️ La BnF ne répond pas pour l’instant : voici les livres trouvés sur Apple Books (sans nombre de pages). Réessaie plus tard pour avoir aussi ceux de la BnF.</div>';
   h += rech.res.map((x, i) => rechCard(x, 'rech', i)).join('');
   if (rech.etat === 'busy') {
     h += `<div class="nxspin" id="rq_prog">🔎 Je cherche${vus ? ` (${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''})` : ''}…</div>
@@ -1299,8 +1491,8 @@ function rechResultats() {
     h += `<div class="a" style="font-size:.82rem;margin:8px 0">${plural(rech.res.length, 'livre')}${lim}${rech.trop ? ` · ${plural(rech.trop, 'livre')} plus long${rech.trop > 1 ? 's' : ''} écarté${rech.trop > 1 ? 's' : ''}` : ''} · les doublons entre éditions sont regroupés.</div>
       ${!rech.fin ? '<div class="acts"><button class="btn" type="button" id="rq_more">Plus de résultats</button></div>' : ''}`;
   }
-  if (rech.inconnus.length) h += `<details class="inconnus"><summary>❔ ${plural(rech.inconnus.length, 'livre')} dont le nombre de pages n'est pas connu</summary>
-    <div class="a" style="font-size:.82rem;margin:6px 0">Le catalogue n'indique pas leur nombre de pages : ils ne sont pas comptés dans la limite.</div>
+  if (rech.inconnus.length) h += `<details class="inconnus"><summary>❔ ${plural(rech.inconnus.length, 'livre')} dont le nombre de pages n'est pas connu (ou seulement approximatif)</summary>
+    <div class="a" style="font-size:.82rem;margin:6px 0">Le catalogue n'indique pas leur nombre de pages, ou seulement « environ » : ils ne sont pas comptés dans la limite.</div>
     ${rech.inconnus.map((x, i) => rechCard(x, 'rechx', i)).join('')}</details>`;
   return h;
 }
@@ -1322,7 +1514,8 @@ async function lancerRech(suite) {
     // « philo », « polar », « manga »… écrits à la main → le thème correspondant
     if (par === 'theme' && !cat && texte) { const t = Recherche.themePourTexte(texte); if (t && Recherche.THEMES_RECHERCHE.includes(t)) { cat = rech.cat = t.id; texte = rech.texte = ''; renderDecouvrir(); } }
     if (!cat && !texte) return toast('Choisis un thème ou écris un sujet');
-    Object.assign(rech, {lastPar: par, lastCat: cat, lastTexte: texte, lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
+    const sousOk = par === 'theme' && rech.sous && Recherche.SOUS.some(z => z.id === rech.sous && z.cat === cat) ? rech.sous : '';
+    Object.assign(rech, {lastPar: par, lastSous: sousOk, lastCat: cat, lastTexte: texte, lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
     prefs.rechCat = cat; prefs.rechMax = rech.max; savePrefs();
   }
   const tok = ++rech.tok;
@@ -1338,7 +1531,7 @@ async function lancerRech(suite) {
     rech.enCours = o.examines;
     return neufs;
   };
-  const crit = rech.lastPar === 'auteur' ? {auteur: rech.lastTexte} : rech.lastPar === 'titre' ? {titre: rech.lastTexte} : {cat: rech.lastCat, texte: rech.lastTexte};
+  const crit = rech.lastPar === 'auteur' ? {auteur: rech.lastTexte} : rech.lastPar === 'titre' ? {titre: rech.lastTexte} : {cat: rech.lastCat, sous: rech.lastSous, texte: rech.lastTexte};
   const r = await Recherche.parTheme({...crit, max: rech.lastMax, stop: () => rech.stop || tok !== rech.tok}, rech.cur, o => {
     if (tok !== rech.tok) return;
     if (absorbe(o)) paintRech();
@@ -1346,7 +1539,7 @@ async function lancerRech(suite) {
   });
   if (tok !== rech.tok) return;
   absorbe(r);
-  Object.assign(rech, {examines: rech.examines + r.examines, enCours: 0, trop: rech.trop + r.trop, fin: r.fin, erreur: r.erreur, etat: 'fini'});
+  Object.assign(rech, {examines: rech.examines + r.examines, enCours: 0, trop: rech.trop + r.trop, fin: r.fin, erreur: r.erreur, etat: 'fini', note: r.note || ''});
   paintRech();
 }
 function wireRechPanel() {
@@ -1354,18 +1547,22 @@ function wireRechPanel() {
   q.oninput = () => { rech.texte = q.value; if ($('#rq_cats')) $('#rq_cats').innerHTML = rechChips(); };
   $('#rq_par').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b || b.dataset.v === rech.par) return;
-    rech.par = b.dataset.v; prefs.rechPar = rech.par; savePrefs(); rech.texte = ''; renderDecouvrir();
+    rech.par = b.dataset.v; prefs.rechPar = rech.par; savePrefs(); rech.texte = '';
+    if (rech.par !== 'theme') { rech.max = 0; prefs.rechMax = 0; }
+    renderDecouvrir();
     const champ = $('#rq'); if (champ) champ.focus();
   };
   q.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); q.blur(); lancerRech(); } };
   // Changer de thème ou de limite relance la recherche (sans avoir à tout recommencer)
   if ($('#rq_cats')) $('#rq_cats').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
-    rech.cat = rech.cat === b.dataset.v ? '' : b.dataset.v;
+    rech.cat = rech.cat === b.dataset.v ? '' : b.dataset.v; rech.sous = '';
     if (rech.cat && Recherche.themePourTexte(rech.texte)) rech.texte = '';
     renderDecouvrir();
     if (rech.etat && rech.cat) lancerRech();
   };
+  const rs = $('#rq_sous');
+  if (rs) rs.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; rech.sous = b.dataset.v; renderDecouvrir(); if (rech.etat) lancerRech(); };
   $('#rq_max').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
     rech.max = +b.dataset.v; renderDecouvrir();
@@ -1390,11 +1587,17 @@ async function onSuggestion(e) {
   const more = e.target.closest('[data-more]'); if (more) { more.classList.toggle('open'); return true; }
   const a = e.target.closest('[data-sug]'); if (!a) return false;
   const card = a.closest('.sug'), ctx = card.dataset.ctx, i = +card.dataset.i;
-  const items = ctx === 'sel' ? prefs.selection.items : ctx === 'rech' ? rech.res : ctx === 'rechx' ? rech.inconnus : [lastOnline];
+  const items = ctx === 'sel' ? prefs.selection.items : ctx === 'rech' ? rech.res : ctx === 'rechx' ? rech.inconnus : lastTirage;
   const x = items[i]; if (!x) return true;
   const carte = ctx === 'rech' || ctx === 'rechx' ? rechCard : sugCard;
   if (a.dataset.sug === 'fiche') { ficheDepuis(x); return true; }
   if (a.dataset.sug === 'add') { addSuggestion(x); card.outerHTML = carte(x, ctx, i); return true; }
+  if (a.dataset.sug === 'non' && ctx === 'tir') {
+    // Tirage : le livre est retiré et ne sera plus proposé
+    prefs.nonMerci = [...(prefs.nonMerci || []), Recherche.norm(x.titre)].slice(-300); savePrefs();
+    items.splice(i, 1); const box = card.closest('#dc_res, #nx_res'); if (box) box.innerHTML = tirageHtml(items);
+    return true;
+  }
   if (a.dataset.sug === 'non') {
     prefs.nonMerci = [...(prefs.nonMerci || []), Recherche.norm(x.titre)].slice(-300); savePrefs();
     card.innerHTML = '<div class="nxspin">Je cherche un autre livre…</div>';
@@ -1528,8 +1731,8 @@ function bilan(y, ly) {
     <div class="facts">
       ${fact('Auteur le plus lu', author ? `${esc(author[0])} (${plural(author[1], 'livre')})` : '')}
       ${fact('Genre préféré', genre ? `${esc(genre[0])} (${plural(genre[1], 'livre')})` : '')}
-      ${fact('Le plus long', withPages[0] ? `${bk(withPages[0])} · ${withPages[0].b.pagesTotal} p.` : '')}
-      ${fact('Le plus court', withPages.length > 1 ? `${bk(withPages[withPages.length - 1])} · ${withPages[withPages.length - 1].b.pagesTotal} p.` : '')}
+      ${fact('Le plus long', withPages[0] ? `${bk(withPages[0])} · ${esc(withPages[0].b.pagesTotal)} p.` : '')}
+      ${fact('Le plus court', withPages.length > 1 ? `${bk(withPages[withPages.length - 1])} · ${esc(withPages[withPages.length - 1].b.pagesTotal)} p.` : '')}
       ${fact('Premier de l\'année', bk(byDate[0]) + ' · ' + fdate(byDate[0].fin))}
       ${fact('Dernier fini', byDate.length > 1 ? bk(byDate[byDate.length - 1]) + ' · ' + fdate(byDate[byDate.length - 1].fin) : '')}
       ${fact('Citations notées', quotes ? String(quotes) : '')}
@@ -1583,6 +1786,8 @@ function doExport(kind) {
 }
 $('#pick_backup').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
+  // Mémoire illisible : la restauration ne pourrait pas être enregistrée (elle afficherait des livres qui disparaîtraient)
+  if (Store.bloque) return toast('Restauration impossible pour l\'instant : la mémoire du téléphone ne répond pas. Ferme l\'appli, rouvre-la, puis réessaie.');
   let d;
   try { d = JSON.parse(await f.text()); if (!d || d.app !== 'mes-lectures' || !Array.isArray(d.books)) throw 0; }
   catch (err) { return toast('Ce fichier n\'est pas une sauvegarde de l\'appli'); }
@@ -1650,7 +1855,8 @@ function blankBook(statut) {
 }
 function bookFrom(x, statut) {
   const b = {...blankBook(statut), titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '',
-    pagesTotal: x.pagesTotal || '', isbn: x.isbn || '', editeur: x.editeur || '', annee: x.annee || '', genre: x.genre || '', possession: 'a_moi',
+    pagesTotal: x.pagesTotal || '', pagesSource: x.pagesTotal ? x.pagesSource || (x.isbn ? 'edition' : 'estimation') : '',
+    isbn: x.isbn || '', editeur: x.editeur || '', annee: x.annee || '', genre: x.genre || '', possession: 'a_moi',
     sujets: x.sujets || [], classements: x.classements || []};
   if (b.classements.length) b.classTente = true;
   if (statut === 'en_cours') { b.dateDebut = today(); logPage(b, 0); }
@@ -1690,7 +1896,11 @@ function addNextTome(serie, n) {
 
 /* ---------- Fenêtres ---------- */
 function showM() { $('#ov').classList.add('show'); $('#modal').scrollTop = 0; modalModifie = false; }
-function closeM() { $('#ov').classList.remove('show'); form = null; }
+function closeM() {
+  $('#ov').classList.remove('show'); form = null;
+  // (une autre fenêtre a changé la bibliothèque pendant que celle-ci était ouverte)
+  if (Store.aRafraichir) { Store.aRafraichir = false; render(); }
+}
 
 function openPage(b) {
   $('#modal').innerHTML = `<h2>Où en es-tu ?</h2><p class="a" style="margin-top:-6px">${esc(b.titre)}</p>
@@ -1733,6 +1943,8 @@ function openForm(b, opts) {
   const isNew = !b;
   const startStatut = opts.statut || (['en_cours', 'a_lire', 'lu', 'abandon'].includes(ui.tab) ? ui.tab : 'a_lire');
   form = b ? {...b, citations: [...(b.citations || [])]} : blankBook(startStatut);
+  // La fiche telle qu'à l'ouverture : pour reconnaître ce qui a été changé ici, et ce qui a été complété en arrière-plan entre-temps
+  doublonAccepte = false; formBase = b || null; pagesAuto = null; formRef = b ? books.find(x => x.id === b.id) || null : null;
   if (isNew && form.statut === 'en_cours') form.dateDebut = today();
   if (isNew && (form.statut === 'lu' || form.statut === 'abandon')) form.dateFin = today();
   const genres = [...new Set([...GENRES, ...books.map(x => x.genre).filter(Boolean)])];
@@ -1761,7 +1973,8 @@ function openForm(b, opts) {
     </div>
     <div class="row">
       <div class="f" data-show="en_cours abandon"><label for="f_page">Page actuelle</label><input id="f_page" type="number" min="0" inputmode="numeric" value="${esc(form.pageActuelle)}"></div>
-      <div class="f"><label for="f_total">Nombre de pages</label><input id="f_total" type="number" min="0" inputmode="numeric" value="${esc(form.pagesTotal)}"></div>
+      <div class="f"><label for="f_total">Nombre de pages</label><input id="f_total" type="number" min="0" inputmode="numeric" value="${esc(form.pagesTotal)}">
+        <span class="a" id="f_pgsrc" style="font-size:.76rem"></span></div>
     </div>
     <div class="row">
       <div class="f" data-show="en_cours lu abandon"><label for="f_debut">Commencé le</label><input id="f_debut" type="date" value="${esc(form.dateDebut)}"></div>
@@ -1797,7 +2010,8 @@ function openForm(b, opts) {
       ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button">🔁 Relire</button>' : ''}<span class="sp"></span>
       <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
   showM();
-  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan(); paintCats();
+  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan(); paintCats(); paintPagesSrc();
+  $('#f_total').oninput = paintPagesSrc;
   $('#f_cats').onclick = e => {
     const x = e.target.closest('[data-catnon]'); if (!x) return;
     const id = x.dataset.catnon;
@@ -1829,7 +2043,7 @@ function openForm(b, opts) {
   $('#s_scan').onclick = openScanner;
   $('#s_res').onclick = e => {
     const op = e.target.closest('[data-openown]'); if (op) { const o = books.find(x => x.id === op.dataset.openown); closeM(); if (o) openForm(o); return; }
-    const any = e.target.closest('[data-anyway]'); if (any) return fillFrom(lastRes[+any.dataset.anyway]);
+    const any = e.target.closest('[data-anyway]'); if (any) { doublonAccepte = true; return fillFrom(lastRes[+any.dataset.anyway]); }
     const btn = e.target.closest('[data-res]'); if (btn) pickResult(+btn.dataset.res);
   };
   $('#f_linkok').onclick = () => {
@@ -1846,7 +2060,10 @@ function openForm(b, opts) {
   $('#f_save').onclick = async () => {
     collect();
     if (!form.titre) { toast('Il faut au moins un titre'); $('#f_titre').focus(); return; }
-    const f = form;
+    // Nouveau livre déjà présent (même ISBN, ou même titre et auteur) : on demande avant d'en faire un doublon
+    const double = isNew && !doublonAccepte && findOwned(form);
+    if (double && !confirm(`Tu as déjà « ${double.titre} » dans « ${STATUT_UN[double.statut]} ». L'ajouter quand même ?`)) return;
+    const f = reprendreArrierePlan(form);
     if (!f.couverture && (f._covers || []).length) {
       $('#f_save').textContent = 'Couverture…';
       setCovers(f, await Promise.race([Recherche.couverture(f._covers), new Promise(r => setTimeout(() => r(''), 3500))]), f._covers);
@@ -1881,6 +2098,31 @@ function openForm(b, opts) {
   else if (isNew) $('#s_q').focus();
 }
 
+// Origine du nombre de pages affiché dans la fiche ouverte : rempli depuis un catalogue, d'origine, ou tapé à la main
+let formBase = null, pagesAuto = null, formRef = null, doublonAccepte = false;
+// Pendant que la fiche était ouverte, le livre enregistré a pu être complété en arrière-plan (résumé, catégories, couverture…)
+// ou changé dans une autre fenêtre : on reprend ces changements pour tout ce que la fiche n'a pas modifié
+function reprendreArrierePlan(f) {
+  const now = books.find(x => x.id === f.id);
+  if (!formRef || !now || now === formRef) return f;
+  const s = v => JSON.stringify(v === undefined ? null : v);
+  for (const k of new Set([...Object.keys(now), ...Object.keys(formRef)])) {
+    if (k.startsWith('_')) continue;
+    if (s(now[k]) !== s(formRef[k]) && s(f[k]) === s(formRef[k])) f[k] = now[k];
+  }
+  return f;
+}
+function sourcePages(v) {
+  const n = parseInt(v, 10); if (!(n > 0)) return '';
+  if (pagesAuto && +pagesAuto.v === n) return pagesAuto.s;
+  if (formBase && +formBase.pagesTotal === n) return formBase.pagesSource || '';
+  return 'manuel';
+}
+function paintPagesSrc() {
+  const el = $('#f_pgsrc'); if (!el) return;
+  const s = sourcePages($('#f_total').value);
+  el.textContent = s === 'estimation' ? '≈ ' + PAGES_SOURCES.estimation : s === 'edition' ? '✓ ' + PAGES_SOURCES.edition : '';
+}
 function collect() {
   const num = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? '' : n; };
   Object.assign(form, {
@@ -1891,6 +2133,7 @@ function collect() {
     format: $('#f_format').value, possession: $('#f_pos').value, pretNom: $('#f_pnom').value.trim(), pretRetour: $('#f_pret').value,
     isbn: Recherche.toIsbn13($('#f_isbn').value) || $('#f_isbn').value.replace(/[^0-9X]/gi, ''), editeur: $('#f_edit').value.trim(), annee: $('#f_annee').value.trim()
   });
+  form.pagesSource = sourcePages(form.pagesTotal);
   const pending = $('#f_qt').value.trim();
   if (pending) form.citations.push({texte: pending, page: $('#f_qp').value, date: today()});
   if (form.statut !== 'lu' && form.statut !== 'abandon') form.dateFin = '';
@@ -1935,12 +2178,14 @@ function paintCats() {
   const cs = Recherche.categories({...form}), cl = form.classements || [];
   $('#f_catsn').textContent = cs.length ? '(' + cs.length + ')' : '';
   const autres = Recherche.CATS.filter(c => !cs.some(x => x.id === c.id));
+  const ss = Recherche.sousCategories({...form});
   box.innerHTML = (cs.length ? `<div class="meta">${cs.map(c => `<span class="chip catchip">${c.e} ${esc(c.nom)}<button type="button" data-catnon="${c.id}" aria-label="Retirer ${esc(c.nom)}" title="Retirer">✕</button></span>`).join('')}</div>`
       : `<div class="a" style="font-size:.85rem">${form.classTente ? 'Les catalogues ne donnent pas de classement pour ce livre.' : 'Pas encore de catégorie : l\'appli cherche le classement du livre dans les catalogues quand tu l\'ajoutes (ou avec Stats → 🏷️ Mes livres par catégorie).'} Tu peux en ajouter une à la main.</div>`) +
+    (ss.length ? `<div class="a" style="font-size:.85rem;margin-top:6px">Plus précisément : ${ss.map(z => `<b>${esc(z.nom)}</b>`).join(', ')}</div>` : '') +
     `<select id="f_catadd" aria-label="Ajouter une catégorie" style="margin-top:8px"><option value="">＋ Ajouter une catégorie…</option>${autres.map(c => `<option value="${c.id}">${c.e} ${esc(c.nom)}</option>`).join('')}</select>` +
     (cs.length || cl.length ? `<details class="pourquoi"><summary>D'où viennent ces catégories ?</summary>
-      ${cs.length ? `<ul>${cs.map(c => `<li><b>${c.e} ${esc(c.nom)}</b> : ${c.raisons.map(esc).join(' ; ')}</li>`).join('')}</ul>` : ''}
-      ${cl.length ? `<div class="lbl" style="margin-top:6px">Classements d'origine des catalogues</div><ul>${cl.map(k => `<li>${esc(k.s || 'Catalogue')} · ${CHAMP[k.c] || k.c} : ${esc(k.l)}</li>`).join('')}</ul>` : ''}
+      ${cs.length ? `<ul>${cs.map(c => `<li><b>${c.e} ${esc(c.nom)}</b> : ${c.raisons.map(esc).join(' ; ')}</li>`).join('')}${ss.map(z => `<li>› <b>${esc(z.nom)}</b> : ${esc(z.raison)}</li>`).join('')}</ul>` : ''}
+      ${cl.length ? `<div class="lbl" style="margin-top:6px">Classements d'origine des catalogues</div><ul>${cl.map(k => `<li>${esc(k.s || 'Catalogue')} · ${esc(CHAMP[k.c] || k.c)} : ${esc(k.l)}</li>`).join('')}</ul>` : ''}
       <div class="a" style="font-size:.78rem">Les catégories sont des regroupements faits par l'appli ; les codes et sujets officiels des catalogues sont gardés tels quels ci-dessus.</div></details>` : '');
 }
 // Résumé dans la fiche ouverte
@@ -2086,7 +2331,7 @@ function fillFrom(x) {
   modalModifie = true;   // la fiche a été remplie : la fermer par erreur ferait perdre ces infos
   // (une information absente du catalogue n'efface jamais ce qui est déjà dans la fiche)
   $('#f_titre').value = x.titre; if (x.auteur) $('#f_auteur').value = x.auteur;
-  if (x.pagesTotal) $('#f_total').value = x.pagesTotal;
+  if (x.pagesTotal) { $('#f_total').value = x.pagesTotal; pagesAuto = {v: x.pagesTotal, s: x.pagesSource || (x.isbn ? 'edition' : 'estimation')}; paintPagesSrc(); }
   if (x.serie) { $('#f_serie').value = x.serie; $('#f_tome').value = x.tome || ''; }
   if (x.isbn) $('#f_isbn').value = x.isbn;
   if (x.editeur) $('#f_edit').value = x.editeur;
@@ -2112,7 +2357,11 @@ function fillFrom(x) {
   });
   if (!x.pagesTotal || !x.isbn) Recherche.completer(x).then(y => {
     if (form !== f) return;
-    if (!$('#f_total').value && y.pagesTotal) $('#f_total').value = y.pagesTotal;
+    if (!$('#f_total').value && y.pagesTotal) {
+      // (pages de l'édition dont on reprend aussi l'ISBN, sinon d'une autre édition : estimation)
+      const memeEd = !$('#f_isbn').value && y.isbn && y.pagesSource === 'edition';
+      $('#f_total').value = y.pagesTotal; pagesAuto = {v: y.pagesTotal, s: memeEd ? 'edition' : 'estimation'}; paintPagesSrc();
+    }
     if (!$('#f_isbn').value && y.isbn) $('#f_isbn').value = y.isbn;
     if (!$('#f_edit').value && y.editeur) $('#f_edit').value = y.editeur;
     if (!$('#f_annee').value && y.annee) $('#f_annee').value = y.annee;
@@ -2136,7 +2385,9 @@ async function fileToCover(file) {
 }
 function loadZXing() {
   if (window.ZXing) return Promise.resolve();
-  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  // Lecteur de secours ZXing 0.21.3 (licence Apache 2.0, voir zxing-LICENSE.txt), rangé avec l'appli :
+  // aucun site tiers n'est contacté, et personne d'autre ne peut modifier ce code
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'zxing.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
 }
 async function decodeBarcode(file) {
   const img = await loadImage(file);
@@ -2234,6 +2485,7 @@ $('#scanPhoto').onclick = () => { closeScanner(); $('#pick_scan').value = ''; $(
 /* ---------- Scan rapide : plusieurs livres d'affilée ---------- */
 let bulkStop = null, bulkSeen = new Set(), bulkAdded = 0;
 async function openBulk() {
+  if (Store.bloque) return toast('Impossible d\'ajouter des livres : la mémoire du téléphone ne répond pas. Ferme l\'appli et rouvre-la.');
   bulkSeen = new Set(); bulkAdded = 0;
   $('#bulkList').innerHTML = ''; $('#bulkCount').textContent = '';
   document.querySelectorAll('#bulkDest button').forEach(b => b.classList.toggle('on', b.dataset.dest === prefs.bulkDest));
@@ -2361,9 +2613,13 @@ function openSettings() {
       <div class="acts"><button class="btn pri" id="st_fill">✨ Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a" id="st_fillres" style="font-size:.85rem;margin-top:6px"></div></div>
     <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>💾 Sauvegarde</h3><div class="a" style="font-size:.88rem;margin-bottom:8px">${backupInfo()}</div>
       <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>
-    <div class="a" style="font-size:.8rem">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}</div>
+    <div class="a" style="font-size:.8rem">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn pri" id="st_ok">Fermer</button></div>`;
   showM();
+  // Mémoire « protégée » : Chrome ne l'efface pas tout seul quand le téléphone manque de place
+  if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => {
+    const el = $('#st_mem'); if (el) el.textContent = p ? ' · protégée ✓' : ' · non protégée (Chrome pourrait l\'effacer si le téléphone manque de place : sauvegarde souvent)';
+  }).catch(() => {});
   $('#st_theme').onclick = e => { const b = e.target.closest('[data-th]'); if (!b) return; prefs.theme = b.dataset.th; savePrefs(); applyTheme(); document.querySelectorAll('#st_theme button').forEach(x => x.classList.toggle('on', x === b)); };
   const keep = () => { prefs.googleKey = $('#st_key').value.trim(); savePrefs(); Recherche.setGoogleKey(prefs.googleKey); };
   $('#st_test').onclick = async () => {
@@ -2414,6 +2670,7 @@ async function completerScan(b) {
   if (i < 0 || !books[i].aCompleter) return false;   // complété à la main entre-temps : on n'y touche pas
   const o = books[i], nb = {...o, titre: x.titre, auteur: x.auteur || '', serie: x.serie || '', tome: x.tome || '', aCompleter: false, horsLigne: false};
   for (const f of ['pagesTotal', 'editeur', 'annee', 'genre', 'resume']) if (!nb[f] && x[f]) nb[f] = x[f];
+  if (nb.pagesTotal && !o.pagesTotal) nb.pagesSource = 'edition';   // (trouvé par son ISBN : pages de cette édition)
   if (!(nb.sujets || []).length && (x.sujets || []).length) nb.sujets = x.sujets;
   if ((x.classements || []).length) { nb.classements = Recherche.unirClassements([nb.classements, x.classements]); nb.classTente = true; }
   if (!nb.couverture && u) setCovers(nb, u, x.covers);
@@ -2449,7 +2706,9 @@ async function fillOne(b) {
 function appliquer(id, patch, couv) {
   const i = books.findIndex(z => z.id === id); if (i < 0) return false;
   const nb = {...books[i]}; let change = false;
-  for (const [f, v] of Object.entries(patch)) if (v && !nb[f]) { nb[f] = v; change = true; }
+  for (const [f, v] of Object.entries(patch)) if (f !== 'pagesSource' && v && !nb[f]) { nb[f] = v; change = true; }
+  // (l'origine du nombre de pages n'est notée que si ce nombre vient d'être rempli ici)
+  if (patch.pagesSource && patch.pagesTotal && nb.pagesTotal === patch.pagesTotal && !books[i].pagesTotal) nb.pagesSource = patch.pagesSource;
   if (couv && couv.u && (!nb.couverture || brokenCovers.has(id))) { setCovers(nb, couv.u, couv.list); brokenCovers.delete(id); change = true; }
   if (change) books[i] = nb;
   return change;
@@ -2474,6 +2733,8 @@ async function fillFiche(b) {
   const patch = {};
   // Trouvé par le titre : on ne connaît pas l'édition exacte → pas d'ISBN ni d'éditeur (ce serait peut-être faux)
   for (const f of byIsbn ? ['auteur', 'pagesTotal', 'isbn', 'editeur', 'annee', 'genre'] : ['auteur', 'pagesTotal', 'genre']) if (y[f]) patch[f] = y[f];
+  // Trouvé par l'ISBN : pages de cette édition ; trouvé par le titre : celles d'une autre édition, peut-être (estimation)
+  if (patch.pagesTotal) patch.pagesSource = byIsbn ? y.pagesSource || 'edition' : 'estimation';
   // Série : seulement si le livre n'en a pas, que la fiche vient d'un catalogue (BnF/Sudoc) et que le titre colle
   const serieOk = !b.serie && x.serie && x.tome && (x.sources || []).some(s => s === 'BnF' || s === 'Sudoc') && n(x.titre) === n(b.titre);
   let couv = null;
@@ -2518,7 +2779,7 @@ document.addEventListener('click', e => {
   if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
   if (e.target.closest('#dice')) return openNext();
-  const ct = e.target.closest('[data-cat]'); if (ct) return openCategorie(ct.dataset.cat);
+  const ct = e.target.closest('[data-cat]'); if (ct) { catView.sous = ''; return openCategorie(ct.dataset.cat); }
   if (e.target.closest('#catfill')) return fillCategories();
   if (e.target.closest('[data-undorestore]')) return annulerRestauration();
   if (e.target.closest('[data-resave]')) return Store.persist().then(() => { if (!Store.erreur) toast('Enregistré ✓'); });
@@ -2626,16 +2887,23 @@ function goTab(dir) {
     const d = await Store.load();
     books = (d.books || []).map(norm);
     goal = +d.goal || 0;
+    Store.retenir({...d, books, goal});
     const c = counts();
     if (!c.en_cours && books.length) ui.tab = c.a_lire ? 'a_lire' : 'lu';
     render();
     checkBadges(true);
+    // Mise en ligne incomplète (un fichier envoyé sans l'autre) : on le dit au lieu de laisser l'appli se comporter bizarrement
+    if (Recherche.VERSION !== VERSION) {
+      console.warn('Versions différentes : index.html ' + VERSION + ', recherche.js ' + Recherche.VERSION);
+      toastLater('⚠️ Mise à jour incomplète : ferme l\'appli et rouvre-la avec internet.', 1500);
+    }
     if (!prefs.astuceGlisser && ('ontouchstart' in window)) { prefs.astuceGlisser = true; savePrefs(); toastLater('👆 Astuce : glisse à gauche ou à droite pour changer d\'onglet', 2500); }
     // Une fois par mois : préparer la sélection de 5 livres (en arrière-plan, s'il y a internet)
     if (navigator.onLine !== false && !ESSAI) { setTimeout(() => genSelection(), 4000); setTimeout(reprendreScans, 8000); }
     if (prefs.timer) paintTimerPill();
   } catch (e) {
-    $('#fab').hidden = true;
+    // (rien ne pourrait être enregistré : on cache aussi ce qui ajoute des livres)
+    $('#fab').hidden = true; $('#bulkBtn').hidden = true; paintNotice();
     $('#main').innerHTML = `<div class="empty">⚠️ <b>Impossible de lire tes livres pour l'instant.</b><br>Ils ne sont <b>pas effacés</b> :
       ferme complètement l'appli puis rouvre-la. Si ça continue, redémarre le téléphone.<br><small>(${esc(e.message || e)})</small><br><br>
       <button class="btn pri" type="button" onclick="location.reload()">🔄 Réessayer</button></div>`;

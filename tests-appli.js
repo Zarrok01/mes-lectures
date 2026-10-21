@@ -28,6 +28,8 @@
   window.confirm = () => { confirmDemande++; return reponseConfirm; };
 
   await vider();
+  // Mémoire de test propre : les livres « déjà proposés » ou refusés lors d'un passage précédent ne doivent pas fausser celui-ci
+  prefs.proposes = []; prefs.nonMerci = []; prefs.selection = null; savePrefs();
 
   /* ---------- 1. Catégories (règles de classement) ---------- */
   const B = (c, l) => ({c, l, s: 'BnF'});
@@ -59,6 +61,20 @@
   await test('Fiche : date valide conservée', '2026-03-15', () => norm({titre: 'a', dateFin: '2026-03-15'}).dateFin);
   await test('Fiche : note hors limites ramenée à 5', 5, () => norm({titre: 'a', note: 99}).note);
   await test('Date illisible jamais affichée telle quelle', '', () => fdate('<script>'));
+  // (audit du 21/10/2026, A-02 : le numéro de champ d'un classement était affiché sans échappement dans la fiche)
+  const PIEGE = '<img src=x onerror="window.__piegeClassement=1">';
+  await test('Fiche : classement au numéro de champ piégé écarté, les vrais gardés', ['686'],
+    () => norm({titre: 'a', classements: [{c: PIEGE, l: 'x'}, {c: '686', l: '320'}, {c: '6060', l: 'y'}]}).classements.map(k => k.c));
+  await test('Fiche : un numéro de champ piégé n\'est jamais interprété dans « D\'où viennent ces catégories ? »', 'texte|aucune image|rien exécuté', async () => {
+    window.__piegeClassement = 0;
+    // (fiche passée directement, sans nettoyage : vérifie aussi la protection à l'affichage)
+    openForm({...norm({titre: 'Piège', id: 't-piege'}), classements: [{c: PIEGE, l: 'x', s: 'BnF'}]}); await pause(150);
+    const box = $('#f_cats');
+    const r = (box.textContent.includes('onerror') ? 'texte' : 'absent') + '|' + (box.querySelector('img') ? 'IMAGE INJECTÉE' : 'aucune image') + '|' +
+      (window.__piegeClassement ? 'CODE EXÉCUTÉ' : 'rien exécuté');
+    closeM(); await pause(250);
+    return r;
+  });
 
   /* ---------- 3. Stockage ---------- */
   await test('Stockage : enregistrer puis relire', ['t-Un'], async () => {
@@ -66,9 +82,10 @@
     const d = await Store.load(); return d.books.map(b => b.id);
   });
   await test('Stockage (D1) : après un échec de la mémoire principale, la copie de secours est relue au lancement suivant', ['t-Un', 't-Deux'], async () => {
-    const vraiSet = Store.set; Store.set = () => Promise.reject(new Error('mémoire pleine (simulée)'));
+    const vraiSet = Store.set, vraiEcrire = Store.ecrire;
+    Store.set = Store.ecrire = () => Promise.reject(new Error('mémoire pleine (simulée)'));
     books = [fiche('Un'), fiche('Deux')]; await Store.persist();
-    Store.set = vraiSet;
+    Store.set = vraiSet; Store.ecrire = vraiEcrire;
     const d = await Store.load(); return d.books.map(b => b.id);
   });
   await test('Stockage (D1) : quand la mémoire principale remarche, la copie de secours est supprimée', null, async () => {
@@ -84,10 +101,10 @@
     return msg + '|' + etat;
   });
   await test('Stockage (D3) : un enregistrement interrompu est signalé (bandeau)', true, async () => {
-    const vraiSet = Store.set, vraiLs = localStorage.setItem;
-    Store.set = () => Promise.reject(new Error('interrompu (simulé)'));
+    const vraiSet = Store.set, vraiEcrire = Store.ecrire, vraiLs = localStorage.setItem;
+    Store.set = Store.ecrire = () => Promise.reject(new Error('interrompu (simulé)'));
     Storage.prototype.setItem = function () { throw new Error('plein (simulé)'); };
-    try { await Store.persist(); } finally { Store.set = vraiSet; Storage.prototype.setItem = vraiLs; }
+    try { await Store.persist(); } finally { Store.set = vraiSet; Store.ecrire = vraiEcrire; Storage.prototype.setItem = vraiLs; }
     const vu = Store.erreur && !$('#notice').hidden && $('#notice').textContent.includes('pas enregistrées');
     await Store.persist();
     return vu && !Store.erreur;
@@ -353,6 +370,193 @@
     Recherche.parTheme = vrai; rech.par = 'theme'; rech.texte = ''; rech.max = 0; rech.etat = ''; return JSON.stringify(recu);
   });
 
+  /* ---------- 8 octies. Sous-catégories et « d'après mes lectures » (5 livres) ---------- */
+  await test('Sous-catégories : 327 → Relations internationales, 362.7 → Protection de l\'enfance', ['politique/ri', 'social/enfance'], () =>
+    [...Recherche.sousCategories({classements: [B('686', '320'), B('676', '327.101')]}), ...Recherche.sousCategories({classements: [B('686', '360'), B('676', '362.709 44')]})].map(z => z.id));
+  await test('Bibliothèque : filtre par sous-catégorie', ['Géopo'], () => {
+    books = [fiche('Géopo', {classements: [B('686', '320'), B('676', '327.1')]}), fiche('Élections', {classements: [B('686', '320'), B('676', '324.6')]})];
+    ui.tab = 'a_lire'; ui.cat = 'sous:politique/ri'; render();
+    const l = [...document.querySelectorAll('#list .card .t')].map(e => e.textContent.trim()); ui.cat = ''; render(); return l;
+  });
+  await test('Mon profil : série à continuer, auteurs, sujets précis', 'Les Annales|2 auteurs|Relations internationales & géopolitique,Idées & philosophie politiques,Fascisme', () => {
+    books = [fiche('T1', {statut: 'lu', note: 5, serie: 'Les Annales', tome: 1, auteur: 'Terry Pratchett'}),
+      fiche('Géo', {statut: 'lu', note: 4, auteur: 'Pascal Boniface', classements: [B('686', '320'), B('676', '327.1'), B('606', 'Fascisme -- Italie')]})];
+    const p = monProfil();
+    return p.series.map(b => b.serie).join() + '|' + p.auteurs.length + ' auteurs|' + p.sujets.map(x => x.nom).join(',');
+  });
+  await test('D\'après mes lectures : 5 livres, avec la raison de chacun (série, auteur, sujet, catégorie)', 'Suite|aimé|Même sujet|Tu lis souvent|5', async () => {
+    books = [fiche('T1', {statut: 'lu', note: 5, serie: 'Les Annales', tome: 1, auteur: 'Terry Pratchett', genre: 'SF / Fantasy'}),
+      fiche('Géo', {statut: 'lu', note: 4, auteur: 'Pascal Boniface', classements: [B('686', '320'), B('676', '327.1')]})];
+    const v = {t: Recherche.parTexte, th: Recherche.parTheme, d: Recherche.decouvrir, c: Recherche.couverture}; let n = 0;
+    Recherche.couverture = async () => 'https://exemple.invalid/couverture.jpg';
+    const livre = (titre, extra) => ({titre, auteur: 'X', covers: [], ...extra});
+    Recherche.parTexte = async q => /annales 2/i.test(q) ? [livre('Les Annales T2', {serie: 'Les Annales', tome: 2, auteur: 'Terry Pratchett'})]
+      : /pratchett/i.test(q) ? [livre('Mortimer ' + (++n), {auteur: 'Terry Pratchett'})] : /boniface/i.test(q) ? [livre('Géopolitique ' + (++n), {auteur: 'Pascal Boniface'})] : [];
+    Recherche.parTheme = async () => ({res: [livre('Sujet ' + (++n))], inconnus: [], erreur: ''});
+    Recherche.decouvrir = async () => ({...livre('Thème ' + (++n)), raison: ''});
+    try {
+      const box = document.createElement('div'); await drawPerso(box, null);
+      const r = lastTirage.map(x => x.raison).join(' / ');
+      return [r.includes('Suite de « Les Annales »') ? 'Suite' : '-', r.includes('Parce que tu as aimé') ? 'aimé' : '-', r.includes('Même sujet') ? 'Même sujet' : '-',
+        r.includes('Tu lis souvent') ? 'Tu lis souvent' : '-', lastTirage.length].join('|');
+    } finally { Object.assign(Recherche, {parTexte: v.t, parTheme: v.th, decouvrir: v.d, couverture: v.c}); }
+  });
+  await test('Tirage au hasard : 5 livres par demande', 5, async () => {
+    const v = Recherche.decouvrir; let n = 0; Recherche.decouvrir = async () => ({titre: 'Hasard ' + (++n), auteur: 'X', covers: []});
+    try { const box = document.createElement('div'); await drawOnline('roman', box, null); return box.querySelectorAll('.sug').length; } finally { Recherche.decouvrir = v; }
+  });
+  await test('Tirage : « Pas pour moi » retire le livre de la rangée', 4, async () => {
+    ui.tab = 'decouvrir'; render(); const box = $('#dc_res'); box.innerHTML = tirageHtml(lastTirage);
+    box.querySelector('.sug [data-sug="non"]').click(); await pause(100);
+    return box.querySelectorAll('.sug').length;
+  });
+
+  /* ---------- 8 septies. Recherche par auteur ---------- */
+  await test('Auteur : une BD garde tous ses auteurs (chercher le dessinateur la trouve)', ['René Goscinny', 'Albert Uderzo'], () => {
+    const x = `<r xmlns:m="m"><m:datafield tag="200"><m:subfield code="a">Astérix le Gaulois</m:subfield></m:datafield>
+      <m:datafield tag="700"><m:subfield code="a">Goscinny</m:subfield><m:subfield code="b">René</m:subfield><m:subfield code="4">690</m:subfield></m:datafield>
+      <m:datafield tag="702"><m:subfield code="a">Uderzo</m:subfield><m:subfield code="b">Albert</m:subfield><m:subfield code="4">440</m:subfield></m:datafield>
+      <m:datafield tag="702"><m:subfield code="a">Préfacier</m:subfield><m:subfield code="b">Jean</m:subfield><m:subfield code="4">080</m:subfield></m:datafield></r>`;
+    return Recherche._parseUnimarc(new DOMParser().parseFromString(x, 'application/xml').documentElement).noms;
+  });
+  await test('Auteur : passer en mode Auteur enlève la limite de pages', 0, () => {
+    ui.tab = 'decouvrir'; rech.par = 'theme'; rech.max = 100; render();
+    document.querySelector('#rq_par [data-v="auteur"]').click();
+    const m = rech.max; rech.par = 'theme'; render(); return m;
+  });
+  await test('Auteur : si la BnF ne répond pas, Apple Books prend le relais (avec un message)', 'bnf|livres trouvés|tous de l\'auteur', async () => {
+    const vrai = window.fetch;
+    window.fetch = (url, o) => {
+      if (String(url).includes('catalogue.bnf.fr')) return Promise.reject(new TypeError('BnF bloquée (simulé)'));
+      if (String(url).includes('itunes.apple.com')) return Promise.resolve(new Response(JSON.stringify({results: [
+        {trackName: 'La place', artistName: 'Annie Ernaux', description: 'Le récit de la vie de son père et de la distance sociale', releaseDate: '2010-01-01'},
+        {trackName: 'The Years', artistName: 'Annie Ernaux', description: 'The story of a life and of the times', releaseDate: '2018-01-01'},
+        {trackName: 'Annie Ernaux, une œuvre', artistName: 'Autre Personne', description: 'Une étude de son œuvre et de la société', releaseDate: '2020-01-01'}]}), {status: 200}));
+      return vrai(url, o);
+    };
+    try {
+      // (premier appel de la page pour cet auteur : rien en mémoire, la BnF « simulée bloquée » est bien interrogée)
+      const r = await Recherche.parTheme({auteur: 'Annie Ernaux', max: 0}, {});
+      const titres = r.res.map(x => x.titre);
+      return [r.note, titres.length === 1 && titres[0] === 'La place' ? 'livres trouvés' : 'trouvés : ' + titres.join(' + '),
+        r.res.every(x => /ernaux/i.test(x.auteur)) ? 'tous de l\'auteur' : 'auteur faux'].join('|');
+    } finally { window.fetch = vrai; }
+  });
+
+  /* ---------- 8 nonies. Corrections du 20/10/2026 (audit) ---------- */
+  // D2 : deux fenêtres (l'appli + un onglet Chrome) ouvertes sur la même bibliothèque
+  const autreFenetre = async (liste, decalage) => {
+    const savedAt = new Date(Date.now() + (decalage || 1000)).toISOString();
+    await Store.set('data', {books: liste, goal: 0, savedAt}); await Store.set('version', {savedAt, par: 'autre-fenetre'});
+  };
+  await test('Deux fenêtres (D2) : mes changements et ceux de l\'autre fenêtre sont gardés tous les deux', 't-A:vu ici,t-B:vu ailleurs,t-C:|3', async () => {
+    books = [fiche('A'), fiche('B')]; await Store.persist();
+    await autreFenetre([books[0], {...books[1], avis: 'vu ailleurs'}, fiche('C')]);
+    books[0] = {...books[0], avis: 'vu ici'}; await Store.persist();
+    const d = await Store.get('data');
+    return d.books.map(b => b.id + ':' + (b.avis || '')).sort().join(',') + '|' + books.length;
+  });
+  await test('Deux fenêtres (D2) : un livre supprimé dans l\'autre fenêtre ne revient pas', 't-A', async () => {
+    books = [fiche('A'), fiche('B')]; await Store.persist();
+    await autreFenetre([books[0]], 2000);
+    books[0] = {...books[0], note: 4}; await Store.persist();
+    return (await Store.get('data')).books.map(b => b.id).join(',');
+  });
+  await test('Deux fenêtres (D2) : en revenant sur l\'appli, la liste changée ailleurs est relue', 't-A,t-D', async () => {
+    books = [fiche('A')]; await Store.persist();
+    await autreFenetre([books[0], fiche('D')], 3000);
+    await Store.relire(); return books.map(b => b.id).join(',');
+  });
+  await test('Enregistrements groupés : 5 changements rapides → au plus 2 écritures, rien de perdu', '≤2|5', async () => {
+    books = []; await Store.persist();
+    const vrai = Store.ecrire; let n = 0; Store.ecrire = function () { n++; return vrai.apply(this, arguments); };
+    try { for (let k = 0; k < 5; k++) { books.push(fiche('G' + k)); Store.persist(); } await Store.persist(); }
+    finally { Store.ecrire = vrai; }
+    return (n <= 2 ? '≤2' : n + ' écritures') + '|' + (await Store.get('data')).books.length;
+  });
+  await test('Mémoire illisible (D3) : la restauration est refusée (au lieu de faire croire qu\'elle a marché)', 'refusée|1 livre|bandeau', async () => {
+    books = [fiche('Garde')]; Store.bloque = true;
+    try {
+      await restaurer({app: 'mes-lectures', version: 2, date: new Date().toISOString(), goal: 0, books: [{id: 'x', titre: 'Autre'}]});
+      const refus = $('#toast').textContent.includes('Restauration impossible') && !$('#ov').classList.contains('show');
+      await Store.persist();
+      return [refus ? 'refusée' : 'acceptée', plural(books.length, 'livre'), !$('#notice').hidden && $('#notice').textContent.includes('ne peuvent pas être lus') ? 'bandeau' : 'pas de bandeau'].join('|');
+    } finally { Store.bloque = false; paintNotice(); }
+  });
+  await test('Mémoire illisible (D3) : le Scan rapide est refusé', 'refusé', async () => {
+    Store.bloque = true;
+    try { await openBulk(); return !$('#bulkOv').classList.contains('show') && $('#toast').textContent.includes('Impossible d\'ajouter') ? 'refusé' : 'ouvert'; }
+    finally { Store.bloque = false; closeBulk(); paintNotice(); }
+  });
+  await test('Pages (F1) : origine gardée (édition, estimation) ; une origine inconnue ou piégée est effacée', 'edition|estimation|-|-', () => [
+    bookFrom({titre: 'a', isbn: '9782070612758', pagesTotal: 96}, 'a_lire').pagesSource,
+    bookFrom({titre: 'a', pagesTotal: 96}, 'a_lire').pagesSource,
+    norm({titre: 'a', pagesTotal: 96, pagesSource: 'constructor'}).pagesSource || '-',
+    norm({titre: 'a', pagesSource: 'edition'}).pagesSource || '-'].join('|'));
+  await test('Pages (F1) : « Compléter mes livres » trouvé par le titre → nombre de pages marqué « estimé »', '254|estimation', async () => {
+    books = [fiche('Mon livre', {auteur: 'Jean Test', pagesTotal: '', couverture: 'https://exemple.invalid/c.jpg'})];
+    const v = {i: Recherche.parIsbn, t: Recherche.parTexte, c: Recherche.completer};
+    Recherche.parIsbn = async () => [];
+    Recherche.parTexte = async () => [{titre: 'Mon livre', auteur: 'Jean Test', pagesTotal: 254, isbn: '9782070612758', pagesSource: 'edition', covers: [], sources: ['BnF']}];
+    Recherche.completer = async x => x;
+    try { await fillFiche(books[0]); } finally { Object.assign(Recherche, {parIsbn: v.i, parTexte: v.t, completer: v.c}); }
+    return books[0].pagesTotal + '|' + books[0].pagesSource;
+  });
+  await test('Pages (F1) : la médiane d\'Open Library (toutes éditions) n\'est plus prise pour un nombre de pages', '', async () => {
+    const vrai = window.fetch;
+    // (les autres catalogues répondent « rien » : une panne simulée mettrait la BnF en pause pour les tests suivants)
+    const vide = '<srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/"><srw:numberOfRecords>0</srw:numberOfRecords></srw:searchRetrieveResponse>';
+    window.fetch = url => Promise.resolve(String(url).includes('openlibrary.org/search')
+      ? new Response(JSON.stringify({docs: [{title: 'Livre médian', author_name: ['Paul Médian'], number_of_pages_median: 321}]}), {status: 200})
+      : String(url).includes('catalogue.bnf.fr') ? new Response(vide, {status: 200}) : new Response('{}', {status: 200}));
+    try { const r = await Recherche.parTexte('Livre médian Paul Médian'); return r.length ? String(r[0].pagesTotal) : 'aucun résultat'; }
+    finally { window.fetch = vrai; }
+  });
+  await test('Pages (F1) : un nombre tapé à la main est noté « à la main »', 'manuel', async () => {
+    books = [fiche('Main', {pagesTotal: 120, pagesSource: 'edition', resumeTente: true, classTente: true, couverture: 'https://exemple.invalid/c.jpg'})];   // (rien à chercher en ligne après l'enregistrement)
+    openForm(books[0]); $('#f_total').value = '135'; $('#f_save').click(); await pause(300);
+    return books[0].pagesSource;
+  });
+  await test('Pages (F3) : une pagination « environ » ([ca 90] p.) n\'entre pas dans un filtre strict', '0 dans la liste|1 à part', async () => {
+    const vrai = window.fetch;
+    const notice = `<srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/" xmlns:m="info:lc/xmlns/marcxchange-v2"><srw:numberOfRecords>1</srw:numberOfRecords><srw:records><srw:record><srw:recordData><m:record>
+      <m:datafield tag="010"><m:subfield code="a">978-2-07-061275-8</m:subfield></m:datafield><m:datafield tag="101"><m:subfield code="a">fre</m:subfield></m:datafield>
+      <m:datafield tag="200"><m:subfield code="a">Livre approximatif</m:subfield></m:datafield><m:datafield tag="215"><m:subfield code="a">1 vol. non paginé [ca 90] p.</m:subfield></m:datafield>
+      <m:datafield tag="700"><m:subfield code="a">Test</m:subfield><m:subfield code="b">Jean</m:subfield><m:subfield code="4">070</m:subfield></m:datafield>
+      </m:record></srw:recordData><srw:recordIdentifier>ark:/12148/test</srw:recordIdentifier></srw:record></srw:records></srw:searchRetrieveResponse>`;
+    window.fetch = async () => new Response(notice, {status: 200});
+    try { const r = await Recherche.parTheme({texte: 'approximatif ' + Date.now(), max: 100}, {}); return r.res.length + ' dans la liste|' + r.inconnus.length + ' à part'; }
+    finally { window.fetch = vrai; }
+  });
+  await test('Fiche (D5) : un résumé arrivé en arrière-plan pendant que la fiche est ouverte n\'est pas effacé', 'Résumé trouvé|Mon avis', async () => {
+    books = [fiche('Fond', {resume: '', resumeTente: true, classTente: true, couverture: 'https://exemple.invalid/c.jpg'})];
+    openForm(books[0]);
+    books[0] = {...books[0], resume: 'Résumé trouvé', resumeTente: true};   // complété « pendant » la saisie
+    $('#f_avis').value = 'Mon avis'; $('#f_save').click(); await pause(300);
+    return books[0].resume + '|' + books[0].avis;
+  });
+  await test('Fiche (D6) : ajouter à la main un livre déjà présent → on demande ; « Non » ne crée pas de doublon', 'demandé|1 livre', async () => {
+    books = [fiche('Dune', {auteur: 'Frank Herbert'})];
+    openForm(null); $('#f_titre').value = 'Dune'; $('#f_auteur').value = 'Frank Herbert';
+    confirmDemande = 0; reponseConfirm = false; $('#f_save').click(); await pause(200);
+    const r = (confirmDemande ? 'demandé' : 'pas demandé') + '|' + plural(books.length, 'livre');
+    reponseConfirm = true; modalModifie = false; closeM(); await pause(250); return r;
+  });
+  await test('Version : index.html et recherche.js ont le même numéro (affiché dans les Réglages)', true, async () => {
+    openSettings(); const vu = $('#modal').textContent.includes('Version de l\'appli : ' + VERSION); closeM(); await pause(250);
+    return Recherche.VERSION === VERSION && vu;
+  });
+  await test('Sécurité : politique de contenu active (l\'appli ne parle qu\'aux catalogues prévus)', true, () => {
+    const m = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    return !!m && /connect-src 'self' https:\/\/catalogue\.bnf\.fr/.test(m.content) && /object-src 'none'/.test(m.content);
+  });
+  await test('Confidentialité : le texte « d\'après mes lectures » dit ce qui part vers les catalogues', true, () => {
+    prefs.tirage = 'perso'; ui.tab = 'decouvrir'; render(); return $('#main').textContent.includes('seules des recherches partent vers les catalogues');
+  });
+  await test('Code-barres : le lecteur de secours est rangé avec l\'appli (aucun site tiers)', true, async () => {
+    await loadZXing(); return !!window.ZXing && !document.querySelector('script[src*="unpkg"]') && !!document.querySelector('script[src="zxing.min.js"]');
+  });
+
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {
@@ -369,10 +573,11 @@
       const x = await livreMemeAuteur(books[0]);
       return !!x && /pratchett/i.test(x.auteur) && Recherche.norm(x.titre) !== 'mort' && x.raison.includes('Parce que tu as aimé');
     });
-    await test('🌐 D\'après mes lectures : un livre de ma catégorie préférée', true, async () => {
-      books = [fiche('P1', {statut: 'lu', note: 3, classements: [B('686', '320')]}), fiche('P2', {statut: 'a_lire', classements: [B('686', '320')]})];
+    await test('🌐 D\'après mes lectures (vrais catalogues) : 5 livres, chacun avec sa raison', true, async () => {
+      books = [fiche('Mort', {statut: 'lu', note: 5, auteur: 'Terry Pratchett', classements: [B('686', '803')], sujets: ['Fantasy']}),
+        fiche('Le fascisme', {statut: 'lu', note: 4, auteur: 'Pierre Milza', classements: [B('686', '320'), B('676', '320.533'), B('606', 'Fascisme')]})];
       const box = document.createElement('div'); await drawPerso(box, null);
-      return !!lastOnline && lastOnline.raison.startsWith('Tu lis souvent « Politique »') && box.querySelector('.sug') !== null;
+      return lastTirage.length === 5 && lastTirage.every(x => x.raison && x.titre) && box.querySelectorAll('.sug').length === 5;
     });
     await test('🌐 Tirage en ligne « Politique » : un livre classé Politique, avec couverture', true, async () => {
       const x = await Recherche.decouvrir('cat:politique', {exclude: () => false});
@@ -388,9 +593,9 @@
       const cles = r.res.map(x => x.isbn || x.titre);
       return r.erreur === '' && r.res.every(x => x.pagesTotal <= 100 && cats(x).includes('politique')) && cles.length === new Set(cles).size;
     });
-    await test('🌐 Les livres sans nombre de pages ne sont jamais dans la liste limitée', true, async () => {
+    await test('🌐 Les livres sans nombre de pages (ou « environ ») ne sont jamais dans la liste limitée', true, async () => {
       const r = await Recherche.parTheme({cat: 'histoire', max: 300}, {});
-      return r.res.every(x => x.pagesTotal) && r.inconnus.every(x => !x.pagesTotal);
+      return r.res.every(x => x.pagesTotal && !x.pagesEnviron && x.pagesTotal <= 300) && r.inconnus.every(x => !x.pagesTotal || x.pagesEnviron);
     });
     await test('🌐 Sujet libre « géopolitique », sans limite', true, async () => {
       const r = await Recherche.parTheme({texte: 'géopolitique', max: 0}, {}); return r.erreur === '' && r.res.length > 0;

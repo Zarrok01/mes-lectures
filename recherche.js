@@ -188,6 +188,8 @@ const Recherche = (() => {
     // « texte, Fabcaro », « scénario de X », « par X » : on garde le nom
     mention = cleanName(mention.replace(/^((par|by|de|écrit par|d'après|textes|texte|scénarios|scénario|scenario|dessins|dessin|illustrations|illustration|récit|histoire|[oœ]uvre originale|supervision|un manga de|un roman de|une histoire de|une bande dessinée de)\s*(,|:|de\b|d'|par\b)?\s*)+/i, '')
       .replace(/(\s*\.\.\.|\s*…)+$/, '').replace(/[\s,:;]+$/, ''));
+    // (tous les noms, pour la recherche par auteur : dans « Astérix », chercher Uderzo doit trouver le livre)
+    const noms = [...auteurs, ...(F['710'] || []).map(p => clean((p.a || [''])[0])).filter(Boolean)];
     let auteur = auteurs.slice(0, 3).join(', ');
     if (mention && mention.length < 80 && (!auteurs.length || norm(mention).includes(surname(auteurs[0])))) auteur = mention.replace(/\s+et\s+/g, ', ');
     if (!auteur) for (const p of F['710'] || []) { const n = clean((p.a || [''])[0]); if (n) { auteur = n; break; } }
@@ -216,7 +218,7 @@ const Recherche = (() => {
     for (const x of F['686'] || []) if (!x['2'] || /cadre de classement|bnf/i.test(x['2'][0])) ajoute('686', (x.a || [''])[0]);
     return {
       titre: clean(titre), sousTitre: clean(sousTitre), serie: cleanSerie(serie), tome,
-      auteur, pagesTotal: pages > 0 && pages < 5000 ? pages : '', pagesEnviron: pages > 0 && pagesEnviron,
+      auteur, noms, pagesTotal: pages > 0 && pages < 5000 ? pages : '', pagesEnviron: pages > 0 && pagesEnviron,
       editeur, annee, langue: first('101', 'a'), isbn: toIsbn13(first('010', 'a')),
       resume, sujets: [...new Set(sujets)].slice(0, 6), classements: classements.slice(0, 14),
       indices: [...collections, ...sujets]
@@ -296,9 +298,10 @@ const Recherche = (() => {
 
   async function openLibraryText(q) {
     const j = await getJson('https://openlibrary.org/search.json?limit=10&fields=title,subtitle,author_name,first_publish_year,number_of_pages_median,cover_i,language,subject&q=' + encodeURIComponent(q));
+    // (pas de nombre de pages : Open Library ne donne ici que la médiane de toutes les éditions, qui n'est celle d'aucune)
     return (j.docs || []).map(d => ({
       titre: clean(d.title), sousTitre: clean(d.subtitle), auteur: (d.author_name || []).slice(0, 3).join(', '),
-      pagesTotal: d.number_of_pages_median || '', annee: d.first_publish_year ? String(d.first_publish_year) : '',
+      pagesTotal: '', annee: d.first_publish_year ? String(d.first_publish_year) : '',
       langue: '', isbn: '', covers: d.cover_i ? ['https://covers.openlibrary.org/b/id/' + d.cover_i + '-L.jpg'] : [],
       indices: (d.subject || []).slice(0, 5), source: 'Open Library'
     })).filter(b => b.titre);
@@ -435,6 +438,8 @@ const Recherche = (() => {
     if (!recs.length) return [];
     const m = mergeSame(recs, PRIO_ISBN);
     m.isbn = isbn;
+    // (toutes les sources ont répondu pour CET ISBN : le nombre de pages est celui de cette édition)
+    m.pagesSource = m.pagesTotal ? 'edition' : '';
     // Couvertures : librairies françaises d'abord (Decitre, Epagine : rapides et fiables),
     // puis BnF (belle qualité mais parfois lente ou indisponible), puis le reste
     m.covers = [...new Set([...isbnCovers(isbn).slice(0, 2), ...m.covers, ...isbnCovers(isbn).slice(2)])];
@@ -508,6 +513,8 @@ const Recherche = (() => {
         .sort((a, b) => fr(a) - fr(b) || special(a) - special(b) || (+b.annee || 0) - (+a.annee || 0))[0];
       const m = mergeSame(ed ? [ed, ...sorted.filter(r => r !== ed)] : sorted, ed ? [ed.source, ...order] : order);
       if (ed) for (const f of ['isbn', 'pagesTotal', 'editeur', 'annee']) m[f] = ed[f] || m[f];
+      // Pages de l'édition de référence (celle de l'ISBN affiché), sinon venues d'une autre fiche : une estimation
+      m.pagesSource = m.pagesTotal ? (ed && ed.pagesTotal ? 'edition' : 'estimation') : '';
       // Couvertures : édition de référence d'abord, puis Apple (belle qualité), puis le reste
       const appleCov = g.filter(r => r.source === 'Apple').flatMap(r => r.covers);
       m.covers = [...new Set([...isbnCovers(m.isbn).slice(0, 1), ...appleCov, ...(ed ? ed.covers : []), ...m.covers, ...isbnCovers(m.isbn)])];
@@ -603,6 +610,8 @@ const Recherche = (() => {
       if (!best || (best.langue && best.langue !== 'fre' && x.langue === 'fre')) return x;
       const y = {...x};
       for (const f of ['pagesTotal', 'isbn', 'editeur', 'annee']) if (!y[f] && best[f]) y[f] = best[f];
+      // Pages de l'édition dont on reprend aussi l'ISBN : celles de cette édition ; sinon, d'une autre édition (estimation)
+      if (!x.pagesTotal && y.pagesTotal) y.pagesSource = !x.isbn && best.isbn ? 'edition' : 'estimation';
       y.covers = [...(x.covers || []), ...(best.covers || [])];
       return y;
     } catch (e) { return x; }
@@ -828,7 +837,7 @@ const Recherche = (() => {
           else x = (await parTexte(c.titre + ' ' + c.auteur).catch(() => [])).find(meme) || null;
           if (x) {
             x = {...x, raison: c.raison};
-            if (!x.pagesTotal) { const y = await completer(x).catch(() => x); x = {...x, pagesTotal: y.pagesTotal || '', isbn: x.isbn || y.isbn || '', covers: [...(x.covers || []), ...(y.covers || [])]}; }
+            if (!x.pagesTotal) { const y = await completer(x).catch(() => x); x = {...x, pagesTotal: y.pagesTotal || '', pagesSource: y.pagesSource || '', isbn: x.isbn || y.isbn || '', covers: [...(x.covers || []), ...(y.covers || [])]}; }
           }
         }
         if (!x || exclude(x)) continue;
@@ -982,6 +991,110 @@ const Recherche = (() => {
     memoCat.set(b, {sig, res});
     return res;
   }
+  /* ---------- Sous-catégories : pour affiner (Politique › Relations internationales…) ---------- */
+  // Chacune est déduite d'un indice Dewey (dw : début de l'indice, ou motif) ou des mots des sujets (re, texte sans accents).
+  // rech : de quoi la chercher à la BnF (sinon elle sert seulement à ranger la bibliothèque)
+  const d8 = n => new RegExp('^8\\d' + n);   // littératures : 8x1 poésie, 8x2 théâtre, 8x3 romans, 8x4 essais
+  const SOUS = [
+    {id: 'politique/ri', cat: 'politique', nom: 'Relations internationales & géopolitique', dw: ['327', '355'], re: /\b(relations internationales|geopoliti\w*|international relations|politique (internationale|etrangere)|diplomatie)\b/, rech: ['bib.dewey all "327"', 'bib.subject adj "relations internationales"', 'bib.subject adj "géopolitique"']},
+    {id: 'politique/idees', cat: 'politique', nom: 'Idées & philosophie politiques', dw: ['320.01', '320.1', '320.5'], re: /\b(philosophie politique|idees politiques|ideologies?|liberalisme|socialisme|communisme|anarchisme|fascisme|nationalisme|populisme|democratie)\b/, rech: ['bib.subject adj "philosophie politique"', 'bib.subject adj "idées politiques"']},
+    {id: 'politique/vie', cat: 'politique', nom: 'Vie politique, élections & partis', dw: ['324', '328'], re: /\b(elections?|partis politiques|vie politique|parlement|campagnes? electorales?)\b/, rech: ['bib.dewey all "324"', 'bib.subject adj "vie politique"', 'bib.subject adj "élections"']},
+    {id: 'politique/publiques', cat: 'politique', nom: 'Politiques publiques & État', dw: ['320.6', '351', '352', '353', '354'], re: /\b(politiques? publiques?|administration publique|decentralisation)\b/, rech: ['bib.dewey all "351"', 'bib.subject adj "politique publique"']},
+    {id: 'histoire/antiquite', cat: 'histoire', nom: 'Antiquité', dw: ['93'], re: /\b(antiquite|empire romain|rome antique|grece antique|egypte ancienne)\b/, rech: ['bib.dewey all "930"', 'bib.dewey all "937"', 'bib.dewey all "938"', 'bib.subject adj "antiquité"']},
+    {id: 'histoire/moyenage', cat: 'histoire', nom: 'Moyen Âge', dw: ['940.1', '944.02', '942.02'], re: /\b(moyen age|medieva\w*|croisades|feodal\w*)\b/, rech: ['bib.subject adj "moyen âge"']},
+    {id: 'histoire/moderne', cat: 'histoire', nom: 'Époque moderne (XVIe-XVIIIe siècle)', dw: ['940.2', '944.03', '944.04'], re: /\b(1[678]e siecle|revolution francaise|renaissance|ancien regime)\b/, rech: ['bib.subject adj "révolution française"', 'bib.subject adj "ancien régime"']},
+    {id: 'histoire/contemporaine', cat: 'histoire', nom: 'XIXe-XXe siècle & guerres mondiales', dw: ['940.3', '940.4', '940.5', '944.05', '944.06', '944.07', '944.08'], re: /\b(19e siecle|20e siecle|guerre mondiale|1914 1918|1939 1945|guerre d algerie|colonisation|shoah|resistance)\b/, rech: ['bib.dewey all "940.53"', 'bib.subject adj "guerre mondiale"']},
+    {id: 'histoire/france', cat: 'histoire', nom: 'Histoire de France', dw: ['944'], re: /\bfrance\b.*\bhistoire\b/, rech: ['bib.dewey all "944"']},
+    {id: 'philo/morale', cat: 'philo', nom: 'Morale & éthique', dw: ['17'], re: /\b(ethique|morale|bioethique)\b/, rech: ['bib.dewey all "170"', 'bib.subject adj "morale"', 'bib.subject adj "éthique"']},
+    {id: 'philo/antique', cat: 'philo', nom: 'Philosophie antique', dw: ['18'], re: /\b(philosophie ancienne|stoicisme|platon|aristote|epicur\w*|presocratiques?)\b/, rech: ['bib.dewey all "180"', 'bib.subject adj "philosophie ancienne"', 'bib.subject adj "stoïcisme"']},
+    {id: 'philo/moderne', cat: 'philo', nom: 'Philosophes modernes & contemporains', dw: ['19'], re: /\bphilosophie (moderne|contemporaine)\b/, rech: ['bib.dewey all "194"', 'bib.dewey all "190"']},
+    {id: 'philo/connaissance', cat: 'philo', nom: 'Connaissance, logique & esprit', dw: ['11', '12', '16'], re: /\b(logique|epistemologie|metaphysique|conscience|philosophie de l esprit)\b/, rech: ['bib.dewey all "121"', 'bib.subject adj "épistémologie"', 'bib.subject adj "logique"']},
+    {id: 'psycho/enfant', cat: 'psycho', nom: 'Enfant & adolescent', dw: ['155.4', '155.5'], re: /\b(psychologie de l enfant|enfants? psychologie|adolescents? psychologie|developpement de l enfant)\b/, rech: ['bib.subject adj "psychologie de l\'enfant"', 'bib.subject adj "adolescents -- psychologie"']},
+    {id: 'psycho/psychanalyse', cat: 'psycho', nom: 'Psychanalyse', dw: ['150.195'], re: /\b(psychanalyse|freud|lacan|inconscient)\b/, rech: ['bib.subject adj "psychanalyse"']},
+    {id: 'psycho/emotions', cat: 'psycho', nom: 'Émotions & relations', dw: ['152.4', '158.2'], re: /\b(emotions?|relations humaines|attachement|couple)\b/, rech: ['bib.subject adj "émotions"', 'bib.subject adj "relations humaines"']},
+    {id: 'psycho/cerveau', cat: 'psycho', nom: 'Cerveau & cognition', dw: ['153', '612.8'], re: /\b(cognition|memoire|neuro\w*|cerveau|intelligence)\b/, rech: ['bib.dewey all "153"', 'bib.subject adj "cognition"', 'bib.subject adj "cerveau"']},
+    {id: 'socio/genre', cat: 'socio', nom: 'Femmes, genre & féminisme', dw: ['305.4', '305.3'], re: /\b(femmes|feminisme|feministes?|genre|masculinite|egalite des sexes)\b/, rech: ['bib.dewey all "305.4"', 'bib.subject adj "féminisme"', 'bib.subject adj "femmes"']},
+    {id: 'socio/famille', cat: 'socio', nom: 'Famille & générations', dw: ['306.8', '305.2'], re: /\b(famille|familles|parentalite|generations?|vieillesse)\b/, rech: ['bib.dewey all "306.85"', 'bib.subject adj "famille"']},
+    {id: 'socio/inegalites', cat: 'socio', nom: 'Classes sociales & inégalités', dw: ['305.5', '306.36', '305.56'], re: /\b(classes sociales|inegalites|pauvrete|ouvriers|mobilite sociale|transfuges?)\b/, rech: ['bib.subject adj "classes sociales"', 'bib.subject adj "inégalités sociales"']},
+    {id: 'socio/migrations', cat: 'socio', nom: 'Migrations & discriminations', dw: ['304.8', '305.8'], re: /\b(immigration|immigres|migrations?|racisme|discriminations?)\b/, rech: ['bib.subject adj "immigration"', 'bib.subject adj "racisme"']},
+    {id: 'socio/numerique', cat: 'socio', nom: 'Numérique & médias', dw: ['302.23', '303.48'], re: /\b(reseaux sociaux|internet|medias|numerique)\b/, rech: ['bib.dewey all "302.23"', 'bib.subject adj "réseaux sociaux"']},
+    {id: 'eco/finance', cat: 'eco', nom: 'Argent, finance & banque', dw: ['332'], re: /\b(finance|banques?|monnaie|bourse|epargne|credit)\b/, rech: ['bib.dewey all "332"']},
+    {id: 'eco/travail', cat: 'eco', nom: 'Travail & emploi', dw: ['331'], re: /\b(travail|emploi|chomage|salaires?)\b/, rech: ['bib.dewey all "331"']},
+    {id: 'eco/ecologie', cat: 'eco', nom: 'Écologie & développement durable', dw: ['333.7', '338.927'], re: /\b(developpement durable|environnement|climat\w*|ecologie|transition energetique)\b/, rech: ['bib.dewey all "333.7"', 'bib.subject adj "développement durable"']},
+    {id: 'eco/monde', cat: 'eco', nom: 'Économie mondiale & mondialisation', dw: ['337', '338.9'], re: /\b(mondialisation|economie mondiale|commerce international|capitalisme)\b/, rech: ['bib.subject adj "mondialisation"', 'bib.subject adj "capitalisme"']},
+    {id: 'sciences/maths', cat: 'sciences', nom: 'Mathématiques', dw: ['51'], re: /\bmathematiques?\b/, rech: ['bib.dewey all "510"', 'bib.subject adj "mathématiques"']},
+    {id: 'sciences/astro', cat: 'sciences', nom: 'Astronomie & espace', dw: ['52'], re: /\b(astronomie|univers|cosmologie|astrophysique|planetes?)\b/, rech: ['bib.dewey all "520"', 'bib.dewey all "523"', 'bib.subject adj "astronomie"']},
+    {id: 'sciences/physique', cat: 'sciences', nom: 'Physique & chimie', dw: ['53', '54'], re: /\b(physique|chimie|quantique)\b/, rech: ['bib.dewey all "530"', 'bib.dewey all "540"']},
+    {id: 'sciences/terre', cat: 'sciences', nom: 'Terre, climat & environnement', dw: ['55', '577'], re: /\b(geologie|climat\w*|oceans?|volcans?|ecologie)\b/, rech: ['bib.dewey all "551"', 'bib.dewey all "577"']},
+    {id: 'sciences/vivant', cat: 'sciences', nom: 'Vivant : biologie, animaux, plantes', dw: ['57', '58', '59'], re: /\b(biologie|animaux|plantes|evolution|botanique|zoologie)\b/, rech: ['bib.dewey all "576"', 'bib.dewey all "590"', 'bib.dewey all "580"']},
+    {id: 'sciences/medecine', cat: 'sciences', nom: 'Médecine & santé', dw: ['61'], re: /\b(medecine|sante|maladies?)\b/, rech: ['bib.dewey all "610"', 'bib.dewey all "612"']},
+    {id: 'litterature/poesie', cat: 'litterature', nom: 'Poésie', dw: [d8(1)], cadre: '801', re: /\b(poesie|poemes|poetry)\b/},
+    {id: 'litterature/theatre', cat: 'litterature', nom: 'Théâtre', dw: [d8(2)], cadre: '802', re: /\btheatre\b/},
+    {id: 'litterature/romans', cat: 'litterature', nom: 'Romans & nouvelles', dw: [d8(3)], cadre: '803', re: /\b(romans?|nouvelles|fiction|novels?)\b/},
+    {id: 'litterature/essais', cat: 'litterature', nom: 'Essais & critique littéraire', dw: [d8(4), '80'], cadre: '804', re: /\b(histoire et critique|critique litteraire)\b/},
+    {id: 'litterature/classiques', cat: 'litterature', nom: 'Classiques', re: /\bclassiques?\b/},
+    {id: 'litterature/contemporaine', cat: 'litterature', nom: 'Littérature contemporaine', dw: ['843.92', '843.914', '823.92', '813.6'], re: /\b(21e siecle|xxie siecle|litterature contemporaine)\b/},
+    {id: 'art/musique', cat: 'art', nom: 'Musique', dw: ['78'], re: /\b(musique|chansons?|rock|jazz|rap|musiciens?)\b/, rech: ['bib.dewey all "780"', 'bib.dewey all "781"', 'bib.subject adj "musique"']},
+    {id: 'art/cinema', cat: 'art', nom: 'Cinéma & séries', dw: ['791.43', '791.45'], re: /\b(cinema|films?|series televisees)\b/, rech: ['bib.subject adj "cinéma"']},
+    {id: 'art/peinture', cat: 'art', nom: 'Peinture, dessin & arts visuels', dw: ['75', '76', '740', '741.2', '741.6', '709'], re: /\b(peinture|peintres?|dessin|gravure|art contemporain)\b/, rech: ['bib.dewey all "750"', 'bib.dewey all "759"', 'bib.subject adj "peinture"']},
+    {id: 'art/archi', cat: 'art', nom: 'Architecture & design', dw: ['72', '745', '747'], re: /\b(architecture|design|urbanisme)\b/, rech: ['bib.dewey all "720"', 'bib.subject adj "architecture"']},
+    {id: 'art/photo', cat: 'art', nom: 'Photographie', dw: ['77'], re: /\bphotographi\w*\b/, rech: ['bib.dewey all "770"', 'bib.subject adj "photographie"']},
+    {id: 'art/scene', cat: 'art', nom: 'Danse & spectacle vivant', dw: ['792', '793'], re: /\b(danse|spectacle vivant|cirque)\b/, rech: ['bib.dewey all "792"', 'bib.subject adj "danse"']},
+    {id: 'religion/christianisme', cat: 'religion', nom: 'Christianisme & Bible', dw: ['22', '23', '24', '25', '26', '27', '28'], re: /\b(christianisme|bible|eglise|catholi\w*|protestant\w*|jesus)\b/, rech: ['bib.dewey all "230"', 'bib.dewey all "220"', 'bib.subject adj "christianisme"']},
+    {id: 'religion/islam', cat: 'religion', nom: 'Islam', dw: ['297'], re: /\b(islam|coran|musulmans?)\b/, rech: ['bib.dewey all "297"', 'bib.subject adj "islam"']},
+    {id: 'religion/judaisme', cat: 'religion', nom: 'Judaïsme', dw: ['296'], re: /\b(judaisme|torah|juifs)\b/, rech: ['bib.dewey all "296"', 'bib.subject adj "judaïsme"']},
+    {id: 'religion/bouddhisme', cat: 'religion', nom: 'Bouddhisme & sagesses d\'Asie', dw: ['294'], re: /\b(bouddhisme|zen|hindouisme|tao\w*)\b/, rech: ['bib.dewey all "294"', 'bib.subject adj "bouddhisme"']},
+    {id: 'religion/spiritualite', cat: 'religion', nom: 'Spiritualité & méditation', dw: ['204', '291', '299'], re: /\b(spiritualite|meditation|mystique)\b/, rech: ['bib.subject adj "spiritualité"', 'bib.subject adj "méditation"']},
+    {id: 'bd/mangas', cat: 'bd', nom: 'Mangas', dw: ['741.5952'], re: /\b(mangas?|seinen|shonen|shojo|webtoons?)\b/},
+    {id: 'bd/comics', cat: 'bd', nom: 'Comics', dw: ['741.5973'], re: /\b(comics|super heros)\b/},
+    {id: 'bd/franco', cat: 'bd', nom: 'BD & romans graphiques', re: /\b(bandes? dessinees?|bd|romans? graphiques?|graphic novels?)\b/, sauf: ['bd/mangas', 'bd/comics']},
+    {id: 'education/petite', cat: 'education', nom: 'Petite enfance & maternelle', dw: ['372.21', '372.2'], re: /\b(petite enfance|ecole maternelle|creches?)\b/, rech: ['bib.subject adj "petite enfance"', 'bib.subject adj "école maternelle"']},
+    {id: 'education/ecole', cat: 'education', nom: 'École & enseignement', dw: ['371', '372', '373'], re: /\b(enseignement|ecoles?|colleges?|lycees?|didactique|enseignants)\b/, rech: ['bib.dewey all "371"', 'bib.dewey all "372"', 'bib.subject adj "enseignement"']},
+    {id: 'education/pedagogie', cat: 'education', nom: 'Pédagogies & apprentissages', dw: ['370.1'], re: /\b(pedagogi\w*|apprentissages?|montessori|freinet|education nouvelle)\b/, rech: ['bib.subject adj "pédagogie"', 'bib.subject adj "apprentissage"']},
+    {id: 'education/inclusion', cat: 'education', nom: 'Handicap & école inclusive', dw: ['371.9'], re: /\b(handicap\w*|inclusion|autisme|troubles? des apprentissages|dys\w*)\b/, rech: ['bib.dewey all "371.9"', 'bib.subject adj "éducation inclusive"']},
+    {id: 'social/enfance', cat: 'social', nom: 'Protection de l\'enfance', dw: ['362.7'], re: /\b(protection de l enfance|aide sociale a l enfance|enfants places|maltraitance|placement familial)\b/, rech: ['bib.dewey all "362.7"', 'bib.subject adj "protection de l\'enfance"', 'bib.subject adj "enfants placés"']},
+    {id: 'social/handicap', cat: 'social', nom: 'Handicap', dw: ['362.4', '362.3'], re: /\bhandicap\w*\b/, rech: ['bib.dewey all "362.4"', 'bib.subject adj "personnes handicapées"']},
+    {id: 'social/precarite', cat: 'social', nom: 'Précarité & exclusion', dw: ['362.5'], re: /\b(pauvrete|precarite|exclusion sociale|sans abri|sans domicile)\b/, rech: ['bib.dewey all "362.5"', 'bib.subject adj "exclusion sociale"', 'bib.subject adj "pauvreté"']},
+    {id: 'social/metier', cat: 'social', nom: 'Métier & pratiques du travail social', dw: ['361.3'], re: /\b(travail social|travailleurs sociaux|educateurs? specialises?|accompagnement social|intervention sociale)\b/, rech: ['bib.dewey all "361.3"', 'bib.subject adj "travail social"', 'bib.subject adj "travailleurs sociaux"']},
+    {id: 'social/sante', cat: 'social', nom: 'Santé mentale & addictions', dw: ['362.2'], re: /\b(sante mentale|addictions?|toxicomanie|psychiatrie)\b/, rech: ['bib.dewey all "362.2"', 'bib.subject adj "santé mentale"']},
+    {id: 'polar/thriller', cat: 'polar', nom: 'Thriller & suspense', re: /\b(thrillers?|suspense)\b/},
+    {id: 'polar/policier', cat: 'polar', nom: 'Romans policiers & enquêtes', re: /\b(romans? policiers?|policiers?|polars?|enquetes?|detectives?)\b/},
+    {id: 'polar/noir', cat: 'polar', nom: 'Roman noir', re: /\broman noir\b/},
+    {id: 'polar/espionnage', cat: 'polar', nom: 'Espionnage', re: /\bespionnage\b/},
+    {id: 'sf/dystopie', cat: 'sf', nom: 'Dystopie & anticipation', re: /\b(dystopi\w*|anticipation|post apocalyptique)\b/},
+    {id: 'sf/space', cat: 'sf', nom: 'Space opera & espace', re: /\b(space opera|espace|planetes?|galaxie)\b/},
+    {id: 'fantasy/epique', cat: 'fantasy', nom: 'Fantasy épique', re: /\b(heroic fantasy|fantasy epique|high fantasy|dragons?)\b/},
+    {id: 'fantasy/urbaine', cat: 'fantasy', nom: 'Fantasy urbaine & bit-lit', re: /\b(fantasy urbaine|urban fantasy|bit lit|vampires?)\b/},
+    {id: 'bio/autobio', cat: 'bio', nom: 'Autobiographies, mémoires & témoignages', re: /\b(autobiographi\w*|recits personnels|temoignages?|memoires|memoirs)\b/},
+    {id: 'bio/biographies', cat: 'bio', nom: 'Biographies', dw: ['92'], re: /\bbiographies?\b/},
+    {id: 'perso/bienetre', cat: 'perso', nom: 'Bien-être, stress & émotions', re: /\b(bien etre|stress|emotions?|meditation|pleine conscience)\b/},
+    {id: 'perso/confiance', cat: 'perso', nom: 'Confiance en soi & réussite', re: /\b(confiance en soi|estime de soi|reussite|motivation|efficacite)\b/},
+    {id: 'perso/relations', cat: 'perso', nom: 'Relations & communication', re: /\b(communication|relations|couple|communication non violente)\b/}
+  ];
+  const memoSous = new WeakMap();
+  function sousCategories(b) {
+    if (!b || typeof b !== 'object') return [];
+    const cats = categories(b); if (!cats.length) return [];
+    const m = memoSous.get(b); if (m && m.cats === cats) return m.res;
+    const ids = new Set(cats.map(c => c.id));
+    const cl = (Array.isArray(b.classements) ? b.classements : []).filter(k => k && k.l);
+    const codes = cl.filter(k => k.c === '676').map(k => String(k.l).replace(/\s+/g, ''));
+    const cadres = cl.filter(k => k.c === '686').map(k => String(k.l).trim());
+    const textes = [...cl.filter(k => /^60/.test(k.c)).map(k => k.l), ...(Array.isArray(b.sujets) ? b.sujets : [])].map(norm);
+    const res = [];
+    for (const sc of SOUS) {
+      if (!ids.has(sc.cat)) continue;
+      const parCode = codes.find(c => (sc.dw || []).some(d => d instanceof RegExp ? d.test(c) : c.startsWith(d)));
+      const parCadre = sc.cadre && cadres.includes(sc.cadre);
+      const parMot = sc.re && textes.find(t => sc.re.test(t));
+      if (parCode || parCadre || parMot) res.push({id: sc.id, cat: sc.cat, nom: sc.nom,
+        raison: parCode ? 'indice Dewey ' + parCode : parCadre ? 'classement ' + sc.cadre : 'sujet « ' + parMot + ' »'});
+    }
+    const out = res.filter(r => !(SOUS.find(z => z.id === r.id).sauf || []).some(x => res.some(y => y.id === x)));
+    memoSous.set(b, {cats, res: out});
+    return out;
+  }
+
   // « philo » → Philosophie, « polar » → Policier & thriller…
   const themePourTexte = t => { const n = norm(t); return n ? CATS.find(c => [c.nom, ...c.mots].some(x => norm(x) === n)) || null : null; };
 
@@ -1041,6 +1154,29 @@ const Recherche = (() => {
     return null;
   }
 
+  // Le livre est-il bien de cet auteur ? (tous ses noms : auteur, scénariste, dessinateur… mais pas préfacier ni traducteur)
+  function estDeLAuteur(r, auteur) {
+    const tokens = norm([r.auteur, ...(r.noms || [])].join(' ')).split(' ');
+    return words(auteur).every(w => tokens.some(m => m === w || (w.length > 2 && m.startsWith(w))));
+  }
+  // Apple Books ne dit pas la langue : on la devine avec les petits mots du titre et de la présentation
+  function estFrancais(t) {
+    const n = ' ' + norm(t) + ' ';
+    const fr = (n.match(/ (le|la|les|des|une|et|du|est|dans|pour|qui|sur|avec) /g) || []).length;
+    const en = (n.match(/ (the|and|of|to|with|is|in|for|this|that|from) /g) || []).length;
+    return fr >= en;
+  }
+  // 2e source pour la recherche par auteur : Apple Books (beaucoup de livres récents, belles couvertures, mais sans nombre de pages)
+  async function appleAuteur(auteur) {
+    const j = await getJson('https://itunes.apple.com/search?country=fr&media=ebook&entity=ebook&attribute=authorTerm&limit=60&term=' + encodeURIComponent(auteur), 10000);
+    return (j.results || []).map(r => ({
+      titre: storeTitle(r.trackName), auteur: (r.artistName || '').split(/\s*&\s*/).slice(0, 3).join(', '),
+      annee: (r.releaseDate || '').slice(0, 4), langue: 'fre', isbn: '', pagesTotal: '', editeur: '',
+      covers: r.artworkUrl100 ? [r.artworkUrl100.replace(/\d+x\d+bb/, '600x600bb')] : [],
+      resume: cleanResume(r.description), sujets: (r.genres || []).filter(g => g !== 'Livres'), indices: r.genres || [], classements: [],
+      source: 'Apple', _texte: r.trackName + ' ' + (r.description || '').slice(0, 400)
+    })).filter(b => b.titre && !JUNK.test(b.titre) && estDeLAuteur(b, auteur) && estFrancais(b._texte)).map(splitTome);
+  }
   async function editionsFr(c) {
     const titre = clean(String(c.titre || '').replace(/["*?()]/g, ' ')).slice(0, 80), sn = surname(c.auteur), nt = norm(titre);
     if (!titre) return [];
@@ -1049,6 +1185,7 @@ const Recherche = (() => {
       (norm(r.titre) === nt || norm(r.titre).startsWith(nt + ' ') || (norm(r.titre).length > 6 && nt.startsWith(norm(r.titre)))));
   }
   const versResultat = (r, extra) => ({...r, sources: [r.source || 'BnF'], genre: guessGenre(r.indices),
+    pagesSource: r.pagesTotal ? (r.isbn ? 'edition' : 'estimation') : '',
     covers: [...new Set([...isbnCovers(r.isbn).slice(0, 2), ...(r.covers || [])])], ...extra});
 
   // o : {cat, texte, max (0 = sans limite), exclude(livre), stop()} — cur : où on en est (pour « Plus de résultats »)
@@ -1059,6 +1196,7 @@ const Recherche = (() => {
     const vus = cur.vus || (cur.vus = new Set());
     const stop = () => !!(o.stop && o.stop());
     const cat = CATS.find(c => c.id === o.cat) || null;
+    const sous = SOUS.find(z => z.id === o.sous && z.rech && (!cat || z.cat === cat.id)) || null;
     const texte = clean(String(o.texte || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
     // Recherche par auteur ou par titre (toutes les éditions françaises de la BnF ; une seule par livre)
     const auteur = clean(String(o.auteur || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
@@ -1069,7 +1207,8 @@ const Recherche = (() => {
       if (vus.has(k) || (r.isbn && vus.has(r.isbn))) return;
       if (r.pagesTotal && max && r.pagesTotal > max) { out.trop++; return; }
       vus.add(k); if (r.isbn) vus.add(r.isbn);
-      (!r.pagesTotal && max ? out.inconnus : out.res).push(versResultat(r, extra));
+      // (une pagination approximative du catalogue, « [ca 168] p. », n'est pas sûre : rangée à part, comme les inconnues)
+      (max && (!r.pagesTotal || r.pagesEnviron) ? out.inconnus : out.res).push(versResultat(r, extra));
     };
     try {
       if (cat && RECH_FICTION[cat.id] && !auteur && !titre) {
@@ -1101,31 +1240,50 @@ const Recherche = (() => {
         out.fin = cur.ci >= cur.cands.length;
       } else {
         if (!cat && !texte && !auteur && !titre) { out.fin = true; return out; }
+        // (Apple Books : demandé une seule fois par recherche, en même temps que la BnF)
+        const apple = auteur && !cur.appleFait ? (cur.appleFait = true, appleAuteur(auteur).catch(() => [])) : null;
         const parts = [];
         if (auteur) parts.push('bib.author all "' + auteur + '"');
         if (titre) parts.push('bib.title all "' + titre + '"');
-        if (cat && RECH[cat.id]) parts.push('(' + RECH[cat.id].join(' or ') + ')');
+        if (sous) parts.push('(' + sous.rech.join(' or ') + ')');
+        else if (cat && RECH[cat.id]) parts.push('(' + RECH[cat.id].join(' or ') + ')');
         if (texte) parts.push(parts.length ? 'bib.subject all "' + texte + '"' : 'bib.subject adj "' + texte + '"');
         let q = parts.join(' and ');
         // Les plus récents d'abord (livres qu'on trouve encore en librairie), sans les annonces de livres pas encore parus
         q += BASE + ' and bib.publicationdate <= "' + new Date().getFullYear() + '" sortBy Dat/sort.descending';
         cur.start = cur.start || 1;
-        let lots = 0;
-        // (2 paquets de 50 fiches au plus par demande : « Plus de résultats » va chercher la suite)
-        while (out.res.length < 10 && lots < 2 && !stop()) {
-          const {total, recs} = await bnfLot(q, cur.start, 50);
-          lots++; cur.start += 50; cur.total = total;
-          for (const r of recs) {
-            out.examines++;
-            if (!r.titre || !r.isbn || JUNK.test(r.titre) || (r.langue && r.langue !== 'fre')) continue;
-            // Revérification : le classement de la fiche doit correspondre au thème
-            if (cat && RECH[cat.id] && !categories(r).some(c => c.id === cat.id)) continue;
-            // (par auteur : l'auteur doit vraiment être celui cherché, pas un préfacier ou un traducteur)
-            if (auteur && !words(auteur).every(w => norm(r.auteur).split(' ').some(m => m === w || m.startsWith(w)))) continue;
-            garder(r, {theme: cat ? cat.id : ''});
+        let lots = 0, panneBnf = null;
+        try {
+          // (2 paquets de 50 fiches au plus par demande : « Plus de résultats » va chercher la suite)
+          while (out.res.length < 10 && lots < 2 && !stop()) {
+            const {total, recs} = await bnfLot(q, cur.start, 50);
+            lots++; cur.start += 50; cur.total = total;
+            for (const r of recs) {
+              out.examines++;
+              if (!r.titre || !r.isbn || JUNK.test(r.titre) || (r.langue && r.langue !== 'fre')) continue;
+              // Revérification : le classement de la fiche doit correspondre au thème
+              if (cat && RECH[cat.id] && !categories(r).some(c => c.id === cat.id)) continue;
+              if (sous && !sousCategories(r).some(z => z.id === sous.id)) continue;
+              // (par auteur : l'auteur doit vraiment être celui cherché, pas un préfacier ou un traducteur)
+              if (auteur && !estDeLAuteur(r, auteur)) continue;
+              // (le nom cherché n'est pas parmi les noms affichés, ex. le dessinateur d'Astérix : on l'ajoute pour qu'on comprenne)
+              let fiche = r;
+              if (auteur && !estDeLAuteur({auteur: r.auteur}, auteur)) {
+                const nom = (r.noms || []).find(n => estDeLAuteur({auteur: n}, auteur));
+                if (nom) fiche = {...r, auteur: r.auteur ? r.auteur + ', ' + nom : nom};
+              }
+              garder(fiche, {theme: cat ? cat.id : ''});
+            }
+            if (onProgress) onProgress(out);
+            if (cur.start > total) { out.fin = true; break; }
           }
+        } catch (e) { if (!apple) throw e; panneBnf = e; }
+        // Les livres de l'auteur trouvés sur Apple Books en plus (sans nombre de pages : rangés à part quand il y a une limite)
+        if (apple) {
+          for (const r of await apple) { out.examines++; garder(r, {theme: ''}); }
           if (onProgress) onProgress(out);
-          if (cur.start > total) { out.fin = true; break; }
+          if (panneBnf && !out.res.length && !out.inconnus.length) throw panneBnf;
+          if (panneBnf) { out.note = 'bnf'; out.fin = true; }
         }
       }
     } catch (e) { out.erreur = e.status === 503 ? 'pause' : e.status === 400 ? 'requete' : 'reseau'; }
@@ -1133,8 +1291,9 @@ const Recherche = (() => {
   }
 
   const api = {
+    VERSION: '2026.10.20-2',   // (le même numéro que dans index.html)
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
-    CATS, THEMES_RECHERCHE, categories, themePourTexte, parTheme, classement, unirClassements, deweyCats,
+    CATS, SOUS, sousCategories, THEMES_RECHERCHE, categories, themePourTexte, parTheme, classement, unirClassements, deweyCats,
     parIsbn, parTexte, completer, couverture, chercherCouvertures, isbnCovers, placeholder,
     resume, decouvrir, selection, THEMES, THEMES_TIRAGE, SOURCES_DECOUVERTE,
     setGoogleKey(k) { googleKey = k || ''; googleBlockedUntil = 0; },

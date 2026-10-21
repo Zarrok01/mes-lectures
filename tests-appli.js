@@ -15,7 +15,7 @@
     resultats.push({nom, attendu, obtenu, ok});
   }
   const ids = l => l.map(c => c.id);
-  const cats = b => ids(Recherche.categories(b));
+  const cats = b => ids(Recherche.rayons(b));
   const vider = async () => { books = []; goal = 0; await Store.persist(); localStorage.removeItem(CLE + '-data'); };
   const fiche = (titre, extra) => norm({...blankBook('a_lire'), id: 't-' + titre, titre, auteur: 'Auteur Test', ...extra});
   // Les tests 🌐 interrogent vraiment les catalogues (BnF…) : seulement sur demande (index.html?tests&enligne),
@@ -26,31 +26,113 @@
   const vraiConfirm = window.confirm;
   let reponseConfirm = true, confirmDemande = 0;
   window.confirm = () => { confirmDemande++; return reponseConfirm; };
+  // (la fenêtre de confirmation de l'appli reçoit aussi la réponse prévue, et compte comme une question posée)
+  const repondeur = new MutationObserver(() => {
+    if (!$('#askOv').classList.contains('show')) return;
+    confirmDemande++; setTimeout(() => $(reponseConfirm ? '#askOui' : '#askNon').click(), 0);
+  });
+  if ($('#askOv')) repondeur.observe($('#askOv'), {attributes: true, attributeFilter: ['class']});
 
   await vider();
   // Mémoire de test propre : les livres « déjà proposés » ou refusés lors d'un passage précédent ne doivent pas fausser celui-ci
   prefs.proposes = []; prefs.nonMerci = []; prefs.selection = null; savePrefs();
 
-  /* ---------- 1. Catégories (règles de classement) ---------- */
+  /* ---------- 1. Rayons de librairie (règles de rangement) ---------- */
   const B = (c, l) => ({c, l, s: 'BnF'});
-  await test('Catégorie : code BnF 320 → Politique', ['politique'], () => cats({classements: [B('686', '320'), B('676', '320.533 094')]}));
-  await test('Catégorie : histoire de la Syrie avec « Politique et gouvernement » → Histoire seulement', ['histoire'],
+  const rs = b => { const x = Recherche.classer(b); return [...x.rayons, ...x.sous].map(c => c.id); };
+  await test('Rayon : code BnF 320 → Politique & Société', ['politique'], () => cats({classements: [B('686', '320'), B('676', '320.533 094')]}));
+  await test('Rayon : histoire de la Syrie avec « Politique et gouvernement » → Histoire seulement', ['histoire'],
     () => cats({classements: [B('676', '956.910 4'), B('686', '940'), B('606', 'Syrie -- Politique et gouvernement')]}));
-  await test('Catégorie : droit social → Droit (pas Politique)', ['droit'], () => cats({classements: [B('676', '344.01'), B('606', 'Droit social')]}));
-  await test('Catégorie : plusieurs catégories (320.01 + 342)', ['politique', 'droit'], () => cats({classements: [B('676', '342.040 1'), B('676', '320.01')]}));
-  await test('Catégorie : anglais « Political science »', ['politique'], () => cats({sujets: ['Political science', 'Politics and government']}));
-  await test('Catégorie : « Économie politique » → Économie', ['eco'], () => cats({sujets: ['Économie politique']}));
-  await test('Catégorie : livre sans aucune donnée → aucune', [], () => cats({titre: 'X'}));
-  await test('Catégorie : sujet inconnu → aucune', [], () => cats({sujets: ['Zzzz inconnu']}));
-  await test('Catégorie : rayon Apple « SF et fantasy » sur un roman classé 803', ['litterature', 'fantasy', 'sf'],
-    () => cats({classements: [B('686', '803')], sujets: ['Science-fiction et fantasy']}));
-  await test('Catégorie : le rayon Apple « Histoire » n\'ajoute pas Histoire à un roman classé', ['litterature'],
-    () => cats({classements: [B('686', '803')], sujets: ['Histoire']}));
-  await test('Catégorie : correction à la main (retirée / ajoutée)', ['histoire'],
+  await test('Rayon : droit social → Économie, Entreprise & Droit › Droit (pas Politique)', ['eco', 'eco/droit'], () => rs({classements: [B('676', '344.01'), B('606', 'Droit social')]}));
+  await test('Rayon : plusieurs rayons (320.01 + 342)', ['politique', 'eco'], () => cats({classements: [B('676', '342.040 1'), B('676', '320.01')]}));
+  await test('Rayon : anglais « Political science »', ['politique'], () => cats({sujets: ['Political science', 'Politics and government']}));
+  await test('Rayon : « Économie politique » → Économie', ['eco'], () => cats({sujets: ['Économie politique']}));
+  await test('Rayon : livre sans aucune donnée → aucun', [], () => cats({titre: 'X'}));
+  await test('Rayon : sujet inconnu → aucun', [], () => cats({sujets: ['Zzzz inconnu']}));
+  await test('Rayon : rayon Apple « SF et fantasy » sur un roman classé 803 → Imaginaire seulement', ['imaginaire', 'imaginaire/sf', 'imaginaire/fantasy'],
+    () => rs({classements: [B('686', '803')], sujets: ['Science-fiction et fantasy']}));
+  await test('Rayon : le rayon Apple « Histoire » n\'ajoute pas Histoire à un roman classé', ['litterature', 'litterature/romans'],
+    () => rs({classements: [B('686', '803')], sujets: ['Histoire']}));
+  await test('Rayon : correction à la main (retiré / ajouté)', ['histoire'],
     () => cats({classements: [B('686', '320')], catNon: ['politique'], catOui: ['histoire']}));
-  await test('Catégorie : la raison garde la source d\'origine', 'BnF : classement 320 (Sciences politiques)',
-    () => Recherche.categories({classements: [B('686', '320')]})[0].raisons[0]);
-  await test('Catégorie : texte « philo » → thème Philosophie', 'philo', () => Recherche.themePourTexte('philo').id);
+  await test('Rayon : la raison garde la source d\'origine', 'BnF : classement 320 (Sciences politiques)',
+    () => Recherche.rayons({classements: [B('686', '320')]})[0].raisons[0]);
+  await test('Rayon : texte « philo » → Sciences humaines › Philosophie', 'shs|shs/philo', () => { const t = Recherche.rayonPourTexte('philo'); return t.rayon.id + '|' + t.sous; });
+  await test('Rayons : un livre-exemple par rayon (codes et sujets réels)', [], () => {
+    const cas = [
+      [{classements: [B('676', '641.5')]}, ['pratique', 'pratique/cuisine']],
+      [{classements: [B('686', '803'), B('606', 'Roman sentimental')]}, ['romance']],
+      [{classements: [B('686', '803')], sujets: ['Ados']}, ['ya']],
+      [{classements: [B('676', '914.4')]}, ['voyages', 'voyages/guides']],
+      [{classements: [B('676', '133.5')]}, ['religion', 'religion/esoterisme']],
+      [{classements: [B('676', '362.7')]}, ['shs', 'shs/social']],
+      [{classements: [B('676', '005.1')]}, ['sciences', 'sciences/info']],
+      [{classements: [B('676', '327.1')]}, ['politique', 'politique/ri']],
+      [{classements: [B('676', '944.04')]}, ['histoire', 'histoire/moderne', 'histoire/france']],
+      [{classements: [B('676', '741.5952')]}, ['bd', 'bd/mangas']],
+      [{classements: [B('676', '791.43')]}, ['art', 'art/cinema']],
+      [{classements: [B('676', '158.1')]}, ['pratique', 'pratique/perso']],
+      [{classements: [B('676', '649.1')]}, ['pratique', 'pratique/famille']],
+      [{classements: [B('676', '423')]}, ['reference']],
+      [{classements: [B('676', '843.914')]}, ['litterature', 'litterature/romans']]
+    ];
+    return cas.filter(([b, attendu]) => !egal(rs(b), attendu)).map(([b, attendu]) => JSON.stringify(b.classements.map(k => k.l)) + ' → ' + rs(b).join(',') + ' (attendu ' + attendu.join(',') + ')');
+  });
+  await test('Rayon de genre : un polar n\'est pas aussi rangé dans Littérature', ['polar', 'polar/policier'],
+    () => rs({classements: [B('686', '803'), B('606', 'Romans policiers')]}));
+  await test('Rayon de genre : la poésie fantastique garde Littérature › Poésie', ['litterature', 'imaginaire', 'litterature/poesie', 'imaginaire/fantastique'],
+    () => rs({classements: [B('676', '841'), B('606', 'Fantastique')]}));
+  await test('Rayon de genre : un ajout à la main de Littérature est respecté', ['litterature', 'polar', 'polar/policier'],
+    () => rs({classements: [B('686', '803'), B('606', 'Romans policiers')], catOui: ['litterature']}));
+  await test('Corrections : ajouter un sous-rayon ajoute son rayon', ['shs', 'shs/social'], () => rs({titre: 'X', catOui: ['shs/social']}));
+  await test('Corrections : retirer le seul sous-rayon retire le rayon', [], () => rs({classements: [B('686', '1')], catNon: ['shs/philo']}));
+  await test('Corrections : retirer un sous-rayon garde le rayon s\'il a une autre raison', ['shs', 'shs/psycho'],
+    () => rs({classements: [B('676', '152.4'), B('606', 'Philosophie')], catNon: ['shs/philo']}));
+  await test('Rangement recalculé quand la fiche change sur place (même nombre de classements)', 'politique|histoire', () => {
+    const b = {classements: [B('676', '320')]}; const a = cats(b).join();
+    b.classements[0] = B('676', '944'); return a + '|' + cats(b).join();
+  });
+  await test('Conversion des anciens noms', ['shs/philo', 'shs/social', 'politique/societe', 'bd/bd', 'polar/noir', 'politique', ''],
+    () => ['philo', 'social/enfance', 'socio/genre', 'bd/franco', 'polar/noir', 'politique', 'zzz'].map(Recherche.convertirAncienId));
+  // (relecture finale : corriger à la main le genre d'un roman de la BnF, tous classés 803)
+  await test('Correction du genre : retirer « Policier » d\'un roman 803 le remet en Littérature › Romans', ['litterature', 'litterature/romans'],
+    () => rs({classements: [B('686', '803'), B('606', 'Romans policiers')], catNon: ['polar']}));
+  await test('Correction du genre : ajouter « Policier » à un roman 803 le sort de Littérature', ['polar'],
+    () => rs({classements: [B('686', '803')], catOui: ['polar']}));
+  await test('Sous-rayons : l\'indice le plus précis ne donne pas un second sous-rayon faux', [], () => {
+    const cas = [
+      [{classements: [B('676', '577.27')]}, ['sciences', 'sciences/terre']],
+      [{classements: [B('676', '944.083')]}, ['histoire', 'histoire/depuis1945', 'histoire/france']],
+      [{classements: [B('676', '940.55')]}, ['histoire', 'histoire/depuis1945']],
+      [{classements: [B('676', '801.95')]}, ['litterature', 'litterature/essais']],
+      [{classements: [B('676', '944.081')]}, ['histoire', 'histoire/contemporaine', 'histoire/france']]
+    ];
+    return cas.filter(([b, attendu]) => !egal(rs(b), attendu)).map(([b, attendu]) => b.classements[0].l + ' → ' + rs(b).join(',') + ' (attendu ' + attendu.join(',') + ')');
+  });
+  // (points mineurs de la relecture, mots validés par Elias le 21/10/2026 : vins, entreprise, médias, migrations humaines ;
+  //  santé, nature et internet servent seulement à préciser un rayon déjà trouvé)
+  await test('Mots des sujets : vins, entreprise, médias, migrants rangés ; « migrations » seul et « santé » seul non', [], () => {
+    const cas = [
+      [{sujets: ['Vins']}, ['pratique', 'pratique/cuisine']],
+      [{sujets: ['Entreprises -- Gestion']}, ['eco', 'eco/entreprise']],
+      [{sujets: ['Médias -- Aspect politique']}, ['politique', 'politique/societe']],
+      [{sujets: ['Réfugiés']}, ['politique', 'politique/societe']],
+      [{sujets: ['Migrations humaines']}, ['politique', 'politique/societe']],
+      [{sujets: ['Oiseaux -- Migrations']}, []],
+      [{sujets: ['Santé publique']}, []],
+      [{sujets: ['Nature']}, []]
+    ];
+    return cas.filter(([b, attendu]) => !egal(rs(b), attendu)).map(([b, attendu]) => b.sujets[0] + ' → ' + rs(b).join(',') + ' (attendu ' + attendu.join(',') + ')');
+  });
+  await test('Mots « santé », « nature », « internet » : ils précisent un rayon déjà trouvé', 'pratique,pratique/sante,pratique/maison|pratique,pratique/cuisine,pratique/nature|politique,politique/societe', () =>
+    [rs({classements: [B('676', '646.7')], sujets: ['Santé']}), rs({classements: [B('676', '641')], sujets: ['Nature']}),
+      rs({classements: [B('676', '320')], sujets: ['Internet']})].map(l => l.join()).join('|'));
+  await test('Dewey 745 (design) → Arts › Architecture & design ; 745.5 (loisirs créatifs) → Vie pratique › Maison', 'art,art/archi|pratique,pratique/maison',
+    () => rs({classements: [B('676', '745.2')]}).join() + '|' + rs({classements: [B('676', '745.5')]}).join());
+  await test('Corrections : retirer le sous-rayon qui justifiait seul le rayon retire aussi les sous-rayons trouvés par affinage', [],
+    () => rs({classements: [B('676', '362.7')], sujets: ['Apprentissage'], catNon: ['shs/social']}));
+  await test('Rayons en ligne : « Humour » ou « Biographies » n\'ajoutent pas Littérature à un essai classé', ['politique'],
+    () => cats({classements: [B('676', '320')], sujets: ['Humour', 'Biographies']}));
 
   /* ---------- 2. Nettoyage des fiches (sauvegarde abîmée ou trafiquée) ---------- */
   await test('Fiche : date piégée effacée (pas de code dans l\'appli)', '', () => norm({titre: 'a', pretRetour: '0<img src=x onerror=alert(1)>'}).pretRetour);
@@ -139,7 +221,7 @@
     const avant = cats(books[0]);
     await restaurer({app: 'mes-lectures', version: 2, date: new Date().toISOString(), goal: 0, books: JSON.parse(JSON.stringify(books))});
     $('#r_ok').click(); await pause(400);
-    return egal(cats(books[0]), avant) && egal(avant, ['politique', 'histoire']);
+    return egal(cats(books[0]), avant) && egal(avant, ['histoire', 'politique']);
   });
 
   /* ---------- 5. « Compléter mes livres » n'écrase rien (D5) ---------- */
@@ -172,6 +254,39 @@
   await test('Fond grisé : fiche non modifiée → fermée sans question', 'fermée|0', async () => {
     openForm(null); await pause(50); confirmDemande = 0;
     $('#ov').click(); await pause(100);
+    return ($('#ov').classList.contains('show') ? 'ouverte' : 'fermée') + '|' + confirmDemande;
+  });
+  // (ergonomie, défaut 1 : le bouton « Annuler » fermait une fiche modifiée sans rien demander)
+  await test('Bouton « Annuler » : fiche modifiée → on demande avant de fermer, « Non » la garde ouverte', 'demandé|ouverte', async () => {
+    openForm(null); await pause(50);
+    $('#f_avis').value = 'Un avis tapé'; $('#f_avis').dispatchEvent(new Event('input', {bubbles: true}));
+    confirmDemande = 0; reponseConfirm = false;
+    document.querySelector('#modal [data-close]').click(); await pause(100);
+    const r = (confirmDemande ? 'demandé' : 'pas demandé') + '|' + ($('#ov').classList.contains('show') ? 'ouverte' : 'fermée');
+    reponseConfirm = true; modalModifie = false; closeM(); await pause(250);
+    return r;
+  });
+  // (ergonomie, défaut 3 : notes en pastille blanc sur jaune ou vert clair, contraste 2,2 à 3,4 pour 4,5 exigés)
+  await test('Notes en pastille : contraste lisible (au moins 4,5) pour les notes 1 à 5', [], async () => {
+    books = [1, 2, 3, 4, 5].map(n => fiche('Note ' + n, {statut: 'lu', note: n}));
+    ui.tab = 'lu'; render();
+    const lum = c => { const v = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(x => +x / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
+    const ratio = el => { const s = getComputedStyle(el), a = lum(s.color), b = lum(s.backgroundColor); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
+    const faibles = [1, 2, 3, 4, 5].map(n => [n, document.querySelector('#list .score.n' + n)]).filter(([, el]) => !el || ratio(el) < 4.5)
+      .map(([n, el]) => 'note ' + n + ' : ' + (el ? ratio(el).toFixed(2) : 'absente'));
+    ui.tab = 'en_cours'; render();
+    return faibles;
+  });
+  // (ergonomie, défaut 2 : la dernière page tapée était perdue si on fermait la fiche « Bravo, livre terminé »)
+  await test('« Où j\'en suis » : la dernière page est gardée même si on ferme la fiche « Bravo »', '200|200', async () => {
+    books = [fiche('Presque fini', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 150})];
+    openPage(books[0]); $('#p_val').value = '200'; $('#p_ok').click(); await pause(100);
+    modalModifie = false; closeM(); await pause(250);
+    const b = books[0]; return b.pageActuelle + '|' + (b.journal.find(e => e.page === 200) || {}).page;
+  });
+  await test('Bouton « Annuler » : fiche non modifiée → fermée sans question', 'fermée|0', async () => {
+    openForm(null); await pause(50); confirmDemande = 0;
+    document.querySelector('#modal [data-close]').click(); await pause(250);
     return ($('#ov').classList.contains('show') ? 'ouverte' : 'fermée') + '|' + confirmDemande;
   });
 
@@ -207,11 +322,11 @@
     const l = [...document.querySelectorAll('#list .card .t')].map(e => e.textContent.trim());
     ui.cat = ''; ui.sort = 'recent'; render(); return l;
   });
-  await test('Export Excel : colonne « Catégories » et cellule « =formule » neutralisée', 'Catégories|\'=1+1', () => {
+  await test('Export Excel : colonne « Rayons » et cellule « =formule » neutralisée', 'Rayons|\'=1+1', () => {
     books = [fiche('=1+1', {classements: [B('686', '320')]})];
     let csv = ''; const dl = window.download; window.download = (n, c) => { csv = c; };
     doExport('excel'); window.download = dl;
-    return (csv.includes('"Catégories"') ? 'Catégories' : '?') + '|' + (csv.includes('"\'=1+1"') ? '\'=1+1' : 'non neutralisée');
+    return (csv.includes('"Rayons"') ? 'Rayons' : '?') + '|' + (csv.includes('"\'=1+1"') ? '\'=1+1' : 'non neutralisée');
   });
 
   /* ---------- 8 bis. Étape 5 : stabilisation ---------- */
@@ -314,9 +429,10 @@
   });
 
   /* ---------- 8 ter. Tirage au sort : toutes les catégories ---------- */
-  const attendus = ['roman', 'polar', 'sf', 'fantasy', 'bd', 'manga', 'histoire', 'essai', 'perso', 'social', 'romance', 'classique', 'jeunesse',
-    'cat:politique', 'cat:histoire', 'cat:philo', 'cat:psycho', 'cat:socio', 'cat:eco', 'cat:sciences', 'cat:bio', 'cat:education', 'cat:social', 'cat:art', 'cat:droit', 'cat:religion'];
+  const attendus = ['roman', 'polar', 'sf', 'fantasy', 'bd', 'manga', 'histoire', 'essai', 'perso', 'social', 'romance', 'classique', 'jeunesse', 'ya',
+    'cat:histoire', 'cat:politique', 'cat:shs', 'cat:religion', 'cat:art', 'cat:voyages', 'cat:pratique', 'cat:eco', 'cat:sciences'];
   await test('Tirage en ligne : toutes les catégories sont proposées', [], () => attendus.filter(id => !Recherche.THEMES_TIRAGE.some(t => t.id === id)));
+  await test('Tirage en ligne : jamais « Dictionnaires & Scolaire »', false, () => Recherche.THEMES_TIRAGE.some(t => t.id === 'cat:reference'));
   await test('Tirage en ligne : les mêmes thèmes dans Découvrir et dans « Que lire ensuite »', true, async () => {
     const avant = prefs.tirage; prefs.tirage = 'hasard';   // (les thèmes s'affichent en mode « Au hasard »)
     ui.tab = 'decouvrir'; render(); const dc = document.querySelectorAll('#dc_theme [data-v]').length;
@@ -371,14 +487,14 @@
   });
 
   /* ---------- 8 octies. Sous-catégories et « d'après mes lectures » (5 livres) ---------- */
-  await test('Sous-catégories : 327 → Relations internationales, 362.7 → Protection de l\'enfance', ['politique/ri', 'social/enfance'], () =>
-    [...Recherche.sousCategories({classements: [B('686', '320'), B('676', '327.101')]}), ...Recherche.sousCategories({classements: [B('686', '360'), B('676', '362.709 44')]})].map(z => z.id));
+  await test('Sous-rayons : 327 → Géopolitique, 362.7 → Travail social', ['politique/ri', 'shs/social'], () =>
+    [...Recherche.sousRayons({classements: [B('686', '320'), B('676', '327.101')]}), ...Recherche.sousRayons({classements: [B('686', '360'), B('676', '362.709 44')]})].map(z => z.id));
   await test('Bibliothèque : filtre par sous-catégorie', ['Géopo'], () => {
     books = [fiche('Géopo', {classements: [B('686', '320'), B('676', '327.1')]}), fiche('Élections', {classements: [B('686', '320'), B('676', '324.6')]})];
     ui.tab = 'a_lire'; ui.cat = 'sous:politique/ri'; render();
     const l = [...document.querySelectorAll('#list .card .t')].map(e => e.textContent.trim()); ui.cat = ''; render(); return l;
   });
-  await test('Mon profil : série à continuer, auteurs, sujets précis', 'Les Annales|2 auteurs|Relations internationales & géopolitique,Idées & philosophie politiques,Fascisme', () => {
+  await test('Mon profil : série à continuer, auteurs, sujets précis', 'Les Annales|2 auteurs|Géopolitique & relations internationales,Idées politiques,Fascisme', () => {
     books = [fiche('T1', {statut: 'lu', note: 5, serie: 'Les Annales', tome: 1, auteur: 'Terry Pratchett'}),
       fiche('Géo', {statut: 'lu', note: 4, auteur: 'Pascal Boniface', classements: [B('686', '320'), B('676', '327.1'), B('606', 'Fascisme -- Italie')]})];
     const p = monProfil();
@@ -557,6 +673,147 @@
     await loadZXing(); return !!window.ZXing && !document.querySelector('script[src*="unpkg"]') && !!document.querySelector('script[src="zxing.min.js"]');
   });
 
+  /* ---------- 8 decies. Rayons : recherche et tirage ---------- */
+  // Faux catalogue BnF : note chaque requête et répond « 0 livre »
+  const fauxBnf = async (fn) => {
+    const vrai = window.fetch, requetes = [];
+    window.fetch = async url => {
+      const u = String(url); if (u.includes('catalogue.bnf.fr')) requetes.push(decodeURIComponent(u.split('query=')[1] || ''));
+      return new Response('<srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/"><srw:numberOfRecords>0</srw:numberOfRecords><srw:records/></srw:searchRetrieveResponse>', {status: 200});
+    };
+    try { await fn(); } finally { window.fetch = vrai; Recherche._oublierBnf(); }
+    return requetes;
+  };
+  await test('Recherche par thème : tous les rayons sauf « Dictionnaires & Scolaire »', 'reference absent|romance,ya,voyages,pratique,shs présents', () => {
+    const ids = Recherche.THEMES_RECHERCHE.map(r => r.id);
+    return (ids.includes('reference') ? 'reference présent' : 'reference absent') + '|' +
+      (['romance', 'ya', 'voyages', 'pratique', 'shs'].every(id => ids.includes(id)) ? 'romance,ya,voyages,pratique,shs présents' : ids.join(','));
+  });
+  await test('Rayon trop large (Sciences humaines) : ses 5 sous-rayons interrogés à tour de rôle, 20 termes au plus', 'philo,psycho,socio,education,social|max 20|fin', async () => {
+    // (texte unique : la BnF garde ses réponses 30 minutes, ces requêtes ne doivent pas croiser celles du test « cat:philo »)
+    let r, cur = {}, tours = 0; const texte = 'rotation ' + Date.now();
+    const q = await fauxBnf(async () => { do { r = await Recherche.parTheme({cat: 'shs', texte, max: 0}, cur); } while (!r.fin && ++tours < 6); });
+    const vus = [['philo', '"100"'], ['psycho', '"150"'], ['socio', '"301"'], ['education', '"370"'], ['social', '"361"']].filter(([, m]) => q.some(x => x.includes(m))).map(([n]) => n);
+    const max = Math.max(...q.map(x => (x.match(/bib\.(dewey|subject)/g) || []).length));
+    return vus.join(',') + '|' + (max <= 20 ? 'max 20' : 'max ' + max) + '|' + (r.fin ? 'fin' : 'pas fini');
+  });
+  await test('Rayon « Économie, Entreprise & Droit » : une seule requête réunit ses sous-rayons', 1, async () => {
+    const q = await fauxBnf(() => Recherche.parTheme({cat: 'eco', max: 0}, {}));
+    return q.filter(x => x.includes('"658"') && x.includes('"340"')).length;
+  });
+  await test('Tirage : un ancien thème « cat:philo » cherche en Philosophie', 'philo seulement', async () => {
+    const q = await fauxBnf(() => Recherche.decouvrir('cat:philo', {exclude: () => false}));
+    return q.length && q.every(x => x.includes('"100"') && !x.includes('"150"')) ? 'philo seulement' : JSON.stringify(q);
+  });
+  await test('Tirage : thème « Jeunes adultes » disponible', true, () => Recherche.THEMES_TIRAGE.some(t => t.id === 'ya'));
+  await test('Rayon trop large : une requête refusée par la BnF ne bloque pas les autres sous-rayons', 'philo,psycho,socio,education,social|fin|pas d\'erreur', async () => {
+    const vrai = window.fetch, q = [], texte = 'refus ' + Date.now();
+    window.fetch = async url => {
+      const u = String(url), r = decodeURIComponent(u.split('query=')[1] || ''); if (u.includes('catalogue.bnf.fr')) q.push(r);
+      // (la requête Philosophie est refusée par le catalogue, les autres répondent « 0 livre »)
+      const refus = r.includes('"100"') ? '<srw:diagnostics><diag:diagnostic xmlns:diag="http://www.loc.gov/zing/srw/diagnostic/"><diag:message>refusée</diag:message></diag:diagnostic></srw:diagnostics>' : '';
+      return new Response('<srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/"><srw:numberOfRecords>0</srw:numberOfRecords><srw:records/>' + refus + '</srw:searchRetrieveResponse>', {status: 200});
+    };
+    let r, cur = {}, tours = 0;
+    try { do { r = await Recherche.parTheme({cat: 'shs', texte, max: 0}, cur); } while (!r.fin && !r.erreur && ++tours < 6); }
+    finally { window.fetch = vrai; Recherche._oublierBnf(); }
+    const vus = [['philo', '"100"'], ['psycho', '"150"'], ['socio', '"301"'], ['education', '"370"'], ['social', '"361"']].filter(([, m]) => q.some(x => x.includes(m))).map(([n]) => n);
+    return vus.join(',') + '|' + (r.fin ? 'fin' : 'pas fini') + '|' + (r.erreur ? 'erreur ' + r.erreur : 'pas d\'erreur');
+  });
+  await test('Faux catalogue : ses réponses ne restent pas en mémoire pour les tests suivants', 1, async () => {
+    const o = {cat: 'shs', sous: 'shs/social', texte: 'memoire ' + Date.now(), max: 0};
+    await fauxBnf(() => Recherche.parTheme(o, {}));
+    return (await fauxBnf(() => Recherche.parTheme(o, {}))).length;
+  });
+
+  /* ---------- 8 undecies. Rayons : écrans et conversion des anciennes données ---------- */
+  await test('Conversion : anciennes corrections converties, inconnues écartées, doublons fusionnés', '["shs/philo"]|["shs/social"]', () => {
+    const b = norm({titre: 'a', catOui: ['philo', 'zzz', 'philo', 'shs/philo'], catNon: ['social/enfance']});
+    return JSON.stringify(b.catOui) + '|' + JSON.stringify(b.catNon);
+  });
+  await test('Conversion : une ancienne sauvegarde garde ses corrections', 'histoire,politique,shs|shs/philo', async () => {
+    books = [];
+    await restaurer({app: 'mes-lectures', version: 2, date: new Date().toISOString(), goal: 0,
+      books: [{id: 'v1', titre: 'Vieux', statut: 'lu', classements: [B('686', '320')], catOui: ['philo', 'histoire']}]});
+    $('#r_ok').click(); await pause(400);
+    return cats(books[0]).join() + '|' + Recherche.sousRayons(books[0]).map(z => z.id).filter(id => id.startsWith('shs')).join();
+  });
+  await test('Dernier thème cherché : ancien nom converti, nouveau nom gardé', '{"cat":"shs","sous":"shs/philo"}|{"cat":"politique","sous":""}|{"cat":"","sous":""}',
+    () => [rechDepuisMemo('philo'), rechDepuisMemo('politique'), rechDepuisMemo('zzz')].map(x => JSON.stringify(x)).join('|'));
+  await test('Dernier thème cherché : un sous-rayon qu\'on ne peut pas chercher à la BnF n\'est pas repris', '{"cat":"litterature","sous":""}',
+    () => JSON.stringify(rechDepuisMemo('bio')));
+  await test('Fiche : ajouter « Travail social » puis retirer le rayon', 'shs,shs/social|vide', async () => {
+    openForm(fiche('Fiche rayons')); await pause(100);
+    const sel = $('#f_catadd'); sel.value = 'shs/social'; sel.dispatchEvent(new Event('change', {bubbles: true}));
+    const a = idsRangement(form).join();
+    document.querySelector('#f_cats [data-catnon="shs"]').click();
+    const b = idsRangement(form).join() || 'vide';
+    closeM(); await pause(250);
+    return a + '|' + b;
+  });
+  await test('Fiche : le menu « Ajouter » propose les sous-rayons, groupés par rayon', 'groupes:17|Travail social', async () => {
+    openForm(fiche('Menu')); await pause(100);
+    const g = document.querySelectorAll('#f_catadd optgroup').length;
+    const t = [...document.querySelectorAll('#f_catadd option')].some(o => o.value === 'shs/social' && o.textContent.includes('Travail social'));
+    closeM(); await pause(250);
+    return 'groupes:' + g + '|' + (t ? 'Travail social' : 'absent');
+  });
+  await test('Export Excel : colonne « Rayons » au format Rayon › sous-rayon', 'Politique & Société › Géopolitique & relations internationales',
+    () => rayonsTexte(fiche('Exp', {classements: [B('686', '320'), B('676', '327.1')]})));
+  await test('Écrans : le mot « Rayon » remplace « Catégorie »', 'Tous les rayons|Mes livres par rayon', async () => {
+    books = [fiche('Pol', {classements: [B('686', '320')]})]; ui.tab = 'a_lire'; render();
+    const a = document.querySelector('#cat option') ? document.querySelector('#cat option').textContent : '?';
+    ui.tab = 'stats'; render(); const b = /Mes livres par rayon/.test($('#main').textContent) ? 'Mes livres par rayon' : '?';
+    ui.tab = 'en_cours'; render();
+    return a + '|' + b;
+  });
+
+  /* ---------- 8 duodecies. Ergonomie : retouches rapides ---------- */
+  await test('Bouton ＋ unique : propose Ajouter un livre, Scanner, Scan rapide (plus de second bouton flottant)', 'livre,scan,rapide|pas de bouton Scan rapide|fiche ouverte', async () => {
+    $('#fab').click(); await pause(50);
+    const choix = [...document.querySelectorAll('#modal [data-ajout]')].map(b => b.dataset.ajout).join();
+    const seul = document.getElementById('bulkBtn') ? 'bouton Scan rapide présent' : 'pas de bouton Scan rapide';
+    document.querySelector('#modal [data-ajout="livre"]').click(); await pause(50);
+    const fiche = $('#f_titre') ? 'fiche ouverte' : 'pas de fiche';
+    modalModifie = false; closeM(); await pause(250);
+    return choix + '|' + seul + '|' + fiche;
+  });
+  await test('« Où j\'en suis » en un geste : +25 p. enregistre tout de suite', '65|fermée', async () => {
+    books = [fiche('En route', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 40})];
+    openPage(books[0]); document.querySelector('#modal [data-plus="25"]').click(); await pause(250);
+    return books[0].pageActuelle + '|' + ($('#ov').classList.contains('show') ? 'ouverte' : 'fermée');
+  });
+  await test('Filtres repliés sous « Filtres et tri », avec le nombre de filtres actifs', 'replié|⚙️ Filtres et tri|⚙️ Filtres et tri (1)', async () => {
+    books = [fiche('Un roman', {genre: 'Roman'}), fiche('Un essai', {genre: 'Essai'})]; ui.tab = 'a_lire'; ui.genre = ''; ui.filtres = false; render();
+    const d = $('#filtres'); if (!d || !d.contains($('#genre'))) return 'pas de panneau Filtres';
+    const a = (d.open ? 'ouvert' : 'replié') + '|' + d.querySelector('summary').textContent.trim();
+    $('#genre').value = 'Roman'; $('#genre').dispatchEvent(new Event('change', {bubbles: true}));
+    const b = $('#filtres summary').textContent.trim();
+    ui.genre = ''; render();
+    return a + '|' + b;
+  });
+  await test('Cartes « En cours » : « Où j\'en suis » et « ⋯ » (chrono, citation, fini, modifier)', 'pages,plus|timer,quote,fini,edit', async () => {
+    books = [fiche('Lecture', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 10})]; ui.tab = 'en_cours'; render();
+    const visibles = [...document.querySelectorAll('#list .card .acts [data-act]')].map(b => b.dataset.act).join();
+    document.querySelector('#list .card [data-act="plus"]').click(); await pause(50);
+    const menu = [...document.querySelectorAll('#modal [data-act]')].map(b => b.dataset.act).join();
+    modalModifie = false; closeM(); await pause(250);
+    return visibles + '|' + menu;
+  });
+  await test('Confirmations dans l\'appli : plus de fenêtre système du navigateur', 'question dans l\'appli|0 fenêtre système', async () => {
+    let systeme = 0; const avant = window.confirm; window.confirm = () => { systeme++; return false; };
+    reponseConfirm = false;
+    openForm(null); await pause(50);
+    $('#f_avis').value = 'Un avis'; $('#f_avis').dispatchEvent(new Event('input', {bubbles: true}));
+    // (le répondeur des tests compte la question posée dans l'appli, puis y répond « Non »)
+    confirmDemande = 0; document.querySelector('#modal [data-close]').click(); await pause(100);
+    const vu = confirmDemande ? 'question dans l\'appli' : 'pas de question dans l\'appli';
+    window.confirm = avant; reponseConfirm = true; modalModifie = false; closeM(); await pause(250);
+    return vu + '|' + systeme + ' fenêtre système';
+  });
+  await test('Moins d\'animations quand le téléphone le demande (réglage d\'accessibilité)', true, () =>
+    [...document.styleSheets].some(s => { try { return [...s.cssRules].some(r => r.media && /prefers-reduced-motion:\s*reduce/.test(r.media.mediaText) && /slide-l/.test(r.cssText)); } catch (e) { return false; } }));
+
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {
@@ -581,11 +838,11 @@
     });
     await test('🌐 Tirage en ligne « Politique » : un livre classé Politique, avec couverture', true, async () => {
       const x = await Recherche.decouvrir('cat:politique', {exclude: () => false});
-      return !!x && !!x.couverture && x.themeNom === 'Politique' && cats(x).includes('politique');
+      return !!x && !!x.couverture && x.themeNom === 'Politique & Société' && cats(x).includes('politique');
     });
     let philo199;
-    await test('🌐 Philosophie, 199 p. max : tous les livres font 199 pages ou moins', true, async () => {
-      philo199 = await Recherche.parTheme({cat: 'philo', max: 199}, {});
+    await test('🌐 Sciences humaines › Philosophie, 199 p. max : tous les livres font 199 pages ou moins', true, async () => {
+      philo199 = await Recherche.parTheme({cat: 'shs', sous: 'shs/philo', max: 199}, {});
       return philo199.res.length > 0 && philo199.res.every(x => x.pagesTotal > 0 && x.pagesTotal <= 199);
     });
     await test('🌐 Politique, 100 p. max : livres classés Politique, ≤ 100 p., sans doublon', true, async () => {
@@ -600,14 +857,23 @@
     await test('🌐 Sujet libre « géopolitique », sans limite', true, async () => {
       const r = await Recherche.parTheme({texte: 'géopolitique', max: 0}, {}); return r.erreur === '' && r.res.length > 0;
     });
+    await test('🌐 Tourisme & Voyages, sans limite : des livres rangés en Voyages', true, async () => {
+      const r = await Recherche.parTheme({cat: 'voyages', max: 0}, {});
+      return r.erreur === '' && r.res.length > 0 && r.res.every(x => cats(x).includes('voyages'));
+    });
+    await test('🌐 Tirage « Vie pratique & Loisirs » : un livre rangé dans ce rayon', true, async () => {
+      const x = await Recherche.decouvrir('cat:pratique', {exclude: () => false});
+      return !!x && x.themeNom === 'Vie pratique & Loisirs' && cats(x).includes('pratique');
+    });
   }
   await test('Catalogue en panne → erreur annoncée (pas « aucun résultat »)', 'reseau', async () => {
     const vrai = window.fetch; window.fetch = () => Promise.reject(new TypeError('panne simulée'));
-    try { return (await Recherche.parTheme({cat: 'socio', max: 300}, {})).erreur; } finally { window.fetch = vrai; }
+    // (texte unique : la BnF garde ses réponses 30 minutes, une requête déjà faite par un autre test ne serait pas renvoyée)
+    try { return (await Recherche.parTheme({cat: 'shs', texte: 'panne ' + Date.now(), max: 300}, {})).erreur; } finally { window.fetch = vrai; }
   });
   await test('Réponse illisible du catalogue → erreur annoncée (pas « aucun résultat »)', true, async () => {
     const vrai = window.fetch; window.fetch = () => Promise.resolve(new Response('<pas du xml', {status: 200}));
-    try { return ['reseau', 'pause'].includes((await Recherche.parTheme({cat: 'eco', max: 300}, {})).erreur); } finally { window.fetch = vrai; }
+    try { return ['reseau', 'pause'].includes((await Recherche.parTheme({cat: 'eco', texte: 'illisible ' + Date.now(), max: 300}, {})).erreur); } finally { window.fetch = vrai; }
   });
 
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */

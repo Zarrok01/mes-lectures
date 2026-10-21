@@ -6,176 +6,264 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://catalogue.bnf.fr https://www.sudoc.fr https://openlibrary.org https://covers.openlibrary.org https://www.googleapis.com https://itunes.apple.com https://services.dnb.de https://query.wikidata.org https://fr.wikipedia.org; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mes lectures</title>
+<script>
+// Style et thème posés avant le premier affichage (sinon l'appli apparaîtrait un instant en Android clair)
+(() => { try {
+  const p = JSON.parse(localStorage.getItem((/[?&]tests\b/.test(location.search) ? 'test-' : '') + 'mes-lectures-prefs')) || {}, r = document.documentElement;
+  r.dataset.style = ['android', 'actuel', 'carnet'].includes(p.style) ? p.style : 'android';
+  r.dataset.theme = p.theme === 'dark' || (p.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+} catch (e) {} })();
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#141414">
 <style>
-:root{--bg:#f7f3ec;--card:#fffdf9;--field:#fff;--ink:#2b2622;--muted:#7a6f66;--line:#e6ddd0;--accent:#b5562f;--accent-soft:#f3e2d8;--green:#4f7a52;--star:#e0a526;--red:#c0392b;--radius:14px;--shadow:0 1px 3px rgba(60,40,20,.08),0 4px 14px rgba(60,40,20,.06);color-scheme:light}
-:root[data-theme=dark]{--bg:#1b1815;--card:#26221e;--field:#2f2a25;--ink:#efe7dd;--muted:#a99d90;--line:#3d362e;--accent:#dd7a4c;--accent-soft:#3e2a20;--green:#82b082;--red:#e3735f;--shadow:0 1px 3px rgba(0,0,0,.35);color-scheme:dark}
+/* =====================================================================
+   Système de design (phase 1) : un style (data-style) × un thème (data-theme) = une palette.
+   Les palettes s'appliquent à la page ET à tout élément portant ces deux attributs (aperçus des Réglages).
+   ===================================================================== */
+:root{--t-xs:.8125rem;--t-s:.875rem;--t-m:1rem;--t-l:1.125rem;--t-xl:1.375rem;--t-xxl:1.75rem;
+  --e-1:4px;--e-2:8px;--e-3:12px;--e-4:16px;--e-5:24px;--e-6:32px;--toucher:48px;--toucher-puce:40px;
+  --police-texte:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--police-titres:var(--police-texte);
+  --n1:#c0392b;--n2:#b4530b;--n3:#8a6100;--n4:#2e7d32;--n5:#0b7f45;--sur-note:#ffffff;--voile:rgba(12,12,12,.55)}
+/* Formes de chaque style */
+:root,[data-style=android]{--r-s:8px;--r-m:16px;--r-l:28px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface-2);--couv-s:30%;--couv-l:34%}
+[data-style=actuel]{--r-s:6px;--r-m:12px;--r-l:18px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.2);--bordure-carte:1px;--carte:var(--surface);--couv-s:28%;--couv-l:34%;--police-titres:var(--police-texte)}
+[data-style=carnet]{--r-s:4px;--r-m:10px;--r-l:14px;--r-pilule:10px;--ombre-1:0 1px 3px rgba(60,40,20,.10),0 4px 14px rgba(60,40,20,.08);--ombre-2:0 6px 20px rgba(60,40,20,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:32%;--couv-l:32%;--police-titres:Georgia,"Times New Roman",serif}
+/* Palettes (contrastes vérifiés ≥ 4,5:1, voir le design §3) */
+:root,[data-style=android][data-theme=light]{--fond:#f5faf4;--surface:#ffffff;--surface-2:#e6f2e8;--texte:#191c19;--texte-doux:#414941;--trait:#c1c9be;--accent:#1b6c3d;--sur-accent:#ffffff;--accent-doux:#b6f1c4;--sur-accent-doux:#00210e;--barre:#f5faf4;--texte-barre:#191c19;--texte-barre-doux:#414941;--barre-2:#e6f2e8;--danger:#ba1a1a;--alerte:#7a5900;color-scheme:light}
+:root:not([data-style])[data-theme=dark],[data-style=android][data-theme=dark]{--fond:#101410;--surface:#181d18;--surface-2:#212a22;--texte:#e0e4dc;--texte-doux:#c0c9bc;--trait:#414941;--accent:#9bd5a8;--sur-accent:#00391a;--accent-doux:#1f5130;--sur-accent-doux:#b6f1c4;--barre:#101410;--texte-barre:#e0e4dc;--texte-barre-doux:#c0c9bc;--barre-2:#212a22;--danger:#ffb4ab;--alerte:#f3c14c;color-scheme:dark}
+[data-style=actuel][data-theme=light]{--fond:#f2f2f0;--surface:#ffffff;--surface-2:#f6f6f4;--texte:#141414;--texte-doux:#5f5f5f;--trait:#e4e4e0;--accent:#0b7f45;--sur-accent:#ffffff;--accent-doux:#e0f2e8;--sur-accent-doux:#0a5c33;--barre:#141414;--texte-barre:#ffffff;--texte-barre-doux:#a8a8a8;--barre-2:#262626;--danger:#c0392b;--alerte:#8a5a00;color-scheme:light}
+[data-style=actuel][data-theme=dark]{--fond:#0d0d0d;--surface:#191919;--surface-2:#222222;--texte:#f1f1f1;--texte-doux:#a3a3a3;--trait:#2b2b2b;--accent:#2ecc71;--sur-accent:#04210f;--accent-doux:#143022;--sur-accent-doux:#8fe3b0;--barre:#000000;--texte-barre:#ffffff;--texte-barre-doux:#a3a3a3;--barre-2:#1f1f1f;--danger:#ff8a7a;--alerte:#f3c14c;color-scheme:dark}
+[data-style=carnet][data-theme=light]{--fond:#f7f3ec;--surface:#fffdf9;--surface-2:#efe7da;--texte:#2b2622;--texte-doux:#5e544b;--trait:#e6ddd0;--accent:#a0461f;--sur-accent:#ffffff;--accent-doux:#f3e2d8;--sur-accent-doux:#7a3214;--barre:#efe7da;--texte-barre:#2b2622;--texte-barre-doux:#5e544b;--barre-2:#e2d6c3;--danger:#b3261e;--alerte:#7a5400;color-scheme:light}
+[data-style=carnet][data-theme=dark]{--fond:#1b1815;--surface:#26221e;--surface-2:#2f2a25;--texte:#efe7dd;--texte-doux:#b3a698;--trait:#3d362e;--accent:#e08a5e;--sur-accent:#1b1815;--accent-doux:#3e2a20;--sur-accent-doux:#f3c8b0;--barre:#1b1815;--texte-barre:#efe7dd;--texte-barre-doux:#b3a698;--barre-2:#2f2a25;--danger:#ff8a7a;--alerte:#f0c048;color-scheme:dark}
+/* Aperçus de style (Réglages) */
+.styles button{display:flex;flex-direction:column;align-items:center;gap:var(--e-1);padding:var(--e-2) var(--e-1)}
+.apercu{display:flex;width:52px;height:30px;border-radius:var(--r-s);background:var(--fond);border:1px solid var(--trait);overflow:hidden;padding:4px;gap:4px}
+.apercu i{flex:1;background:var(--accent);border-radius:var(--r-s)}
+.apercu b{flex:2;background:var(--carte);border-radius:var(--r-s)}
+/* ---------- Base ---------- */
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
-.wrap{max-width:760px;margin:0 auto;padding:0 14px}
-main.wrap{padding-bottom:110px}
-.top{display:flex;align-items:center;gap:8px;padding:12px 0 4px}
-h1{font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;margin:0;flex:1}
-.flame{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:3px 10px;font-weight:700;font-size:.9rem}
-.icon{border:1px solid var(--line);background:var(--card);color:var(--ink);width:38px;height:38px;border-radius:10px;font-size:1.1rem;cursor:pointer;flex:none}
-.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
-.tab{flex:1 0 auto;border:0;background:none;padding:10px 8px;font:inherit;font-size:.93rem;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
-.tab.on{color:var(--ink);border-color:var(--accent);font-weight:600}
-.tab .n{display:inline-block;min-width:1.5em;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--line);font-size:.75rem;color:var(--ink)}
-.tools{display:flex;gap:8px;padding:12px 0;flex-wrap:wrap}
-.tools input,.tools select{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);min-width:0}
-.tools input{flex:1 1 200px}
-.tools select{flex:1 1 120px}
-.list{display:grid;gap:12px}
-.list.grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:14px 10px}
-.card{display:flex;gap:12px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;cursor:pointer}
-.gcard{cursor:pointer;display:flex;flex-direction:column;gap:5px;position:relative}
-.gcard .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:8px;font-size:2rem;box-shadow:var(--shadow)}
-.gcard .t{font-size:.84rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.gcard .pin{position:absolute;top:4px;right:4px;font-size:1rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
-.ph{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Georgia,serif;font-weight:bold;flex:none}
+html{background:var(--fond)}
+body{margin:0;background:var(--fond);color:var(--texte);font:var(--t-m)/1.5 var(--police-texte);-webkit-tap-highlight-color:transparent}
+h1,h2,h3,.t,.tile b,.clock,.quote p{font-family:var(--police-titres)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+::placeholder{color:var(--texte-doux);opacity:1}
+.wrap{max-width:760px;margin:0 auto;padding:0 var(--e-4)}
+main.wrap{padding-bottom:112px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Mise en page (remplacent les styles en ligne) */
+.pile{display:grid;gap:var(--e-2)}.rangee{display:flex;align-items:center;gap:var(--e-2);flex-wrap:wrap}
+.etire,.grow,.sp{flex:1}.grow,.min0{min-width:0}.centre{text-align:center;justify-content:center}.invisible{visibility:hidden}
+.doux{color:var(--texte-doux)}.fort{color:var(--texte)}.normal{font-weight:400}
+.petit{font-size:var(--t-xs)}.moyen{font-size:var(--t-s)}.grand{font-size:var(--t-xxl)}
+.mt-1{margin-top:var(--e-1)}.mt-2{margin-top:var(--e-2)}.mt-3{margin-top:var(--e-3)}
+.mb-1{margin-bottom:var(--e-1)}.mb-2{margin-bottom:var(--e-2)}.mb-3{margin-bottom:var(--e-3)}.my-2{margin-top:var(--e-2);margin-bottom:var(--e-2)}
+.sous-titre{margin:calc(-1 * var(--e-1)) 0 var(--e-2);color:var(--texte-doux);font-size:var(--t-s)}
+.remonte{margin-top:calc(-1 * var(--e-2))}
+.espace{height:var(--e-3)}
+.champ-page{max-width:120px}
+.liste-aide{font-size:var(--t-s);padding-left:var(--e-5);margin:0}
+.question{margin:var(--e-1) 0 var(--e-4);font-size:var(--t-m)}
+/* ---------- En-tête, onglets, bandeau ---------- */
+header{position:sticky;top:0;z-index:10;background:var(--barre);color:var(--texte-barre);padding-top:env(safe-area-inset-top);box-shadow:0 1px 0 var(--trait)}
+.top{display:flex;align-items:center;gap:var(--e-2);padding:var(--e-3) 0 var(--e-1)}
+h1{font-size:var(--t-xl);font-weight:800;margin:0;flex:1;letter-spacing:-.01em}
+.flame{background:var(--barre-2);color:var(--texte-barre);border-radius:var(--r-pilule);padding:var(--e-1) var(--e-3);font-weight:700;font-size:var(--t-s)}
+.icon{flex:none;width:var(--toucher);height:var(--toucher);border-radius:var(--r-pilule);border:0;background:var(--barre-2);color:var(--texte-barre);font-size:var(--t-l);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.tools .icon{background:var(--surface);color:var(--texte);border:1px solid var(--trait)}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;min-height:var(--toucher);border:0;border-bottom:3px solid transparent;background:none;padding:0 var(--e-3);font:inherit;font-size:var(--t-s);font-weight:600;color:var(--texte-barre-doux);white-space:nowrap;cursor:pointer}
+.tab.on{color:var(--texte-barre);border-bottom-color:var(--accent)}
+.tab .n{display:inline-block;min-width:1.6em;padding:0 var(--e-1);margin-left:var(--e-1);border-radius:var(--r-pilule);background:var(--barre-2);color:var(--texte-barre);font-size:var(--t-xs);font-weight:700}
+.tab.on .n,.tab .n.neuf{background:var(--accent);color:var(--sur-accent)}
+.notice{display:flex;flex-wrap:wrap;gap:var(--e-2) var(--e-3);align-items:center;justify-content:center;padding:var(--e-2) var(--e-4);background:var(--surface-2);color:var(--texte);font-size:var(--t-s);border-left:4px solid var(--accent)}
+.notice.alerte{border-left-color:var(--alerte)}.notice.danger{border-left-color:var(--danger)}
+/* ---------- Champs ---------- */
+.tools{display:flex;gap:var(--e-2);padding:var(--e-3) 0;flex-wrap:wrap;align-items:center}
+input,select,textarea{font:inherit;font-size:var(--t-m);color:var(--texte);background:var(--surface);border:1px solid var(--trait);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);min-height:var(--toucher);width:100%}
+textarea{line-height:1.5}
+input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--accent)}
+.tools input,.tools select{border-radius:var(--r-pilule);padding:var(--e-2) var(--e-4);width:auto}
+.tools input{flex:1 1 200px;min-width:0}.tools select{flex:1 1 140px;min-width:0}
+.f{display:flex;flex-direction:column;gap:var(--e-1);margin-bottom:var(--e-3);min-width:0}
+.f>label,.lbl{font-size:var(--t-xs);font-weight:700;color:var(--texte-doux);letter-spacing:.04em;text-transform:uppercase}
+.f .erreur{font-size:var(--t-s);color:var(--danger);margin:0;font-weight:600}
+input[aria-invalid=true]{border:2px solid var(--danger)}
+.row{display:flex;gap:var(--e-3)}.row>.f{flex:1}.row>.f.small{flex:0 0 96px}
+.search{display:flex;gap:var(--e-2);align-items:center}.search input{flex:1}
+.check{display:flex;gap:var(--e-2);align-items:center;font-size:var(--t-s);min-height:var(--toucher);cursor:pointer}
+#f_catadd{width:auto;max-width:100%}
+/* ---------- Boutons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--e-2);min-height:var(--toucher);padding:0 var(--e-4);border-radius:var(--r-pilule);border:1px solid var(--trait);background:var(--surface);color:var(--texte);font:inherit;font-size:var(--t-s);font-weight:600;text-decoration:none;cursor:pointer}
+.btn.small{position:relative;min-height:var(--toucher-puce);padding:0 var(--e-3)}
+.btn.small::after,.chipb::after,.catchip button::after{content:"";position:absolute;inset:-4px 0}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--sur-accent)}
+.btn.on{background:var(--accent-doux);border-color:var(--accent-doux);color:var(--sur-accent-doux)}
+.btn.del{color:var(--danger);border-color:var(--danger)}
+.btn.del.sure{background:var(--danger);color:var(--surface)}
+.btn:disabled{opacity:.6;cursor:default}
+.acts{display:flex;gap:var(--e-2);flex-wrap:wrap;padding-top:var(--e-2);margin-top:auto}
+.acts.centre{justify-content:center}
+.fab{position:fixed;right:var(--e-5);bottom:var(--e-5);width:60px;height:60px;border-radius:var(--r-l);border:0;background:var(--accent);color:var(--sur-accent);font-size:var(--t-xxl);line-height:1;box-shadow:var(--ombre-2);cursor:pointer;z-index:20;display:flex;align-items:center;justify-content:center}
+.pill{position:fixed;left:var(--e-4);bottom:var(--e-5);min-height:var(--toucher);border-radius:var(--r-pilule);border:0;background:var(--accent);color:var(--sur-accent);font:inherit;font-weight:700;padding:0 var(--e-4);box-shadow:var(--ombre-2);cursor:pointer;z-index:20}
+.seg{display:flex;border:1px solid var(--trait);border-radius:var(--r-pilule);overflow:hidden;margin-bottom:var(--e-3)}
+.seg button{flex:1;min-height:var(--toucher);border:0;background:var(--surface);color:var(--texte);font:inherit;font-size:var(--t-s);font-weight:600;padding:0 var(--e-2);cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--sur-accent)}
+.starpick button{min-width:var(--toucher);min-height:var(--toucher);font-size:var(--t-xxl);background:none;border:0;color:var(--texte-doux);cursor:pointer;padding:0}
+.starpick button.on{color:var(--alerte)}
+/* ---------- Puces ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:var(--e-2);margin-bottom:var(--e-3)}
+.chipb{position:relative;min-height:var(--toucher-puce);display:inline-flex;align-items:center;gap:var(--e-1);padding:0 var(--e-3);border:1px solid var(--trait);border-radius:var(--r-pilule);background:var(--surface);color:var(--texte);font:inherit;font-size:var(--t-s);cursor:pointer}
+.chipb.on{background:var(--accent);border-color:var(--accent);color:var(--sur-accent)}
+.chip{display:inline-flex;align-items:center;gap:var(--e-1);border:1px solid var(--trait);border-radius:var(--r-s);padding:1px var(--e-2);font-size:var(--t-xs);font-weight:600;color:var(--texte-doux)}
+.chip.warn{border-color:var(--alerte);color:var(--alerte)}
+.chip.late{border-color:var(--danger);color:var(--danger);font-weight:700}
+.chip.pg{color:var(--texte);border-color:var(--texte)}
+.catchip{display:inline-flex;align-items:center;gap:2px}
+.catchip button{position:relative;min-width:var(--toucher-puce);min-height:var(--toucher-puce);border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0}
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 var(--e-2);border-radius:var(--r-s);font-weight:800;font-size:var(--t-s);color:var(--sur-note);background:var(--texte-doux)}
+.score small{font-size:var(--t-xs);margin-left:1px}
+.n5{background:var(--n5)}.n4{background:var(--n4)}.n3{background:var(--n3)}.n2{background:var(--n2)}.n1{background:var(--n1)}
+.stars{color:var(--alerte);letter-spacing:1px}
+#rq_cats,#rq_sous,#cv_sous,#dc_theme,#nx_theme,#nx_cat{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#rq_cats::-webkit-scrollbar,#rq_sous::-webkit-scrollbar,#cv_sous::-webkit-scrollbar,#dc_theme::-webkit-scrollbar,#nx_theme::-webkit-scrollbar,#nx_cat::-webkit-scrollbar{display:none}
+#rq_cats .chipb,#rq_sous .chipb,#cv_sous .chipb,#dc_theme .chipb,#nx_theme .chipb,#nx_cat .chipb{flex:0 0 auto}
+/* ---------- Cartes de livre, couvertures ---------- */
+.list{display:grid;gap:var(--e-3)}
+.list.grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:var(--e-4) var(--e-3)}
+.card{display:flex;gap:var(--e-4);background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-3);cursor:pointer}
+.gcard{display:flex;flex-direction:column;gap:var(--e-1);position:relative;cursor:pointer}
+.gcard .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);font-size:var(--t-xxl);box-shadow:var(--ombre-1)}
+.gcard .t{font-size:var(--t-s);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gcard .pin{position:absolute;top:var(--e-1);right:var(--e-1)}
+.gcard .gscore{position:absolute;left:var(--e-1);top:var(--e-1);z-index:2}
+.ph{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--sur-note);font-family:var(--police-titres);font-weight:800;flex:none}
 .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.cover{width:64px;height:96px;border-radius:6px;font-size:1.5rem}
-.rc{width:40px;height:60px;border-radius:4px;font-size:.9rem}
-.big{width:80px;height:120px;border-radius:6px;font-size:1.8rem}
-.mini{width:30px;height:45px;border-radius:3px;font-size:.8rem}
-.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.t{font-weight:650;line-height:1.25}
-.a{color:var(--muted);font-size:.92rem}
+.cover{width:72px;height:108px;border-radius:var(--r-s);font-size:var(--t-xl)}
+.big{width:80px;height:120px;border-radius:var(--r-s);font-size:var(--t-xxl)}
+.rc{width:40px;height:60px;border-radius:var(--r-s);font-size:var(--t-s)}
+.mini{width:32px;height:48px;border-radius:var(--r-s);font-size:var(--t-xs)}
+.info{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--e-1)}
+.t{font-weight:750;font-size:var(--t-m);line-height:1.3}
+.a{color:var(--texte-doux);font-size:var(--t-s)}
 .avis{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-style:italic}
-.meta{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
-.chip{background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:1px 9px;font-size:.78rem}
-.chip.warn{background:#fdecc8;color:#8a5a00}
-.chip.late{background:var(--red);color:#fff}
-.stars{color:var(--star);letter-spacing:1px}
-.bar{height:7px;background:var(--line);border-radius:5px;overflow:hidden}
-.bar>i{display:block;height:100%;background:var(--green);border-radius:5px}
-.acts{margin-top:auto;display:flex;gap:6px;padding-top:6px;flex-wrap:wrap}
-.btn{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:9px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.del{color:var(--red);border-color:#e8c5c5}
-.btn.del.sure{background:var(--red);color:#fff}
-.btn.on{background:var(--accent-soft);border-color:var(--accent)}
-.btn.small{padding:4px 9px;font-size:.8rem}
-.empty{text-align:center;color:var(--muted);padding:50px 20px;grid-column:1/-1}
-.fab{position:fixed;right:20px;bottom:22px;width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:2rem;line-height:1;box-shadow:0 6px 18px rgba(150,60,20,.35);cursor:pointer;z-index:20}
-.pill{position:fixed;left:16px;bottom:28px;height:46px;border-radius:23px;border:0;background:var(--green);color:#fff;font:inherit;font-weight:700;padding:0 16px;box-shadow:var(--shadow);cursor:pointer;z-index:20}
-.ov{position:fixed;inset:0;background:rgba(20,14,8,.5);display:none;align-items:flex-end;justify-content:center;z-index:30}
-.ov.show{display:flex}
-.modal{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px}
-@media(min-width:600px){.ov{align-items:center}.modal{border-radius:18px}}
-.modal h2{margin:0 0 12px;font-family:Georgia,serif;font-size:1.25rem}
-details{margin-bottom:12px}
-summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;margin-bottom:8px}
-.f{display:flex;flex-direction:column;gap:4px;margin-bottom:11px;min-width:0}
-.f>label,.lbl{font-size:.82rem;color:var(--muted);font-weight:600}
-.f input,.f select,.f textarea,.search input{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);width:100%}
-.row{display:flex;gap:10px}.row>.f{flex:1}
-.row>.f.small{flex:0 0 90px}
-.search{display:flex;gap:6px;align-items:center}.search input{flex:1}
-.srcs{font-size:.78rem;color:var(--muted);margin:6px 0 0;display:flex;gap:4px 10px;flex-wrap:wrap}
-.srcs .ok{color:var(--green)}.srcs .ko{color:var(--red)}
-.res{display:grid;gap:6px;margin:8px 0}
-.res button.r{display:flex;gap:10px;align-items:center;text-align:left;font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:6px;cursor:pointer;width:100%}
-.own{color:var(--green);font-weight:600;font-size:.82rem}
-.hint{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:.9rem;margin:8px 0}
-.starpick button{font-size:1.8rem;background:none;border:0;color:var(--line);cursor:pointer;padding:0 2px}
-.starpick button.on{color:var(--star)}
-.mfoot{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
-.mfoot .sp{flex:1}
-.prev{display:flex;gap:12px;align-items:flex-end;margin-bottom:12px}
-.prev .btns{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.qlist{display:grid;gap:6px;margin-bottom:6px}
-.q{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:8px 10px;font-size:.92rem;display:flex;gap:8px}
-.q p{margin:0;flex:1;font-style:italic;white-space:pre-wrap}
-.q button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1rem}
-.quote{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;cursor:pointer}
-.quote p{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem;white-space:pre-wrap}
-.hist{font-size:.85rem;color:var(--muted);margin:-4px 0 12px}
-.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.resum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:var(--t-s)}
+.meta{display:flex;gap:var(--e-1) var(--e-2);align-items:center;flex-wrap:wrap;font-size:var(--t-s);color:var(--texte-doux)}
+.bar{height:8px;background:var(--trait);border-radius:var(--r-pilule);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:var(--r-pilule)}
+.own{color:var(--accent);font-weight:600;font-size:var(--t-s)}
+.empty{text-align:center;color:var(--texte-doux);padding:var(--e-6) var(--e-4);grid-column:1/-1}
+/* ---------- Panneaux, tuiles, statistiques ---------- */
+.panel{background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-4);margin-bottom:var(--e-3)}
+.panel.encadre{background:var(--surface);border:1px solid var(--trait);box-shadow:none}
+.panel h3{margin:0 0 var(--e-3);font-size:var(--t-s);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--texte)}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--e-3);margin-bottom:var(--e-3)}
 @media(min-width:600px){.tiles{grid-template-columns:repeat(3,1fr)}}
-.tile{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px}
-.tile b{display:block;font-size:1.5rem;font-family:Georgia,serif}
-.tile span{font-size:.82rem;color:var(--muted)}
-.panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
-.panel h3{margin:0 0 10px;font-size:1rem}
-.chart{display:flex;gap:4px;height:140px}
-.chart>div{flex:1;display:flex;flex-direction:column;align-items:center;font-size:.7rem;color:var(--muted);min-width:0}
+.tile{background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-3)}
+.tile b{display:block;font-size:var(--t-xxl);font-weight:800}
+.tile span{font-size:var(--t-xs);color:var(--texte-doux)}
+.chart{display:flex;gap:var(--e-1);height:140px}
+.chart>div{flex:1;display:flex;flex-direction:column;align-items:center;font-size:var(--t-xs);color:var(--texte-doux);min-width:0}
 .chart .col{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
-.chart i{display:block;width:100%;background:var(--accent);border-radius:4px 4px 0 0}
-.chart.green i{background:var(--green)}
-.chart em{font-style:normal;color:var(--ink);font-weight:600;font-size:.68rem}
-.hb{display:grid;grid-template-columns:minmax(80px,140px) 1fr 24px;gap:8px;align-items:center;font-size:.88rem;margin-bottom:7px}
-.hb .bar>i{background:var(--accent)}
-.facts{display:grid;gap:8px}
-.fact{display:flex;gap:10px;align-items:center;font-size:.92rem}
-.fact .k{color:var(--muted);min-width:118px;font-size:.85rem}
-.top5{display:grid;gap:8px;margin-bottom:12px}
-.top5 div{display:flex;gap:10px;align-items:center;font-size:.92rem}
-.top5 .rk{font-family:Georgia,serif;font-weight:bold;color:var(--accent);width:18px}
-.lines{display:grid;gap:8px}
-.line{display:flex;gap:10px;align-items:center;font-size:.92rem;cursor:pointer}
-.line .grow{flex:1;min-width:0}
-.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:20px;font-size:.9rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
-.toast.show{opacity:.95}
-.toast.act{pointer-events:auto}
-.toast button{background:none;border:0;color:var(--star);font:inherit;font-weight:700;margin-left:10px;cursor:pointer}
+.chart i{display:block;width:100%;background:var(--texte);border-radius:var(--r-s) var(--r-s) 0 0}
+.chart.green i{background:var(--accent)}
+.chart em{font-style:normal;color:var(--texte);font-weight:600;font-size:var(--t-xs)}
+.hb{display:grid;grid-template-columns:minmax(80px,150px) 1fr 28px;gap:var(--e-2);align-items:center;font-size:var(--t-s);margin-bottom:var(--e-2)}
+.hb .bar>i{background:var(--texte)}
+.catrow{width:100%;border:0;background:none;color:var(--texte);font:inherit;font-size:var(--t-s);text-align:left;padding:var(--e-1) 0;min-height:var(--toucher);cursor:pointer}
+.facts{display:grid;gap:var(--e-2)}.fact{display:flex;gap:var(--e-3);align-items:center;font-size:var(--t-s)}.fact .k{color:var(--texte-doux);min-width:120px}
+.top5{display:grid;gap:var(--e-2);margin-bottom:var(--e-3)}.top5 div{display:flex;gap:var(--e-3);align-items:center;font-size:var(--t-s)}
+.top5 .rk{font-family:var(--police-titres);font-weight:800;color:var(--accent);width:20px}
+.lines{display:grid;gap:var(--e-2)}.line{display:flex;gap:var(--e-3);align-items:center;font-size:var(--t-s);min-height:var(--toucher);cursor:pointer}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--e-2)}
+.badge{border:1px solid var(--trait);border-radius:var(--r-m);padding:var(--e-3);display:flex;flex-direction:column;gap:var(--e-1);font-size:var(--t-xs)}
+.badge.ok{border-color:var(--accent);background:var(--accent-doux);color:var(--sur-accent-doux)}
+.badge .be{font-size:1.7rem;filter:grayscale(1);opacity:.55}.badge.ok .be{filter:none;opacity:1}
+.badge span{color:var(--texte-doux)}.badge.ok span,.badge.ok .won{color:var(--sur-accent-doux)}
+.badge .won{color:var(--accent);font-weight:700}
+.cal{overflow-x:auto;padding-bottom:var(--e-2)}
+.calm,.calg{display:grid;grid-auto-columns:12px;gap:2px}
+.calm{grid-template-rows:18px;grid-auto-flow:column;font-size:var(--t-xs);color:var(--texte-doux);white-space:nowrap}
+.calg{grid-template-rows:repeat(7,12px);grid-auto-flow:column}
+.calg i,.calleg i{display:block;width:12px;height:12px;border-radius:3px;background:var(--trait);cursor:pointer}
+.calleg{display:flex;align-items:center;gap:var(--e-1);font-size:var(--t-xs);color:var(--texte-doux);margin-top:var(--e-2);flex-wrap:wrap}
+.calleg i{display:inline-block;cursor:default}
+.calg .l1,.calleg .l1{background:color-mix(in srgb,var(--accent) 30%,transparent)}
+.calg .l2,.calleg .l2{background:color-mix(in srgb,var(--accent) 55%,transparent)}
+.calg .l3,.calleg .l3{background:color-mix(in srgb,var(--accent) 80%,transparent)}
+.calg .l4,.calleg .l4{background:var(--accent)}
+.calg .l5,.calleg .l5{background:var(--alerte)}
+.calg .f{opacity:.3}.calg .now{outline:2px solid var(--texte);outline-offset:-1px}
+.quote{background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-left:4px solid var(--accent);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-3) var(--e-4);cursor:pointer}
+.quote p{margin:0 0 var(--e-2);font-size:var(--t-l);white-space:pre-wrap}
+.qlist{display:grid;gap:var(--e-2);margin-bottom:var(--e-2)}
+.q{background:var(--surface-2);border-left:3px solid var(--accent);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);font-size:var(--t-s);display:flex;gap:var(--e-2);align-items:flex-start}
+.q p{margin:0;flex:1;font-style:italic;white-space:pre-wrap}
+.q button{min-width:var(--toucher);min-height:var(--toucher);border:0;background:none;color:var(--texte-doux);cursor:pointer;font-size:var(--t-m)}
+/* ---------- Fenêtres ---------- */
+.ov{position:fixed;inset:0;background:var(--voile);display:none;align-items:flex-end;justify-content:center;z-index:30}
+.ov.show{display:flex}
+.modal{background:var(--surface);color:var(--texte);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:var(--r-l) var(--r-l) 0 0;padding:var(--e-5) var(--e-4) var(--e-4)}
+@media(min-width:600px){.ov{align-items:center}.modal{border-radius:var(--r-l)}}
+.modal h2{margin:0 0 var(--e-3);font-size:var(--t-xl);font-weight:800}
+.mfoot{display:flex;gap:var(--e-2);align-items:center;flex-wrap:wrap;margin-top:var(--e-2)}
+#modal>.mfoot:last-child{position:sticky;bottom:calc(-1 * var(--e-4));background:var(--surface);padding:var(--e-3) 0 var(--e-4);margin-bottom:calc(-1 * var(--e-4));border-top:1px solid var(--trait)}
 #scanOv,#bulkOv,#timerOv{z-index:35}
-#askOv{z-index:40;align-items:center}#askOv .modal{border-radius:18px;max-width:420px;margin:0 16px;border:1px solid var(--line);box-shadow:0 12px 40px rgba(0,0,0,.45)}
-.cam{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3}
+#askOv{z-index:40;align-items:center}
+#askOv .modal{border-radius:var(--r-l);max-width:420px;margin:0 var(--e-4);border:1px solid var(--trait);box-shadow:var(--ombre-2)}
+details{margin-bottom:var(--e-3)}
+summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:var(--t-s);padding:var(--e-3) 0;min-height:var(--toucher)}
+.pourquoi summary,.inconnus summary{color:var(--texte-doux)}
+.filtres{margin:calc(-1 * var(--e-1)) 0 var(--e-2)}
+.ajout{display:grid;gap:var(--e-2);margin-bottom:var(--e-2)}
+.ajout button{display:flex;flex-direction:column;align-items:flex-start;gap:var(--e-1);text-align:left;font:inherit;font-size:var(--t-m);padding:var(--e-3) var(--e-4);min-height:56px;border:1px solid var(--trait);border-radius:var(--r-m);background:var(--carte);color:var(--texte);cursor:pointer}
+.ajout button span{font-size:var(--t-s);color:var(--texte-doux)}
+.prev{display:flex;gap:var(--e-3);align-items:flex-end;margin-bottom:var(--e-3)}
+.prev .btns{display:flex;flex-direction:column;gap:var(--e-2);align-items:flex-start}
+.srcs{font-size:var(--t-xs);color:var(--texte-doux);margin:var(--e-2) 0 0;display:flex;gap:var(--e-1) var(--e-3);flex-wrap:wrap}
+.srcs .ok{color:var(--accent)}.srcs .ko{color:var(--danger)}
+.res{display:grid;gap:var(--e-2);margin:var(--e-2) 0}
+.res button.r{display:flex;gap:var(--e-3);align-items:center;text-align:left;font:inherit;font-size:var(--t-s);border:1px solid var(--trait);background:var(--surface);color:var(--texte);border-radius:var(--r-m);padding:var(--e-2);cursor:pointer;width:100%;min-height:var(--toucher)}
+.hint{background:var(--accent-doux);color:var(--sur-accent-doux);border-radius:var(--r-m);padding:var(--e-3);font-size:var(--t-s);margin:var(--e-2) 0}
+.hist{font-size:var(--t-s);color:var(--texte-doux);margin:calc(-1 * var(--e-1)) 0 var(--e-3)}
+.cpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:var(--e-2);margin-bottom:var(--e-3)}
+.cpick button{border:2px solid var(--trait);padding:0;border-radius:var(--r-s);overflow:hidden;cursor:pointer;background:var(--trait);aspect-ratio:2/3}
+.cpick img{width:100%;height:100%;object-fit:cover;display:block}
+.catline{display:flex;gap:var(--e-3);align-items:center;width:100%;border:0;border-bottom:1px solid var(--trait);background:none;color:var(--texte);font:inherit;font-size:var(--t-s);text-align:left;padding:var(--e-3) 0;min-height:var(--toucher);cursor:pointer}
+.catline .chip{margin-top:var(--e-1)}
+.pourquoi{font-size:var(--t-s);margin-top:var(--e-2)}.pourquoi ul{margin:var(--e-2) 0;padding-left:var(--e-5)}
+.ailleurs{grid-column:1/-1;display:flex;gap:var(--e-2);align-items:center;flex-wrap:wrap;font-size:var(--t-s);color:var(--texte-doux);margin-bottom:var(--e-2)}
+.inconnus{margin-top:var(--e-2)}
+/* ---------- Découvrir ---------- */
+.sugs{display:flex;gap:var(--e-3);overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px var(--e-3);margin:0 -2px;scrollbar-width:none}
+.sugs::-webkit-scrollbar{display:none}
+.sugs .sug{flex:0 0 86%;scroll-snap-align:start}
+.sug{border:1px solid var(--trait);border-radius:var(--r-m);padding:var(--e-3);background:var(--surface)}
+.sug.rq{margin-bottom:var(--e-3)}
+.sugtop{display:flex;gap:var(--e-3)}
+.sugres{font-size:var(--t-s);margin:var(--e-3) 0 2px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;cursor:pointer}
+.sugres.open{display:block}
+.dots{display:flex;gap:var(--e-2);justify-content:center;margin-top:2px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--trait)}.dots i.on{background:var(--accent)}
+.nxspin{text-align:center;font-family:var(--police-titres);font-size:var(--t-l);padding:var(--e-5) var(--e-3);color:var(--texte-doux)}
+.nxcard{display:flex;gap:var(--e-4);align-items:flex-start;background:var(--accent-doux);color:var(--sur-accent-doux);border-radius:var(--r-m);padding:var(--e-3);margin:var(--e-2) 0 var(--e-1)}
+.nxcard .t{font-size:var(--t-l)}.nxcard .a,.nxcard .chip{color:var(--sur-accent-doux)}
+/* ---------- Appareil photo, chrono, messages ---------- */
+.cam{position:relative;border-radius:var(--r-m);overflow:hidden;background:#000;aspect-ratio:4/3}
 .cam video{width:100%;height:100%;object-fit:cover;display:block}
 .cam .aim{position:absolute;left:10%;right:10%;top:30%;bottom:30%;border:3px solid rgba(255,255,255,.9);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
 .cam .aim::after{content:"";position:absolute;left:4%;right:4%;top:50%;height:2px;background:#ff5a36;animation:sweep 1.6s ease-in-out infinite}
 .cam.flash .aim{border-color:#5be37d}
 @keyframes sweep{0%,100%{transform:translateY(-35px)}50%{transform:translateY(35px)}}
-.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}
-.seg button{flex:1;border:0;background:var(--card);color:var(--ink);font:inherit;font-size:.88rem;padding:8px;cursor:pointer}
-.seg button.on{background:var(--accent);color:#fff}
-.blist{display:grid;gap:6px;margin-top:10px;max-height:32vh;overflow:auto}
-.bl{display:flex;gap:8px;align-items:center;font-size:.88rem;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
-.bl .grow{flex:1;min-width:0}
-.clock{font-family:Georgia,serif;font-size:3.4rem;text-align:center;margin:10px 0;font-variant-numeric:tabular-nums}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.chipb{border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.85rem;padding:5px 11px;border-radius:20px;cursor:pointer}
-.chipb.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.check{display:flex;gap:8px;align-items:center;font-size:.9rem;margin:4px 0 12px;cursor:pointer}
-.nxspin{text-align:center;font-family:Georgia,serif;font-size:1.2rem;padding:28px 10px;color:var(--muted)}
-.nxcard{display:flex;gap:14px;align-items:flex-start;background:var(--accent-soft);border-radius:14px;padding:12px;margin:6px 0 4px}
-.nxcard .t{font-size:1.1rem}
-.cal{overflow-x:auto;padding-bottom:6px}
-.calm,.calg{display:grid;grid-auto-columns:12px;gap:2px}
-.calm{grid-template-rows:14px;grid-auto-flow:column;font-size:.64rem;color:var(--muted);white-space:nowrap}
-.calg{grid-template-rows:repeat(7,12px);grid-auto-flow:column}
-.calg i,.calleg i{display:block;width:12px;height:12px;border-radius:3px;background:var(--line);cursor:pointer}
-.calleg{display:flex;align-items:center;gap:3px;font-size:.72rem;color:var(--muted);margin-top:8px;flex-wrap:wrap}
-.calleg i{display:inline-block;cursor:default}.calleg .sp{flex:1}
-.calg .l1,.calleg .l1{background:rgba(95,155,98,.35)}.calg .l2,.calleg .l2{background:rgba(95,155,98,.6)}
-.calg .l3,.calleg .l3{background:rgba(70,135,74,.85)}.calg .l4,.calleg .l4{background:#2f6b34}
-.calg .l5,.calleg .l5{background:var(--accent)}
-.calg .f{opacity:.3}.calg .now{outline:2px solid var(--ink);outline-offset:-1px}
-.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
-.badge{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:3px;font-size:.8rem}
-.badge.ok{border-color:var(--accent);background:var(--accent-soft)}
-.badge .be{font-size:1.7rem;filter:grayscale(1);opacity:.55}
-.badge.ok .be{filter:none;opacity:1}
-.badge span{color:var(--muted)}
-.badge .won{color:var(--green);font-weight:700}
-.badge .bar{margin-top:3px}
-.sugs{display:grid;gap:12px}
-.sug{border:1px solid var(--line);border-radius:14px;padding:12px;background:var(--card)}
-.sugtop{display:flex;gap:12px}
-.sugres{font-size:.88rem;margin:10px 0 2px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;cursor:pointer}
-.sugres.open{display:block}
-.resum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem}
-.cpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:8px;margin-bottom:12px}
-.cpick button{border:2px solid var(--line);padding:0;border-radius:6px;overflow:hidden;cursor:pointer;background:var(--line);aspect-ratio:2/3}
-.cpick img{width:100%;height:100%;object-fit:cover;display:block}
-.notice{background:var(--accent-soft);color:var(--ink);font-size:.85rem;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+.blist{display:grid;gap:var(--e-2);margin-top:var(--e-3);max-height:32vh;overflow:auto}
+.bl{display:flex;gap:var(--e-2);align-items:center;font-size:var(--t-s);background:var(--surface-2);border:1px solid var(--trait);border-radius:var(--r-s);padding:var(--e-2)}
+.clock{font-size:3.4rem;text-align:center;margin:var(--e-3) 0;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--texte);color:var(--fond);padding:var(--e-2) var(--e-4);border-radius:var(--r-m);font-size:var(--t-s);opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;text-align:center;line-height:1.4;max-width:min(94vw,520px)}
+.toast.show{opacity:.96}.toast.act{pointer-events:auto}
+.toast button{min-height:var(--toucher);background:var(--fond);color:var(--texte);border:0;border-radius:var(--r-pilule);padding:0 var(--e-4);margin:var(--e-1) 0 0 var(--e-3);font:inherit;font-weight:700;cursor:pointer}
 #print{display:none}
 @media print{
   body>*:not(#print){display:none!important}
@@ -184,106 +272,30 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;marg
   #print table{width:100%;border-collapse:collapse}#print td,#print th{text-align:left;padding:4px 6px;border-bottom:1px solid #ddd;vertical-align:top}
   #print blockquote{margin:0 0 8px;font-style:italic}
 }
-
-/* =====================================================================
-   Style « critique culturelle » (inspiré de SensCritique) :
-   barre sombre, contenu clair et aéré, typo grasse, couvertures façon affiches,
-   notes en pastilles colorées, rangées qui défilent, accent vert.
-   ===================================================================== */
-:root{--bg:#f2f2f0;--card:#fff;--field:#f6f6f4;--ink:#141414;--muted:#6e6e6e;--line:#e4e4e0;--accent:#11a05a;--accent-soft:#e2f4ea;--green:#11a05a;--star:#f5b301;--red:#d64541;--radius:12px;--shadow:0 1px 2px rgba(0,0,0,.06),0 6px 18px rgba(0,0,0,.06);--bar:#141414}
-:root[data-theme=dark]{--bg:#0d0d0d;--card:#191919;--field:#222;--ink:#f1f1f1;--muted:#9b9b9b;--line:#2b2b2b;--accent:#2ecc71;--accent-soft:#143022;--green:#2ecc71;--shadow:0 1px 3px rgba(0,0,0,.5);--bar:#000}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;letter-spacing:-.005em}
-h1,.modal h2,.tile b,.clock,.quote p,.top5 .rk,.nxspin,.ph{font-family:inherit}
-header{background:var(--bar);border-bottom:0;box-shadow:0 2px 10px rgba(0,0,0,.25);padding-top:env(safe-area-inset-top)}
-header h1{color:#fff;font-size:1.35rem;font-weight:800;letter-spacing:-.02em}
-header .icon{background:#262626;border-color:#333;color:#fff}
-.flame{background:#262626;color:#ffb23e}
-.tabs{gap:0;padding-bottom:2px}
-.tab{color:#a8a8a8;font-weight:600;font-size:.92rem;padding:11px 10px 10px;border-bottom-width:3px;transition:color .15s}
-.tab.on{color:#fff;border-color:var(--accent)}
-.tab .n{background:#2c2c2c;color:#ddd;font-weight:700}
-.tab.on .n{background:var(--accent);color:#fff}
-.notice{background:#1f1f1f;color:#eee}
-.notice .btn{background:#2c2c2c;border-color:#3a3a3a;color:#fff}.notice .btn.pri{background:var(--accent);border-color:var(--accent)}
-.tools input,.tools select{background:var(--card);border-color:var(--line);border-radius:22px;padding:9px 14px}
-.icon{border-radius:50%}
-.card{border-radius:var(--radius);padding:12px;gap:14px;border:1px solid var(--line);box-shadow:none}
-.cover{width:72px;height:108px;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
-.big{border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
-.ph{font-weight:800}
-.t{font-weight:750;font-size:1.02rem;letter-spacing:-.01em}
-.chip{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600;border-radius:6px;padding:1px 7px}
-.chip.warn{background:#fff4d6;border-color:#f3d27a;color:#8a5a00}
-.chip.late{background:var(--red);border-color:var(--red);color:#fff}
-.btn{border-radius:20px;font-weight:600}
-.btn.pri{box-shadow:0 2px 8px rgba(17,160,90,.25)}
-.fab{background:var(--accent);box-shadow:0 8px 22px rgba(17,160,90,.4)}
-.panel{border-radius:var(--radius);border:1px solid var(--line);box-shadow:none}
-.panel h3,.lbl{text-transform:uppercase;letter-spacing:.06em;font-size:.76rem;font-weight:800;color:var(--muted)}
-.panel h3{color:var(--ink)}
-.tile{border:1px solid var(--line);box-shadow:none}
-.tile b{font-weight:800;letter-spacing:-.02em}
-.modal{border-radius:20px 20px 0 0}
-.modal h2{font-weight:800;letter-spacing:-.02em}
-.bar>i{background:var(--accent)}
-.chart i{background:var(--ink)}.chart.green i{background:var(--accent)}
-.hb .bar>i{background:var(--ink)}
-.quote{border:1px solid var(--line);box-shadow:none;border-left:4px solid var(--accent)}
-.q{background:var(--field);border-left-color:var(--accent)}
-/* Notes en pastille colorée (vert = coup de cœur … rouge = déçu) */
-.score{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;padding:0 6px;border-radius:6px;font-weight:800;font-size:.85rem;color:#fff;background:#9a9a9a}
-.score small{font-size:.65rem;opacity:.85;margin-left:1px}
-/* (teintes foncées : texte blanc lisible, contraste d'au moins 5 pour 1) */
-.n5{background:#0b7f45}.n4{background:#2e7d32}.n3{background:#8a6100}.n2{background:#b4530b}.n1{background:#c0392b}
-.gcard .ph{border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.18)}
-.gcard .gscore{position:absolute;left:6px;top:6px;z-index:2}
-.list.grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:16px 12px}
-/* Sélection du mois : rangée de livres qui défile à l'horizontale */
-.sugs{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;margin:0 -2px;scrollbar-width:none}
-.sugs::-webkit-scrollbar{display:none}
-.sugs .sug{flex:0 0 86%;scroll-snap-align:start}
-.sug{border-radius:var(--radius)}
-.dots{display:flex;gap:6px;justify-content:center;margin-top:2px}
-.dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}.dots i.on{background:var(--accent)}
-/* Glisser entre onglets : petite animation */
+/* ---------- Mouvements ---------- */
 @keyframes inL{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
 @keyframes inR{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-out}
-/* Réglage d'accessibilité « Supprimer les animations » du téléphone : rien ne glisse ni ne clignote */
 @media (prefers-reduced-motion: reduce){main.slide-l,main.slide-r,.cam .aim::after{animation:none}.toast{transition:none}}
-/* Lisibilité : contrastes suffisants (texte sur bouton vert, messages), y compris en mode sombre */
-:root{--accent:#0b7f45;--accent-soft:#e0f2e8;--green:#0b7f45;--on-accent:#fff}
-:root[data-theme=dark]{--on-accent:#04210f}
-.btn.pri,.seg button.on,.chipb.on,.tab.on .n,.notice .btn.pri,.fab{color:var(--on-accent)}
-.toast{white-space:normal;text-align:center;line-height:1.4;max-width:min(94vw,520px)}
-.toast button{background:var(--bg);color:var(--ink);border-radius:14px;padding:4px 12px;margin:4px 0 0 10px;min-height:32px}
-.starpick button{color:var(--muted);opacity:.45}
-.starpick button.on{color:var(--star);opacity:1}
-/* Catégories et recherche par thème */
-.catrow{width:100%;border:0;background:none;color:var(--ink);font:inherit;font-size:.88rem;text-align:left;padding:6px 0;cursor:pointer;grid-template-columns:minmax(110px,190px) 1fr auto;min-height:40px}
-.catrow:active{opacity:.6}
-.catline{display:flex;gap:10px;align-items:center;width:100%;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:.9rem;text-align:left;padding:10px 0;cursor:pointer}
-.catline .grow{flex:1;min-width:0}
-.catline .chip{display:inline-block;margin-top:3px}
-.catchip{display:inline-flex;align-items:center;gap:2px}
-.catchip button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;min-width:32px;min-height:32px;padding:0 4px}
-.pourquoi{font-size:.84rem;margin-top:8px}
-.pourquoi ul{margin:6px 0;padding-left:18px}
-.pourquoi summary,.inconnus summary{cursor:pointer;color:var(--muted);font-weight:600;padding:6px 0}
-#f_catadd{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);max-width:100%}
-.sug.rq{margin-bottom:10px}
-.chip.pg{color:var(--ink);border-color:var(--ink)}
-.inconnus{margin-top:6px}
-.ailleurs{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin-bottom:8px}
-#rq_cats,#rq_sous,#cv_sous,#dc_theme,#nx_theme,#nx_cat{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-#rq_cats::-webkit-scrollbar,#rq_sous::-webkit-scrollbar,#cv_sous::-webkit-scrollbar,#dc_theme::-webkit-scrollbar,#nx_theme::-webkit-scrollbar,#nx_cat::-webkit-scrollbar{display:none}
-#rq_cats .chipb,#rq_sous .chipb,#cv_sous .chipb,#dc_theme .chipb,#nx_theme .chipb,#nx_cat .chipb{flex:0 0 auto}
-/* Zones tactiles plus confortables (petits boutons, puces, choix) */
-.btn.small,.chipb{min-height:36px}.seg button{min-height:40px}.btn{min-height:38px}
-/* Bouton ＋ : choix « Un livre / Scanner / Scan rapide » */
-.ajout{display:grid;gap:10px;margin-bottom:8px}
-.ajout button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;font:inherit;font-size:1rem;padding:14px 16px;min-height:56px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);color:var(--ink);cursor:pointer}
-.ajout button span{font-size:.84rem;color:var(--muted)}
+/* ---------- Icônes : dessin au trait (Android, Actuel), émoji (Carnet) ---------- */
+.ico{display:inline-block;flex:none;font-size:0;overflow:hidden;width:1.25rem;height:1.25rem;vertical-align:-.25rem;background:currentColor;-webkit-mask:var(--ico) center/contain no-repeat;mask:var(--ico) center/contain no-repeat}
+[data-style=carnet] .ico{font-size:inherit;overflow:visible;width:auto;height:auto;vertical-align:baseline;background:none;-webkit-mask:none;mask:none}
+.fab .ico{width:28px;height:28px}
+/* ---------- États vides, erreurs, chargements ---------- */
+.etat{text-align:center;padding:var(--e-6) var(--e-4);grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:var(--e-2)}
+.etat-icone{width:64px;height:64px;border-radius:50%;background:var(--surface-2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:var(--t-xxl)}
+.etat-icone .ico{width:32px;height:32px}
+.etat-titre{margin:0;font-size:var(--t-l);font-weight:700;font-family:var(--police-titres);color:var(--texte)}
+.etat-texte{margin:0;font-size:var(--t-s);color:var(--texte-doux);max-width:420px}
+.etat.erreur .etat-icone{color:var(--danger)}
+.etat + .etat-texte{margin:0 auto;grid-column:1/-1}
+.squelette{cursor:default}
+.sq{background:var(--surface-2);border-radius:var(--r-s);animation:pulse 1.4s ease-in-out infinite}
+.squelette .l1{height:16px;width:70%}.squelette .l2{height:13px;width:45%}.squelette .l3{height:13px;width:85%;margin-top:var(--e-2)}
+@keyframes pulse{50%{opacity:.45}}
+.tourne{width:28px;height:28px;border:3px solid var(--trait);border-top-color:var(--accent);border-radius:50%;animation:tourne 1s linear infinite}
+@keyframes tourne{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.sq,.tourne{animation:none}}
 </style>
 </head>
 <body>
@@ -292,28 +304,32 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
   <div class="top">
     <h1>📚 Mes lectures</h1>
     <span class="flame" id="flame" hidden title="Jours de lecture d'affilée"></span>
-    <button class="icon" id="settingsBtn" title="Réglages" aria-label="Réglages">⚙️</button>
+    <button class="icon" id="settingsBtn" title="Réglages" aria-label="Réglages"><span class="ico i-reglages" aria-hidden="true">⚙️</span></button>
   </div>
-  <nav class="tabs" id="tabs"></nav>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Onglets"></nav>
 </div></header>
-<main class="wrap" id="main"><div class="empty">Chargement de tes livres…</div></main>
-<button class="fab" id="fab" title="Ajouter (un livre, un code-barres, plusieurs livres)" aria-label="Ajouter">+</button>
+<main class="wrap" id="main"><p class="sr">Chargement de tes livres…</p><div class="list">
+  <div class="card squelette" aria-hidden="true"><div class="cover sq"></div><div class="info"><div class="sq l1"></div><div class="sq l2"></div><div class="sq l3"></div></div></div>
+  <div class="card squelette" aria-hidden="true"><div class="cover sq"></div><div class="info"><div class="sq l1"></div><div class="sq l2"></div><div class="sq l3"></div></div></div>
+  <div class="card squelette" aria-hidden="true"><div class="cover sq"></div><div class="info"><div class="sq l1"></div><div class="sq l2"></div><div class="sq l3"></div></div></div>
+</div></main>
+<button class="fab" id="fab" title="Ajouter (un livre, un code-barres, plusieurs livres)" aria-label="Ajouter"><span class="ico i-ajouter" aria-hidden="true">＋</span></button>
 <button class="pill" id="timerPill" hidden></button>
 
-<div class="ov" id="ov"><div class="modal" id="modal" role="dialog"></div></div>
+<div class="ov" id="ov"><div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitre"></div></div>
 
 <div class="ov" id="scanOv"><div class="modal">
   <h2>Scanner le code-barres</h2>
   <div class="cam" id="cam1box"><video id="cam" playsinline muted autoplay></video><div class="aim"></div></div>
   <p class="a" id="scanMsg"></p>
-  <div class="mfoot"><button class="btn" id="scanPhoto" type="button">📷 Prendre une photo à la place</button><span class="sp"></span>
+  <div class="mfoot"><button class="btn" id="scanPhoto" type="button"><span class="ico i-photo" aria-hidden="true">📷</span> Prendre une photo à la place</button><span class="sp"></span>
     <button class="btn" id="scanClose" type="button">Annuler</button></div>
 </div></div>
 
 <div class="ov" id="bulkOv"><div class="modal">
   <h2>📦 Scan rapide</h2>
-  <p class="a" style="margin-top:-6px">Scanne tes livres les uns après les autres : ils s'ajoutent tout seuls.</p>
-  <div class="lbl" style="margin-bottom:4px">Les ranger dans :</div>
+  <p class="a remonte">Scanne tes livres les uns après les autres : ils s'ajoutent tout seuls.</p>
+  <div class="lbl mb-1">Les ranger dans :</div>
   <div class="seg" id="bulkDest"><button data-dest="a_lire" class="on">À lire</button><button data-dest="lu">Lus</button><button data-dest="en_cours">En cours</button></div>
   <div class="cam" id="cam2box"><video id="cam2" playsinline muted autoplay></video><div class="aim"></div></div>
   <p class="a" id="bulkMsg">Vise le code-barres au dos du livre.</p>
@@ -325,11 +341,11 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 
 <!-- Question « Oui / Non » de l'appli (à la place des fenêtres du navigateur) -->
 <div class="ov" id="askOv"><div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="askTxt">
-  <p id="askTxt" style="margin:4px 0 14px;font-size:1.02rem"></p>
+  <p id="askTxt" class="question"></p>
   <div class="mfoot"><span class="sp"></span><button class="btn" id="askNon" type="button">Non</button><button class="btn pri" id="askOui" type="button">Oui</button></div>
 </div></div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="pick_cover" accept="image/*" hidden>
 <input type="file" id="pick_scan" accept="image/*" capture="environment" hidden>
 <!-- (aucun filtre de type : sur certains téléphones, une sauvegarde reçue par WhatsApp ou Drive apparaissait grisée ;
@@ -343,7 +359,7 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et sw.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.21-1';
+const VERSION = '2026.10.21-2';
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
 const STATUT_UN = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lu', abandon: 'Abandonné'};
 const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Jeunesse', 'Autre'];
@@ -352,26 +368,40 @@ const POSSESSION = {a_moi: 'Je l\'ai', emprunte: 'Emprunté (médiathèque, ami�
 const PAGES_SOURCES = {edition: 'nombre de pages de cette édition (d\'après son ISBN)', estimation: 'estimé : nombre de pages d\'une autre édition du livre', manuel: 'nombre de pages tapé à la main'};
 const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-const EMPTY = {
-  en_cours: 'Aucune lecture en cours.<br>Va dans « À lire » et appuie sur « Commencer », ou ajoute un livre avec le bouton +.',
-  a_lire: 'Ta liste de livres à lire est vide.<br>Ajoute un livre avec le bouton +, ou scanne-les avec 📦 Scan rapide.',
-  lu: 'Aucun livre terminé pour l\'instant.',
-  abandon: 'Aucun livre abandonné. 👍'
+// État d'un écran (vide, erreur, chargement) : une icône, un titre, une phrase, une ou deux actions
+function etat({icone, emoji, titre, texte, actions, ton}) {
+  return `<div class="etat${ton ? ' ' + ton : ''}" role="${ton === 'erreur' ? 'alert' : 'status'}">
+    <div class="etat-icone">${ico(icone, emoji)}</div><p class="etat-titre">${titre}</p>${texte ? `<p class="etat-texte">${texte}</p>` : ''}
+    ${actions ? `<div class="acts centre">${actions}</div>` : ''}</div>`;
+}
+const boutonAjouter = (txt) => `<button class="btn pri" type="button" data-ajouter>${ico('ajouter', '＋')} ${txt || 'Ajouter un livre'}</button>`;
+const ETATS = {
+  en_cours: () => etat({icone: 'livre', emoji: '📖', titre: 'Aucune lecture en cours', texte: 'Commence un livre de ta liste, ou ajoutes-en un.',
+    actions: `<button class="btn" type="button" data-tab="a_lire">Choisir dans « À lire »</button>${boutonAjouter()}`}),
+  a_lire: () => etat({icone: 'livre', emoji: '📚', titre: 'Ta liste est vide', texte: 'Ajoute les livres que tu veux lire, ou laisse-toi inspirer.',
+    actions: `${boutonAjouter()}<button class="btn" type="button" data-tab="decouvrir">${ico('etincelle', '✨')} Découvrir des livres</button>`}),
+  lu: () => etat({icone: 'fini', emoji: '✓', titre: 'Aucun livre terminé pour l\'instant', texte: 'Quand tu finis un livre, il arrive ici avec ta note.',
+    actions: '<button class="btn" type="button" data-tab="en_cours">Voir mes lectures en cours</button>'}),
+  abandon: () => etat({icone: 'fini', emoji: '👍', titre: 'Aucun livre abandonné', texte: 'Tant mieux !'}),
+  citations: () => etat({icone: 'citation', emoji: '✍️', titre: 'Pas encore de citation', texte: 'Sur un livre en cours, touche « ⋯ » puis « Ajouter une citation ».',
+    actions: '<button class="btn" type="button" data-tab="en_cours">Voir mes lectures en cours</button>'})
 };
 // Bibliothèque complètement vide (premier lancement, réinstallation, nouveau téléphone) : récupérer une sauvegarde en un geste
-const ACCUEIL = `<div style="font-size:1.6rem;margin-bottom:6px">👋</div><b style="color:var(--ink)">Ta bibliothèque est vide.</b><br>
-  Ajoute ton premier livre avec le bouton ＋.<br><br>Tu avais déjà l'appli ?
-  <div style="margin-top:10px"><button class="btn pri" type="button" data-export="restore">📂 J'ai une sauvegarde : récupérer mes livres</button></div>
-  <div style="font-size:.8rem;margin-top:8px">(le fichier « mes-lectures-sauvegarde-… », dans tes Téléchargements, ton Drive ou tes mails)</div>
-  <div style="font-size:.8rem;margin-top:10px">Tes livres ont disparu d'un coup ? Avant d'en ajouter, vérifie que l'appli s'ouvre bien avec <b>Chrome</b>
-  (Paramètres du téléphone → Applis → Navigateur par défaut) : chaque navigateur garde sa propre liste.</div>`;
+const accueil = () => etat({icone: 'livre', emoji: '👋', titre: 'Ta bibliothèque est vide',
+  texte: 'Tu avais déjà l\'appli ? Récupère ta sauvegarde (le fichier « mes-lectures-sauvegarde-… », dans tes Téléchargements, ton Drive ou tes mails).',
+  actions: `${boutonAjouter('Ajouter mon premier livre')}<button class="btn" type="button" data-export="restore">${ico('restaurer', '📂')} J'ai une sauvegarde</button>`})
+  + `<p class="etat-texte petit centre">Tes livres ont disparu d'un coup ? Avant d'en ajouter, vérifie que l'appli s'ouvre bien avec <b>Chrome</b>
+  (Paramètres du téléphone → Applis → Navigateur par défaut) : chaque navigateur garde sa propre liste.</p>`;
+const squelettes = n => '<p class="sr">Chargement…</p>' + Array.from({length: n}, () =>
+  '<div class="card squelette" aria-hidden="true"><div class="cover sq"></div><div class="info"><div class="sq l1"></div><div class="sq l2"></div><div class="sq l3"></div></div></div>').join('');
+const etatChargement = (texte, id) => `<div class="etat chargement" role="status"><div class="tourne" aria-hidden="true"></div><p class="etat-titre"${id ? ` id="${id}"` : ''}>${esc(texte)}</p></div>`;
 
 let books = [], goal = 0, form = null, lastRes = [];
 const ui = {tab: 'en_cours', q: '', cq: '', genre: '', cat: '', own: '', sort: 'recent', year: new Date().getFullYear()};
 // Page de tests (index.html?tests) : elle travaille dans une mémoire à part, jamais sur les vrais livres
 const ESSAI = new URLSearchParams(location.search).has('tests');
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
-const prefs = Object.assign({view: 'liste', theme: 'auto', googleKey: '', bulkDest: 'a_lire'},
+const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'android', googleKey: '', bulkDest: 'a_lire'},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
 Recherche.setGoogleKey(prefs.googleKey);
@@ -379,6 +409,42 @@ Recherche.setGoogleKey(prefs.googleKey);
 /* ---------- Petits outils ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+// Icône d'interface : l'émoji, enveloppé ; en Android moderne et Actuel, un dessin au trait le remplace (masque CSS)
+const ico = (nom, emoji) => `<span class="ico i-${nom}" aria-hidden="true">${emoji}</span>`;
+const ICONES = {
+  ajouter: "<path d='M12 5v14M5 12h14'/>", chercher: "<circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/>", fermer: "<path d='M6 6l12 12M18 6 6 18'/>",
+  reglages: "<path d='M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1'/><circle cx='15' cy='6' r='2'/><circle cx='9' cy='12' r='2'/><circle cx='17' cy='18' r='2'/>",
+  filtres: "<path d='M4 6h16M7 12h10M10 18h4'/>", photo: "<path d='M4 8h3l2-3h6l2 3h3v11H4z'/><circle cx='12' cy='13' r='3.5'/>",
+  colis: "<path d='M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z'/><path d='m3 7.5 9 4.5 9-4.5M12 12v9'/>",
+  livre: "<path d='M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z'/><path d='M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3'/>",
+  chrono: "<circle cx='12' cy='13' r='8'/><path d='M12 9v4l2.5 2M9.5 2h5'/>", modifier: "<path d='M4 20h4L19 9l-4-4L4 16z'/><path d='m13.5 6.5 4 4'/>",
+  fini: "<path d='m5 12.5 4.5 4.5L19 7'/>",
+  plus: "<circle cx='5' cy='12' r='1.6' fill='currentColor'/><circle cx='12' cy='12' r='1.6' fill='currentColor'/><circle cx='19' cy='12' r='1.6' fill='currentColor'/>",
+  grille: "<rect x='4' y='4' width='7' height='7' rx='1.5'/><rect x='13' y='4' width='7' height='7' rx='1.5'/><rect x='4' y='13' width='7' height='7' rx='1.5'/><rect x='13' y='13' width='7' height='7' rx='1.5'/>",
+  liste: "<path d='M9 6h11M9 12h11M9 18h11'/><path d='M4.5 6h.01M4.5 12h.01M4.5 18h.01' stroke-width='3'/>",
+  sauver: "<path d='M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 20h14'/>", restaurer: "<path d='M12 20V9m-4.5 4.5L12 9l4.5 4.5M5 4h14'/>",
+  partager: "<circle cx='6' cy='12' r='2.5'/><circle cx='18' cy='6' r='2.5'/><circle cx='18' cy='18' r='2.5'/><path d='m8.3 10.9 7.4-3.7M8.3 13.1l7.4 3.7'/>",
+  epingle: "<path d='M9 3h6l-1 6 4 4H6l4-4z'/><path d='M12 13v8'/>",
+  de: "<rect x='4' y='4' width='16' height='16' rx='3'/><circle cx='9' cy='9' r='1.3' fill='currentColor'/><circle cx='15' cy='15' r='1.3' fill='currentColor'/><circle cx='15' cy='9' r='1.3' fill='currentColor'/><circle cx='9' cy='15' r='1.3' fill='currentColor'/>",
+  lien: "<path d='M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1'/><path d='M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1'/>",
+  document: "<path d='M6 3h8l4 4v14H6z'/><path d='M14 3v4h4M9 13h6M9 17h6'/>", tableau: "<rect x='4' y='4' width='16' height='16' rx='2'/><path d='M4 10h16M10 4v16'/>",
+  texte: "<path d='M5 6h14M5 10h14M5 14h10M5 18h7'/>", etiquette: "<path d='M3 12V4h8l10 10-8 8z'/><circle cx='7.5' cy='7.5' r='1.5'/>",
+  relire: "<path d='M20 11a8 8 0 0 0-14.3-4.9L4 8M4 13a8 8 0 0 0 14.3 4.9L20 16'/><path d='M4 3v5h5M20 21v-5h-5'/>",
+  panier: "<path d='M3 4h2l2.4 11h11.1L21 7H6.5'/><circle cx='9' cy='19.5' r='1.5'/><circle cx='17' cy='19.5' r='1.5'/>",
+  courrier: "<rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/>",
+  globe: "<circle cx='12' cy='12' r='9'/><path d='M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18'/>",
+  cible: "<circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='5'/><circle cx='12' cy='12' r='1.2' fill='currentColor'/>",
+  etincelle: "<path d='M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3'/>", retour: "<path d='M19 12H5m6-6-6 6 6 6'/>",
+  horsligne: "<path d='M2 8.5a15 15 0 0 1 5-3M10.5 4.6A15 15 0 0 1 22 8.5M5 12a10 10 0 0 1 4.5-2.6M14.5 9.4A10 10 0 0 1 19 12M8.5 15.5a5 5 0 0 1 7 0M12 19h.01M3 3l18 18'/>",
+  alerte: "<path d='M12 3 2 20h20z'/><path d='M12 10v4M12 17h.01'/>",
+  pause: "<path d='M9 5v14M15 5v14'/>", lecture: "<path d='M7 4.5v15L19 12z'/>",
+  soleil: "<circle cx='12' cy='12' r='4'/><path d='M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/>",
+  lune: "<path d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/>",
+  citation: "<path d='M10 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3M20 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3'/>"
+};
+// Les masques sont produits ici une fois (aucune couleur : un masque ne garde que la forme ; la couleur est celle du texte)
+document.head.insertAdjacentHTML('beforeend', '<style id="icones">' + Object.entries(ICONES).map(([n, d]) =>
+  `.i-${n}{--ico:url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${d}</svg>`)}")}`).join('') + '</style>');
 const safeUrl = u => /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u || '') ? u : '';
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -423,7 +489,7 @@ const brokenCovers = new Set();   // livres dont aucune couverture ne s'affiche 
 function coverHtml(b, cls) {
   const list = coverList(b);
   const ini = esc((b.titre || '?').trim().charAt(0).toUpperCase());
-  return `<div class="${cls || 'cover'} ph" style="background:hsl(${hue(b.titre)} 32% 48%)">${ini}${list.length ?
+  return `<div class="${cls || 'cover'} ph" style="background:hsl(${hue(b.titre)} var(--couv-s) var(--couv-l))">${ini}${list.length ?
     `<img src="${esc(list[0])}" data-alt="${esc(list.slice(1).join('|'))}"${b.id ? ` data-bid="${esc(b.id)}"` : ''} alt="" loading="lazy" referrerpolicy="no-referrer" onload="coverOk(this)" onerror="coverNext(this)">` : ''}</div>`;
 }
 // Couverture choisie + jusqu'à 4 de secours, à partir d'une liste de candidates
@@ -484,9 +550,16 @@ const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : 
 
 /* ---------- Thème ---------- */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+/* ---------- Apparence : style (Android moderne, Actuel, Carnet de lecture) et thème (clair, sombre) ---------- */
+const STYLES = {android: 'Android moderne', actuel: 'Actuel', carnet: 'Carnet de lecture'};
 function applyTheme() {
-  const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches), r = document.documentElement;
+  r.dataset.theme = dark ? 'dark' : 'light';
+  // (style absent ou inconnu : Android moderne)
+  r.dataset.style = Object.hasOwn(STYLES, prefs.style) ? prefs.style : 'android';
+  // Barre du navigateur : la couleur de l'en-tête du style choisi
+  const barre = getComputedStyle(r).getPropertyValue('--barre').trim(), meta = document.querySelector('meta[name="theme-color"]');
+  if (barre && meta) meta.content = barre;
 }
 if (darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme);
 applyTheme();
@@ -702,10 +775,10 @@ function renderTout() {
   const c = counts(), nq = allQuotes().length;
   const sel = prefs.selection, neuf = sel && sel.items && sel.items.length && !sel.vu;
   $('#tabs').innerHTML = Object.keys(STATUTS).map(k =>
-    `<button class="tab ${ui.tab === k ? 'on' : ''}" data-tab="${k}">${STATUTS[k]}<span class="n">${c[k]}</span></button>` +
-    (k === 'a_lire' ? `<button class="tab ${ui.tab === 'decouvrir' ? 'on' : ''}" data-tab="decouvrir">✨ Découvrir${neuf ? '<span class="n" style="background:var(--accent);color:var(--on-accent)">' + sel.items.length + '</span>' : ''}</button>` : '')).join('') +
-    `<button class="tab ${ui.tab === 'citations' ? 'on' : ''}" data-tab="citations">Citations<span class="n">${nq}</span></button>` +
-    `<button class="tab ${ui.tab === 'stats' ? 'on' : ''}" data-tab="stats">Stats</button>`;
+    `<button class="tab ${ui.tab === k ? 'on' : ''}" role="tab" aria-selected="${ui.tab === k}" data-tab="${k}">${STATUTS[k]}<span class="n">${c[k]}</span></button>` +
+    (k === 'a_lire' ? `<button class="tab ${ui.tab === 'decouvrir' ? 'on' : ''}" role="tab" aria-selected="${ui.tab === 'decouvrir'}" data-tab="decouvrir"><span class="ico i-etincelle" aria-hidden="true">✨</span> Découvrir${neuf ? '<span class="n neuf">' + sel.items.length + '</span>' : ''}</button>` : '')).join('') +
+    `<button class="tab ${ui.tab === 'citations' ? 'on' : ''}" role="tab" aria-selected="${ui.tab === 'citations'}" data-tab="citations">Citations<span class="n">${nq}</span></button>` +
+    `<button class="tab ${ui.tab === 'stats' ? 'on' : ''}" role="tab" aria-selected="${ui.tab === 'stats'}" data-tab="stats">Stats</button>`;
   const on = $('#tabs .on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
   const s = streaks(activity()).cur;
   $('#flame').hidden = !s; $('#flame').textContent = '🔥 ' + s;
@@ -730,8 +803,8 @@ function renderTout() {
   // Recherche toujours visible ; genre, rayon, possession et tri rangés dans « Filtres et tri » (avec le nombre de filtres actifs)
   $('#main').innerHTML = `<div class="tools">
       <input id="q" type="search" placeholder="Chercher dans mes livres…" value="${esc(ui.q)}">
-      <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? '☰' : '▦'}</button>
-      ${ui.tab === 'a_lire' && c.a_lire > 1 ? '<button class="btn pri" id="dice" title="Que lire ensuite ?">🎲 Que lire ensuite ?</button>' : ''}
+      <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? ico('liste', '☰') : ico('grille', '▦')}</button>
+      ${ui.tab === 'a_lire' && c.a_lire > 1 ? '<button class="btn pri" id="dice" title="Que lire ensuite ?"><span class="ico i-de" aria-hidden="true">🎲</span> Que lire ensuite ?</button>' : ''}
     </div>
     <details class="filtres" id="filtres" ${ui.filtres ? 'open' : ''}><summary>${filtresTitre()}</summary><div class="tools">
       <select id="genre" aria-label="Genre"><option value="">Tous les genres</option>${genres.map(g => `<option value="${esc(g)}" ${g === ui.genre ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
@@ -747,7 +820,7 @@ function renderTout() {
 // « Filtres et tri », suivi du nombre de filtres actifs (un tri autre que « Plus récents » compte aussi)
 function filtresTitre() {
   const n = [ui.genre, ui.cat, ui.own].filter(Boolean).length + (ui.sort !== 'recent' ? 1 : 0);
-  return '⚙️ Filtres et tri' + (n ? ' (' + n + ')' : '');
+  return ico('filtres', '⚙️') + ' Filtres et tri' + (n ? ' (' + n + ')' : '');
 }
 
 function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.dateFin : b.statut === 'en_cours' ? b.dateDebut : '') || b.ajoute || ''; }
@@ -775,7 +848,8 @@ function renderCards() {
   vitesseAffichage = ui.tab === 'en_cours' ? speed() : null;
   $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs">Aussi dans ${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
     (l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') :
-    `<div class="empty">${q || ui.genre || ui.own || ui.cat ? 'Aucun livre ne correspond dans cet onglet.' : !books.length ? ACCUEIL : EMPTY[ui.tab]}</div>`);
+    (q || ui.genre || ui.own || ui.cat ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucun livre ne correspond', texte: 'dans cet onglet, avec cette recherche ou ces filtres.',
+      actions: '<button class="btn" type="button" data-effacer>Effacer la recherche et les filtres</button>'}) : !books.length ? accueil() : ETATS[ui.tab]()));
 }
 
 function progress(b) {
@@ -799,11 +873,11 @@ function card(b) {
     extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %${reste}</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
     // (l'action la plus fréquente en grand ; le chrono, les citations et « J'ai fini » dans « ⋯ »)
-    acts = `<button class="btn pri" data-act="pages">📖 Où j'en suis</button><button class="btn" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini">⋯</button>`;
+    acts = `<button class="btn pri" data-act="pages"><span class="ico i-livre" aria-hidden="true">📖</span> Où j'en suis</button><button class="btn" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button>`;
   } else if (b.statut === 'a_lire') {
     extra = (b.pagesTotal ? `<div class="meta"${b.pagesSource === 'estimation' ? ` title="${PAGES_SOURCES.estimation}"` : ''}>${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} pages</div>` : '') +
       (b.resume ? `<div class="a resum">${esc(b.resume)}</div>` : '');
-    acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut">📌 ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
+    acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut"><span class="ico i-epingle" aria-hidden="true">📌</span> ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
   } else if (b.statut === 'lu') {
     extra = `<div class="meta">${scoreHtml(b.note)}${b.dateFin ? `<span>Fini le ${fdate(b.dateFin)}</span>` : ''}${fois ? `<span class="chip">Lu ${fois + 1} fois</span>` : ''}</div>` +
       (b.avis ? `<div class="a avis">${esc(b.avis)}</div>` : '');
@@ -831,13 +905,13 @@ function paintNotice() {
   const bar = $('#notice');
   if (Store.bloque) {
     bar.innerHTML = `⚠️ <b>Tes livres ne peuvent pas être lus pour l'instant</b> : rien n'est enregistré tant que ce n'est pas réparé (pour ne rien écraser).
-      Ferme complètement l'appli et rouvre-la. <button class="btn pri small" type="button" onclick="location.reload()">🔄 Réessayer</button>`;
-    bar.hidden = false; return;
+      Ferme complètement l'appli et rouvre-la. <button class="btn pri small" type="button" onclick="location.reload()"><span class="ico i-relire" aria-hidden="true">🔄</span> Réessayer</button>`;
+    bar.className = 'notice danger'; bar.hidden = false; return;
   }
   if (Store.erreur) {
     bar.innerHTML = `⚠️ <b>Tes dernières modifications ne sont pas enregistrées</b> (mémoire du téléphone pleine ?). Libère de la place, puis réessaie. Par précaution, fais une sauvegarde.
       <button class="btn small" type="button" data-resave>Réessayer</button><button class="btn pri small" data-export="backup">Sauvegarder</button>`;
-    bar.hidden = false; return;
+    bar.className = 'notice danger'; bar.hidden = false; return;
   }
   const due = books.filter(b => b.possession === 'emprunte' && b.pretRetour && b.pretRetour <= addDays(3)).sort((a, b) => a.pretRetour.localeCompare(b.pretRetour))[0];
   // Rappel : jamais sauvegardé, ou dernière sauvegarde de plus d'une semaine ET des changements depuis
@@ -846,10 +920,10 @@ function paintNotice() {
   if (due) {
     const lateRet = due.pretRetour < today();
     bar.innerHTML = `📥 « ${esc(due.titre)} » ${lateRet ? 'devait être rendu le' : 'est à rendre le'} <b>${fdate(due.pretRetour)}</b> <button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
-    bar.hidden = false;
+    bar.className = 'notice alerte'; bar.hidden = false;
   } else if (late) {
     bar.innerHTML = `💾 ${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'} <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
-    bar.hidden = false;
+    bar.className = 'notice'; bar.hidden = false;
   } else bar.hidden = true;
 }
 
@@ -865,7 +939,7 @@ function renderQuotes() {
   l.sort((a, b) => (b.q.date || '').localeCompare(a.q.date || ''));
   $('#qlist').innerHTML = l.length ? l.map(x => `<article class="quote" data-book="${esc(x.b.id)}"><p>« ${esc(x.q.texte)} »</p>
       <div class="a">— <b>${esc(x.b.titre)}</b>${x.b.auteur ? ', ' + esc(x.b.auteur) : ''}${x.q.page ? ' · p. ' + esc(x.q.page) : ''}</div></article>`).join('')
-    : `<div class="empty">${q ? 'Aucune citation ne correspond.' : 'Pas encore de citation.<br>Sur un livre en cours, appuie sur « ＋ Citation ».'}</div>`;
+    : `${q ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucune citation ne correspond'}) : ETATS.citations()}`;
 }
 
 /* ---------- Statistiques ---------- */
@@ -910,14 +984,14 @@ function renderStatsTout() {
       <div class="tile"><b>${v ? Math.round(v) : '–'}</b><span>pages par heure${v ? '' : ' (utilise ⏱️ Lire)'}</span></div>
     </div>
     ${y === thisYear ? `<div class="panel"><h3>Mon objectif ${y}</h3>
-      ${goal ? `<div class="meta" style="margin-bottom:6px">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
+      ${goal ? `<div class="meta mb-2">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
              : '<div class="a">Pas encore d\'objectif. Combien de livres veux-tu lire cette année ?</div>'}
-      <div class="search" style="margin-top:10px"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
+      <div class="search mt-3"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
     ${defisPanel(y)}
     <div class="panel"><h3>Pages lues par semaine</h3>
-      <div class="a" style="margin:-4px 0 8px">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
+      <div class="a sous-titre">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
       <div class="chart green">${weeks.map(w => `<div><div class="col"><em>${w.n || ''}</em><i style="height:${w.n / wmax * 100}%"></i></div>${w.start.getDate()}/${w.start.getMonth() + 1}</div>`).join('')}</div>
-      <div class="a" style="font-size:.78rem;margin-top:6px">Compté avec « Où j'en suis » et « ⏱️ Lire ».</div></div>
+      <div class="a petit mt-2">Compté avec « Où j'en suis » et « ⏱️ Lire ».</div></div>
     ${calendarPanel(y)}
     <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
       `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
@@ -928,11 +1002,11 @@ function renderStatsTout() {
     ${seriesPanel()}
     ${loansPanel()}
     ${bilan(y, ly)}
-    <div class="panel"><h3>Exporter ma liste</h3><div class="a" style="margin-bottom:10px">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
-      <div class="acts"><button class="btn pri" data-export="excel">📊 Excel</button><button class="btn pri" data-export="pdf">📄 PDF</button></div></div>
-    <div class="panel"><h3>💾 Sauvegarde</h3><div class="a" style="margin-bottom:10px">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
+    <div class="panel"><h3>Exporter ma liste</h3><div class="a mb-3">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
+      <div class="acts"><button class="btn pri" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn pri" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
+    <div class="panel"><h3>💾 Sauvegarde</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
       (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
-      <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>`;
+      <div class="acts"><button class="btn pri" data-export="backup"><span class="ico i-sauver" aria-hidden="true">💾</span> Sauvegarder</button><button class="btn" data-export="restore"><span class="ico i-restaurer" aria-hidden="true">📂</span> Restaurer</button></div></div>`;
   // Calendrier : on fait défiler jusqu'à aujourd'hui
   const cal = $('#cal'), now = $('#cal .now');
   if (cal && now) cal.scrollLeft = now.offsetLeft - cal.clientWidth + 60;
@@ -955,12 +1029,12 @@ function categoriesPanel() {
   const total = l.reduce((s, c) => s + n[c.id], 0), classes = books.length - sans, top = Math.max(1, ...l.map(c => n[c.id]));
   const aChercher = sansClassement().length;
   return `<div class="panel"><h3>🏷️ Mes livres par rayon</h3>
-    <div class="a" style="margin:-4px 0 8px;font-size:.85rem">D'après les classements des catalogues (BnF, Sudoc…). Touche un rayon pour voir ses livres.</div>
+    <div class="a sous-titre">D'après les classements des catalogues (BnF, Sudoc…). Touche un rayon pour voir ses livres.</div>
     ${l.map(c => `<button type="button" class="hb catrow" data-cat="${c.id}"><span>${c.e} ${esc(c.nom)}</span><div class="bar"><i style="width:${n[c.id] / top * 100}%"></i></div><span>${n[c.id]}${lus[c.id] ? ` <small class="a">(${lus[c.id]} lu${lus[c.id] > 1 ? 's' : ''})</small>` : ''}</span></button>`).join('')
       || '<div class="a">Aucun livre rangé pour l\'instant.</div>'}
     ${sans ? `<button type="button" class="hb catrow" data-cat="_aucune"><span>❔ Sans rayon</span><div class="bar"></div><span>${sans}</span></button>` : ''}
-    ${total > classes ? `<div class="a" style="font-size:.78rem;margin-top:6px">Un livre peut être dans plusieurs rayons : le total (${total}) dépasse le nombre de livres rangés (${classes}).</div>` : ''}
-    ${aChercher ? `<div class="acts" style="margin-top:8px"><button class="btn small" type="button" id="catfill">🔄 Chercher les rayons de ${plural(aChercher, 'livre')}</button></div><div class="a" style="font-size:.82rem" id="catfillres"></div>` : ''}</div>`;
+    ${total > classes ? `<div class="a petit mt-2">Un livre peut être dans plusieurs rayons : le total (${total}) dépasse le nombre de livres rangés (${classes}).</div>` : ''}
+    ${aChercher ? `<div class="acts mt-2"><button class="btn small" type="button" id="catfill"><span class="ico i-relire" aria-hidden="true">🔄</span> Chercher les rayons de ${plural(aChercher, 'livre')}</button></div><div class="a petit" id="catfillres"></div>` : ''}</div>`;
 }
 const catView = {sort: 'titre'};
 function openCategorie(id) {
@@ -977,10 +1051,10 @@ function openCategorie(id) {
     pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
   };
   l.sort(by[catView.sort]);
-  $('#modal').innerHTML = `<h2>${cat ? cat.e + ' ' + esc(cat.nom) : '❔ Sans rayon'} <span class="a" style="font-weight:400">(${plural(l.length, 'livre')})</span></h2>
-    <div class="lbl" style="margin-bottom:4px">Trier par</div>
+  $('#modal').innerHTML = `<h2>${cat ? cat.e + ' ' + esc(cat.nom) : '❔ Sans rayon'} <span class="a normal">(${plural(l.length, 'livre')})</span></h2>
+    <div class="lbl mb-1">Trier par</div>
     <div class="seg" id="cv_sort">${[['titre', 'Titre'], ['auteur', 'Auteur'], ['pages', 'Pages']].map(([k, v]) => `<button type="button" data-v="${k}" class="${catView.sort === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-    ${sous.length ? `<div class="lbl" style="margin-bottom:4px">Affiner</div><div class="chips" id="cv_sous"><button type="button" data-v="" class="chipb ${!catView.sous ? 'on' : ''}">Tout (${tous.length})</button>${sous.map(z => `<button type="button" data-v="${z.id}" class="chipb ${catView.sous === z.id ? 'on' : ''}">${esc(z.nom)} (${nS[z.id]})</button>`).join('')}</div>` : ''}
+    ${sous.length ? `<div class="lbl mb-1">Affiner</div><div class="chips" id="cv_sous"><button type="button" data-v="" class="chipb ${!catView.sous ? 'on' : ''}">Tout (${tous.length})</button>${sous.map(z => `<button type="button" data-v="${z.id}" class="chipb ${catView.sous === z.id ? 'on' : ''}">${esc(z.nom)} (${nS[z.id]})</button>`).join('')}</div>` : ''}
     ${id === '_aucune' ? '<div class="hint">Les catalogues ne donnent pas (encore) de classement pour ces livres. Ouvre un livre → 🏷️ Rayons pour lui en ajouter un à la main.</div>' : ''}
     <div class="catlist">${l.map(b => `<button type="button" class="catline" data-open="${esc(b.id)}">${coverHtml(b, 'mini')}<span class="grow"><b>${esc(b.titre)}</b><br>
       <span class="a">${esc(b.auteur || 'Auteur inconnu')}${b.pagesTotal ? ' · ' + esc(b.pagesTotal) + ' p.' : ''}</span><br>
@@ -1027,7 +1101,7 @@ function calendarPanel(y) {
   const start = new Date(y, 0, 1), offset = (start.getDay() + 6) % 7;   // lundi en haut
   const days = Math.round((new Date(y, 11, 31) - start) / 864e5) + 1, t = today();
   const cells = []; let jours = 0;
-  for (let i = 0; i < offset; i++) cells.push('<i style="visibility:hidden"></i>');
+  for (let i = 0; i < offset; i++) cells.push('<i class="invisible"></i>');
   for (let i = 0; i < days; i++) {
     const k = iso(new Date(y, 0, 1 + i)), p = Math.round(act[k] || 0), m = minBy[k] || 0;
     const lvl = finBy[k] ? 5 : (p >= 100 || m >= 90) ? 4 : (p >= 50 || m >= 45) ? 3 : (p >= 20 || m >= 20) ? 2 : (p > 0 || m > 0 || act[k]) ? 1 : 0;
@@ -1036,9 +1110,9 @@ function calendarPanel(y) {
   }
   const months = MOIS_COURT.map((m, i) => `<span style="grid-column:${Math.floor((offset + Math.round((new Date(y, i, 1) - start) / 864e5)) / 7) + 1}">${m}</span>`).join('');
   return `<div class="panel"><h3>🗓️ Mon année de lecture</h3>
-    <div class="a" style="margin:-4px 0 8px">${plural(jours, 'jour')} de lecture en ${y}</div>
+    <div class="a sous-titre">${plural(jours, 'jour')} de lecture en ${y}</div>
     <div class="cal" id="cal"><div class="calm">${months}</div><div class="calg">${cells.join('')}</div></div>
-    <div class="calleg"><span class="a" id="calinfo" style="font-size:.8rem">Touche un jour pour voir le détail.</span><span class="sp"></span>
+    <div class="calleg"><span class="a petit" id="calinfo">Touche un jour pour voir le détail.</span><span class="sp"></span>
       moins <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> plus · <i class="l5"></i> livre fini</div></div>`;
 }
 function dayInfo(k) {
@@ -1088,7 +1162,7 @@ function defis(y) {
 }
 function defisPanel(y) {
   const d = defis(y), ok = d.filter(x => x.ok).length;
-  return `<div class="panel"><h3>🏆 Mes défis ${y}</h3><div class="a" style="margin:-4px 0 10px">${ok} / ${d.length} réussis</div>
+  return `<div class="panel"><h3>🏆 Mes défis ${y}</h3><div class="a sous-titre">${ok} / ${d.length} réussis</div>
     <div class="badges">${d.map(x => `<div class="badge ${x.ok ? 'ok' : ''}"><div class="be">${x.e}</div><b>${esc(x.nom)}</b><span>${esc(x.desc)}</span>
       ${x.ok ? '<span class="won">Réussi ✓</span>' : `<div class="bar"><i style="width:${Math.round(x.n / x.but * 100)}%"></i></div><span>${x.n} / ${x.but}</span>`}</div>`).join('')}</div></div>`;
 }
@@ -1124,16 +1198,16 @@ function openNext() {
   const lens = [['', 'Peu importe'], ['court', 'Court'], ['moyen', 'Moyen'], ['long', 'Long']];
   const enLigne = pick.mode === 'ligne';
   $('#modal').innerHTML = `<h2>🎲 Que lire ensuite ?</h2>
-    <div class="seg" id="nx_mode"><button type="button" data-v="liste" class="${!enLigne ? 'on' : ''}">📚 Dans ma liste</button><button type="button" data-v="ligne" class="${enLigne ? 'on' : ''}">🌍 En ligne</button></div>
-    ${enLigne ? `<div class="a" style="font-size:.86rem;margin-bottom:8px">Un livre que tu n'as pas encore, trouvé parmi les prix littéraires, les incontournables, les nouveautés et les livres préférés des lecteurs.</div>
-      ${inspiHtml('nx_inspi')}${inspiration() === 'hasard' ? `<div class="lbl" style="margin-bottom:4px">Thème</div>${themeChips('nx_theme', pick.theme)}` : ''}` : `
-      <div class="lbl" style="margin-bottom:4px">Longueur <span class="a" style="font-weight:400">(court : moins de 250 p. · long : plus de 450 p.)</span></div>
+    <div class="seg" id="nx_mode"><button type="button" data-v="liste" class="${!enLigne ? 'on' : ''}"><span class="ico i-livre" aria-hidden="true">📚</span> Dans ma liste</button><button type="button" data-v="ligne" class="${enLigne ? 'on' : ''}"><span class="ico i-globe" aria-hidden="true">🌍</span> En ligne</button></div>
+    ${enLigne ? `<div class="a moyen mb-2">Un livre que tu n'as pas encore, trouvé parmi les prix littéraires, les incontournables, les nouveautés et les livres préférés des lecteurs.</div>
+      ${inspiHtml('nx_inspi')}${inspiration() === 'hasard' ? `<div class="lbl mb-1">Thème</div>${themeChips('nx_theme', pick.theme)}` : ''}` : `
+      <div class="lbl mb-1">Longueur <span class="a normal">(court : moins de 250 p. · long : plus de 450 p.)</span></div>
       <div class="seg" id="nx_len">${lens.map(([k, v]) => `<button type="button" data-v="${k}" class="${pick.len === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-      ${genres.length > 1 ? `<div class="lbl" style="margin-bottom:4px">Genre</div><div class="chips" id="nx_genre"><button type="button" data-v="" class="chipb ${!pick.genre ? 'on' : ''}">Peu importe</button>${genres.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.genre === g ? 'on' : ''}">${esc(g)}</button>`).join('')}</div>` : ''}
-      ${cats.length ? `<div class="lbl" style="margin-bottom:4px">Rayon</div><div class="chips" id="nx_cat"><button type="button" data-v="" class="chipb ${!pick.cat ? 'on' : ''}">Peu importe</button>${cats.map(c => `<button type="button" data-v="${c.id}" class="chipb ${pick.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)} (${nCat[c.id]})</button>`).join('')}</div>` : ''}
+      ${genres.length > 1 ? `<div class="lbl mb-1">Genre</div><div class="chips" id="nx_genre"><button type="button" data-v="" class="chipb ${!pick.genre ? 'on' : ''}">Peu importe</button>${genres.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.genre === g ? 'on' : ''}">${esc(g)}</button>`).join('')}</div>` : ''}
+      ${cats.length ? `<div class="lbl mb-1">Rayon</div><div class="chips" id="nx_cat"><button type="button" data-v="" class="chipb ${!pick.cat ? 'on' : ''}">Peu importe</button>${cats.map(c => `<button type="button" data-v="${c.id}" class="chipb ${pick.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)} (${nCat[c.id]})</button>`).join('')}</div>` : ''}
       <label class="check"><input type="checkbox" id="nx_dispo" ${pick.dispo ? 'checked' : ''}> Seulement ceux que j'ai sous la main</label>`}
     <div id="nx_res"></div>
-    <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button><button class="btn pri" id="nx_go" type="button">🎲 Tirer au sort</button></div>`;
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button><button class="btn pri" id="nx_go" type="button"><span class="ico i-de" aria-hidden="true">🎲</span> Tirer au sort</button></div>`;
   showM();
   const choix = (sel, f) => { const el = $(sel); if (el) el.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; f(b.dataset.v); el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); }; };
   choix('#nx_mode', v => { pick.mode = v; openNext(); });
@@ -1172,9 +1246,9 @@ async function drawNext() {
   const v = speed();
   const why = [b.epingle ? '📌 épinglé' : '', b.possession === 'emprunte' && b.pretRetour ? '📥 à rendre le ' + fdate(b.pretRetour) : '',
     b.pagesTotal ? (+b.pagesTotal || 0) + ' pages' + (v ? ' (≈ ' + fdur(b.pagesTotal / v * 60) + ')' : '') : ''].filter(Boolean).join(' · ');
-  box.innerHTML = `<div class="nxcard">${coverHtml(b, 'big')}<div style="min-width:0"><div class="t">${esc(b.titre)}</div><div class="a">${esc(b.auteur || '')}</div>
-    ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}<div class="a" style="font-size:.85rem;margin-top:4px">${why}</div>
-    <div class="acts"><button class="btn pri" id="nx_start" type="button">📖 Je commence</button><button class="btn" id="nx_again" type="button">Un autre</button></div></div></div>`;
+  box.innerHTML = `<div class="nxcard">${coverHtml(b, 'big')}<div class="min0"><div class="t">${esc(b.titre)}</div><div class="a">${esc(b.auteur || '')}</div>
+    ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}<div class="a moyen mt-1">${why}</div>
+    <div class="acts"><button class="btn pri" id="nx_start" type="button"><span class="ico i-livre" aria-hidden="true">📖</span> Je commence</button><button class="btn" id="nx_again" type="button">Un autre</button></div></div></div>`;
   $('#nx_go').disabled = false;
   $('#nx_start').onclick = () => { closeM(); quick('start', b); };
   $('#nx_again').onclick = drawNext;
@@ -1196,13 +1270,13 @@ function sugCard(x, ctx, i) {
   const own = findOwned(x);
   return `<article class="sug" data-ctx="${ctx}" data-i="${i}">
     <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
-      <div style="min-width:0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
-        <div class="meta" style="margin-top:4px"><span class="chip">${x.themeE} ${esc(x.themeNom)}</span><span class="chip">${esc(x.sourceNom)}</span></div>
-        <div class="a" style="font-size:.82rem;margin-top:3px">${esc(x.raison || '')}${x.pagesTotal ? ' · ' + (+x.pagesTotal || 0) + ' p.' : ''}</div></div></div>
+      <div class="min0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
+        <div class="meta mt-1"><span class="chip">${x.themeE} ${esc(x.themeNom)}</span><span class="chip">${esc(x.sourceNom)}</span></div>
+        <div class="a petit mt-1">${esc(x.raison || '')}${x.pagesTotal ? ' · ' + (+x.pagesTotal || 0) + ' p.' : ''}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
-    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
-      <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener">🛒 En librairie</a>
-      ${(ctx === 'sel' || ctx === 'tir') && !own ? '<button class="btn small" type="button" data-sug="non">✕ Pas pour moi</button>' : ''}</div></article>`;
+    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>'}
+      <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener"><span class="ico i-panier" aria-hidden="true">🛒</span> En librairie</a>
+      ${(ctx === 'sel' || ctx === 'tir') && !own ? '<button class="btn small" type="button" data-sug="non"><span class="ico i-fermer" aria-hidden="true">✕</span> Pas pour moi</button>' : ''}</div></article>`;
 }
 function addSuggestion(x) {
   if (findOwned(x)) return toast('Déjà dans ta liste');
@@ -1222,8 +1296,8 @@ const PAR_TIRAGE = 5;
 let lastTirage = [];
 function tirageHtml(items, enCours) {
   return (items.length ? `<div class="sugs" id="tirRow">${items.map((x, i) => sugCard(x, 'tir', i)).join('')}</div>` : '') +
-    (enCours ? `<div class="nxspin">${enCours}</div>`
-      : items.length ? `<div class="a" style="font-size:.8rem;text-align:center;margin-top:4px">${plural(items.length, 'livre')} · fais glisser pour tous les voir</div>` : '');
+    (enCours ? etatChargement(enCours)
+      : items.length ? `<div class="a petit centre mt-1">${plural(items.length, 'livre')} · fais glisser pour tous les voir</div>` : '');
 }
 async function drawOnline(themeId, box, btn) {
   if (btn) btn.disabled = true;
@@ -1232,7 +1306,7 @@ async function drawOnline(themeId, box, btn) {
   const deja = b => dejaVu(b) || items.some(z => Recherche.norm(z.titre) === Recherche.norm(b.titre));
   for (let k = 0; k < PAR_TIRAGE + 3 && items.length < PAR_TIRAGE; k++) {
     if (lastTirage !== items) return;   // (un autre tirage a été lancé entre-temps)
-    box.innerHTML = tirageHtml(items, `🌍 Je cherche le livre ${items.length + 1} sur ${PAR_TIRAGE}${t ? ' · ' + t.e + ' ' + esc(t.nom) : ''}…`);
+    box.innerHTML = tirageHtml(items, `🌍 Je cherche le livre ${items.length + 1} sur ${PAR_TIRAGE}${t ? ' · ' + t.e + ' ' + t.nom : ''}…`);
     const x = await Recherche.decouvrir(themeId || '', {exclude: deja}).catch(() => null);
     if (x && !deja(x)) { retenir(x); items.push(x); }
   }
@@ -1369,11 +1443,11 @@ const inspiration = () => prefs.tirage === 'hasard' ? 'hasard' : 'perso';
 function inspiHtml(id) {
   const perso = inspiration() === 'perso', g = perso ? mesGouts() : null;
   const noms = g ? g.themes.slice(0, 3).map(([k]) => (Recherche.THEMES_TIRAGE.find(t => t.id === k) || {}).nom).filter(Boolean) : [];
-  return `<div class="seg" id="${id}"><button type="button" data-v="perso" class="${perso ? 'on' : ''}">🎯 D'après mes lectures</button><button type="button" data-v="hasard" class="${perso ? '' : 'on'}">🎲 Au hasard</button></div>
-    ${perso ? `<div class="a" style="font-size:.85rem;margin:-2px 0 10px">${noms.length || g.aimes.length
+  return `<div class="seg" id="${id}"><button type="button" data-v="perso" class="${perso ? 'on' : ''}"><span class="ico i-cible" aria-hidden="true">🎯</span> D'après mes lectures</button><button type="button" data-v="hasard" class="${perso ? '' : 'on'}"><span class="ico i-de" aria-hidden="true">🎲</span> Au hasard</button></div>
+    ${perso ? `<div class="a sous-titre">${noms.length || g.aimes.length
       ? `Je m'inspire de tes livres${noms.length ? ' : tu lis surtout <b>' + noms.map(esc).join('</b>, <b>') + '</b>' : ''}${g.aimes.length ? (noms.length ? ', et ' : ' : ') + 'tu as aimé ' + plural(new Set(g.aimes.map(b => b.auteur)).size, 'auteur') : ''}.`
       : 'Ajoute et note quelques livres : je m\'inspirerai de tes lectures.'}
-      <span style="font-size:.78rem">(tes goûts sont calculés sur ton téléphone ; pour trouver les livres, seules des recherches partent vers les catalogues : un nom d'auteur, un sujet, un titre de série)</span></div>` : ''}`;
+      <span class="petit">(tes goûts sont calculés sur ton téléphone ; pour trouver les livres, seules des recherches partent vers les catalogues : un nom d'auteur, un sujet, un titre de série)</span></div>` : ''}`;
 }
 function wireInspi(id, refaire) {
   const el = $('#' + id); if (!el) return;
@@ -1409,19 +1483,19 @@ function renderDecouvrir() {
   const s = prefs.selection, actuelle = s && s.mois === moisCle() && (s.items || []).length;
   if (actuelle && !s.vu) { s.vu = true; savePrefs(); return render(); }
   $('#main').innerHTML = `
-    <div class="panel" style="margin-top:12px"><h3>📬 Ma sélection ${moisNom()}</h3>
-      <div class="a" style="margin:-4px 0 10px;font-size:.88rem">5 livres pour toi, dans 5 thèmes différents, trouvés à des endroits différents :
+    <div class="panel mt-3"><h3>📬 Ma sélection ${moisNom()}</h3>
+      <div class="a sous-titre">5 livres pour toi, dans 5 thèmes différents, trouvés à des endroits différents :
         prix littéraires, incontournables, nouveautés et coups de cœur des lecteurs. Une nouvelle sélection arrive chaque mois.</div>
-      ${selEnCours ? `<div class="nxspin" id="selprog">${esc(selProgress)}</div>`
+      ${selEnCours ? etatChargement(selProgress, 'selprog')
         : actuelle ? `<div class="sugs" id="selRow">${s.items.map((x, i) => sugCard(x, 'sel', i)).join('')}</div><div class="dots" id="selDots">${s.items.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>`
-        : `${selProgress === '' && s && s.mois !== moisCle() ? '' : ''}<button class="btn pri" id="selgo" type="button">📬 Préparer ma sélection</button>`}
+        : `${selProgress === '' && s && s.mois !== moisCle() ? '' : ''}<button class="btn pri" id="selgo" type="button"><span class="ico i-courrier" aria-hidden="true">📬</span> Préparer ma sélection</button>`}
     </div>
     ${rechPanel()}
     <div class="panel"><h3>🎲 Tirage au sort en ligne</h3>
-      <div class="a" style="margin:-4px 0 10px;font-size:.88rem">Je te trouve un livre que tu n'as pas encore : d'après tes lectures, ou au hasard dans le thème de ton choix.</div>
+      <div class="a sous-titre">Je te trouve un livre que tu n'as pas encore : d'après tes lectures, ou au hasard dans le thème de ton choix.</div>
       ${inspiHtml('dc_inspi')}
       ${inspiration() === 'hasard' ? themeChips('dc_theme', pick.theme) : ''}
-      <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="dc_go" type="button">🎲 Tirer au sort</button></div>
+      <div class="acts mb-2"><button class="btn pri" id="dc_go" type="button"><span class="ico i-de" aria-hidden="true">🎲</span> Tirer au sort</button></div>
       <div id="dc_res">${lastTirage.length ? tirageHtml(lastTirage) : ''}</div></div>`;
   const ch = $('#dc_theme');
   if (ch) ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
@@ -1447,9 +1521,9 @@ const rech = {...rechDepuisMemo(prefs.rechCat), texte: '', max: +prefs.rechMax |
   par: prefs.rechPar || 'theme', lastPar: 'theme', lastSous: ''};
 // Chercher par : thème (ou sujet), auteur, titre
 const RECH_PAR = {
-  theme: {nom: '🏷️ Thème', aide: 'Choisis un thème ou écris un sujet (géopolitique, écologie, féminisme…).', place: 'Un sujet : géopolitique, écologie, féminisme…'},
-  auteur: {nom: '✍️ Auteur', aide: 'Écris le nom d\'un auteur, d\'une autrice ou d\'un dessinateur : je te montre ses livres (une édition par livre).', place: 'Un auteur : Annie Ernaux, Tolkien, Riad Sattouf…'},
-  titre: {nom: '📖 Titre', aide: 'Écris un titre, ou quelques mots du titre.', place: 'Un titre : L\'Étranger, Dune, Le Petit Prince…'}
+  theme: {nom: ico('etiquette', '🏷️') + ' Thème', aide: 'Choisis un thème ou écris un sujet (géopolitique, écologie, féminisme…).', place: 'Un sujet : géopolitique, écologie, féminisme…'},
+  auteur: {nom: ico('modifier', '✍️') + ' Auteur', aide: 'Écris le nom d\'un auteur, d\'une autrice ou d\'un dessinateur : je te montre ses livres (une édition par livre).', place: 'Un auteur : Annie Ernaux, Tolkien, Riad Sattouf…'},
+  titre: {nom: ico('livre', '📖') + ' Titre', aide: 'Écris un titre, ou quelques mots du titre.', place: 'Un titre : L\'Étranger, Dune, Le Petit Prince…'}
 };
 const LIMITES = [[100, '100 p.'], [200, '200 p.'], [300, '300 p.'], [500, '500 p.'], [0, 'Sans limite']];
 const catNom = id => { const c = Recherche.RAYONS.find(z => z.id === id); return c ? c.e + ' ' + c.nom : ''; };
@@ -1457,26 +1531,26 @@ const catNom = id => { const c = Recherche.RAYONS.find(z => z.id === id); return
 function rechSousChips() {
   const l = Recherche.SOUS_RAYONS.filter(z => z.rayon === rech.cat && z.rech);
   if (!l.length) return '';
-  return `<div class="lbl" style="margin-bottom:4px">Affiner</div><div class="chips" id="rq_sous"><button type="button" data-v="" class="chipb ${!rech.sous ? 'on' : ''}">Tout le thème</button>${l.map(z => `<button type="button" data-v="${z.id}" class="chipb ${rech.sous === z.id ? 'on' : ''}">${esc(z.nom)}</button>`).join('')}</div>`;
+  return `<div class="lbl mb-1">Affiner</div><div class="chips" id="rq_sous"><button type="button" data-v="" class="chipb ${!rech.sous ? 'on' : ''}">Tout le thème</button>${l.map(z => `<button type="button" data-v="${z.id}" class="chipb ${rech.sous === z.id ? 'on' : ''}">${esc(z.nom)}</button>`).join('')}</div>`;
 }
 function rechChips() {
   const n = Recherche.norm(rech.texte), l = Recherche.THEMES_RECHERCHE;
   const vis = n && !rech.cat ? l.filter(c => Recherche.norm(c.nom + ' ' + c.mots.join(' ')).includes(n)) : l;
   return vis.map(c => `<button type="button" data-v="${c.id}" class="chipb ${rech.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)}</button>`).join('')
-    || '<span class="a" style="font-size:.85rem">Pas de thème de la liste à ce nom : je chercherai ce sujet dans le catalogue de la BnF.</span>';
+    || '<span class="a moyen">Pas de thème de la liste à ce nom : je chercherai ce sujet dans le catalogue de la BnF.</span>';
 }
 function rechPanel() {
   const filtres = rech.cat || rech.texte || rech.max, m = RECH_PAR[rech.par] || RECH_PAR.theme;
   return `<div class="panel" id="rechPanel"><h3>🔎 Chercher des livres</h3>
-    <div class="lbl" style="margin-bottom:4px">Chercher par</div>
+    <div class="lbl mb-1">Chercher par</div>
     <div class="seg" id="rq_par">${Object.entries(RECH_PAR).map(([k, v]) => `<button type="button" data-v="${k}" class="${rech.par === k ? 'on' : ''}">${v.nom}</button>`).join('')}</div>
-    <div class="a" style="margin:-2px 0 10px;font-size:.88rem">${m.aide} Puis choisis une longueur maximale : je cherche des livres en français dans le catalogue de la BnF.</div>
+    <div class="a sous-titre">${m.aide} Puis choisis une longueur maximale : je cherche des livres en français dans le catalogue de la BnF.</div>
     <div class="search"><input id="rq" type="search" enterkeyhint="search" placeholder="${esc(m.place)}" value="${esc(rech.texte)}" aria-label="${esc(m.nom.slice(3))}"></div>
-    ${rech.par === 'theme' ? `<div class="chips" id="rq_cats" style="margin-top:8px">${rechChips()}</div>${rechSousChips()}` : '<div style="height:10px"></div>'}
-    <div class="lbl" style="margin-bottom:4px">Longueur maximale</div>
+    ${rech.par === 'theme' ? `<div class="chips mt-2" id="rq_cats">${rechChips()}</div>${rechSousChips()}` : '<div class="espace"></div>'}
+    <div class="lbl mb-1">Longueur maximale</div>
     <div class="seg" id="rq_max">${LIMITES.map(([v, t]) => `<button type="button" data-v="${v}" class="${rech.max === v ? 'on' : ''}">${t}</button>`).join('')}</div>
-    <div class="acts" style="margin-bottom:8px"><button class="btn pri" id="rq_go" type="button">🔎 Chercher</button>
-      ${filtres ? '<button class="btn" id="rq_clear" type="button">✕ Effacer les filtres</button>' : ''}</div>
+    <div class="acts mb-2"><button class="btn pri" id="rq_go" type="button"><span class="ico i-chercher" aria-hidden="true">🔎</span> Chercher</button>
+      ${filtres ? '<button class="btn" id="rq_clear" type="button"><span class="ico i-fermer" aria-hidden="true">✕</span> Effacer les filtres</button>' : ''}</div>
     <div id="rq_res">${rechResultats()}</div></div>`;
 }
 function rechCard(x, ctx, i) {
@@ -1488,14 +1562,14 @@ function rechCard(x, ctx, i) {
   const autres = x.autresEditions ? ` ; d'autres éditions font de ${x.autresEditions[0]} à ${x.autresEditions[1]} p.` : '';
   return `<article class="sug rq" data-ctx="${ctx}" data-i="${i}">
     <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
-      <div style="min-width:0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || 'Auteur inconnu')}</div>
-        <div class="meta" style="margin-top:4px"><span class="chip pg">📄 ${pages}</span>${ids.slice(0, 3).map(id => `<span class="chip">${esc(catNom(id))}</span>`).join('')}</div>
-        <div class="a" style="font-size:.8rem;margin-top:3px">${(x.sources || [])[0] === 'Apple' ? 'Livre trouvé sur Apple Books (nombre de pages non indiqué)'
+      <div class="min0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || 'Auteur inconnu')}</div>
+        <div class="meta mt-1"><span class="chip pg">📄 ${pages}</span>${ids.slice(0, 3).map(id => `<span class="chip">${esc(catNom(id))}</span>`).join('')}</div>
+        <div class="a petit mt-1">${(x.sources || [])[0] === 'Apple' ? 'Livre trouvé sur Apple Books (nombre de pages non indiqué)'
           : (edition ? 'Édition ' + esc(edition) : 'Édition inconnue') + (x.pagesTotal ? ' (pages de cette édition' + autres + ')' : '') + ' · BnF'}${x.raison ? '<br>' + esc(x.raison) : ''}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
-    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add">＋ À lire</button>'}
-      <button class="btn small" type="button" data-sug="fiche">📄 Fiche</button>
-      <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener">🛒 En librairie</a></div></article>`;
+    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>'}
+      <button class="btn small" type="button" data-sug="fiche"><span class="ico i-document" aria-hidden="true">📄</span> Fiche</button>
+      <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener"><span class="ico i-panier" aria-hidden="true">🛒</span> En librairie</a></div></article>`;
 }
 function rechResultats() {
   if (!rech.etat) return '';
@@ -1504,28 +1578,30 @@ function rechResultats() {
   const lim = rech.lastMax ? ` de ${rech.lastMax} pages ou moins` : '';
   const vus = rech.examines + rech.enCours;
   let h = '';
-  if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a" style="font-size:.82rem;margin-bottom:6px">Pour les romans, le sujet écrit n\'est pas pris en compte (les catalogues ne classent pas les romans par sujet).</div>';
+  if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a petit mb-2">Pour les romans, le sujet écrit n\'est pas pris en compte (les catalogues ne classent pas les romans par sujet).</div>';
   if (rech.note === 'bnf' && rech.etat !== 'busy') h += '<div class="hint">⏸️ La BnF ne répond pas pour l’instant : voici les livres trouvés sur Apple Books (sans nombre de pages). Réessaie plus tard pour avoir aussi ceux de la BnF.</div>';
   h += rech.res.map((x, i) => rechCard(x, 'rech', i)).join('');
   if (rech.etat === 'busy') {
-    h += `<div class="nxspin" id="rq_prog">🔎 Je cherche${vus ? ` (${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''})` : ''}…</div>
+    h += squelettes(2) + `<div class="nxspin" id="rq_prog">🔎 Je cherche${vus ? ` (${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''})` : ''}…</div>
       <div class="acts"><button class="btn small" id="rq_stop" type="button">Arrêter</button></div>`;
   } else if (rech.erreur) {
-    h += `<div class="hint">${rech.erreur === 'hors' ? '📶 Pas de connexion internet : la recherche par thème en a besoin.'
-      : rech.erreur === 'pause' ? '⏸️ La BnF demande de patienter (beaucoup de recherches d\'un coup). Réessaie dans 5 minutes.'
-      : rech.erreur === 'requete' ? '⚠️ Le catalogue n\'a pas compris cette recherche. Essaie avec d\'autres mots.'
-      : '⚠️ Les catalogues ne répondent pas pour l\'instant.'}
-      <div class="acts"><button class="btn small" type="button" id="rq_retry">🔄 Réessayer</button></div></div>`;
+    const hors = rech.erreur === 'hors', pause = rech.erreur === 'pause', requete = rech.erreur === 'requete';
+    h += etat({ton: 'erreur', icone: hors ? 'horsligne' : 'alerte', emoji: hors ? '📶' : '⚠️',
+      titre: hors ? 'Pas de connexion internet' : requete ? 'Le catalogue n\'a pas compris cette recherche' : 'Le catalogue ne répond pas',
+      texte: hors ? 'La recherche par thème a besoin d\'internet. Tes livres, eux, restent disponibles.' : pause ? 'La BnF demande de patienter (beaucoup de recherches d\'un coup) : réessaie dans 5 minutes.' : requete ? 'Essaie avec d\'autres mots.' : 'Réessaie dans un instant.',
+      // (requête refusée : ce sont les mots ou les filtres qui posent problème, pas le réseau)
+      actions: requete ? '<button class="btn pri" type="button" data-rqeffacer>Effacer les filtres</button>' : `<button class="btn pri" type="button" id="rq_retry">${ico('relire', '🔄')} Réessayer</button>`});
   } else if (!rech.res.length) {
     const plus = LIMITES.filter(([v]) => rech.lastMax && (v === 0 || v > rech.lastMax)).slice(0, 2);
-    h += `<div class="hint">Aucun livre ${quoi}${lim} trouvé parmi ${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''}${rech.trop ? ` : ${rech.trop} étai${rech.trop > 1 ? 'ent' : 't'} plus long${rech.trop > 1 ? 's' : ''}` : ''}${rech.inconnus.length ? `, ${rech.inconnus.length} sans nombre de pages connu` : ''}.
-      ${plus.length || !rech.fin ? `<div class="acts">${plus.map(([v, t]) => `<button class="btn small" type="button" data-rqmax="${v}">${v ? 'Jusqu\'à ' + t : 'Sans limite'}</button>`).join('')}${!rech.fin ? '<button class="btn small" type="button" id="rq_more">Chercher plus loin</button>' : ''}</div>` : ''}</div>`;
+    h += etat({icone: 'chercher', emoji: '🔎', titre: `Aucun livre ${quoi}${lim}`,
+      texte: `${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''}${rech.trop ? ` : ${rech.trop} étai${rech.trop > 1 ? 'ent' : 't'} plus long${rech.trop > 1 ? 's' : ''}` : ''}${rech.inconnus.length ? `, ${rech.inconnus.length} sans nombre de pages connu` : ''}.`,
+      actions: plus.map(([v, t]) => `<button class="btn" type="button" data-rqmax="${v}">${v ? 'Élargir à ' + t : 'Sans limite'}</button>`).join('') + (!rech.fin ? '<button class="btn" type="button" id="rq_more">Chercher plus loin</button>' : '')});
   } else {
-    h += `<div class="a" style="font-size:.82rem;margin:8px 0">${plural(rech.res.length, 'livre')}${lim}${rech.trop ? ` · ${plural(rech.trop, 'livre')} plus long${rech.trop > 1 ? 's' : ''} écarté${rech.trop > 1 ? 's' : ''}` : ''} · les doublons entre éditions sont regroupés.</div>
+    h += `<div class="a petit my-2">${plural(rech.res.length, 'livre')}${lim}${rech.trop ? ` · ${plural(rech.trop, 'livre')} plus long${rech.trop > 1 ? 's' : ''} écarté${rech.trop > 1 ? 's' : ''}` : ''} · les doublons entre éditions sont regroupés.</div>
       ${!rech.fin ? '<div class="acts"><button class="btn" type="button" id="rq_more">Plus de résultats</button></div>' : ''}`;
   }
   if (rech.inconnus.length) h += `<details class="inconnus"><summary>❔ ${plural(rech.inconnus.length, 'livre')} dont le nombre de pages n'est pas connu (ou seulement approximatif)</summary>
-    <div class="a" style="font-size:.82rem;margin:6px 0">Le catalogue n'indique pas leur nombre de pages, ou seulement « environ » : ils ne sont pas comptés dans la limite.</div>
+    <div class="a petit my-2">Le catalogue n'indique pas leur nombre de pages, ou seulement « environ » : ils ne sont pas comptés dans la limite.</div>
     ${rech.inconnus.map((x, i) => rechCard(x, 'rechx', i)).join('')}</details>`;
   return h;
 }
@@ -1537,6 +1613,7 @@ function paintRech() {
   on('#rq_stop', () => { rech.stop = true; });
   on('#rq_retry', () => lancerRech(rech.res.length > 0 || rech.inconnus.length > 0));
   on('#rq_more', () => lancerRech(true));
+  box.querySelectorAll('[data-rqeffacer]').forEach(b => b.onclick = () => { rech.tok++; Object.assign(rech, {cat: '', sous: '', texte: '', max: 0, etat: '', res: [], inconnus: [], erreur: ''}); prefs.rechCat = ''; prefs.rechMax = 0; savePrefs(); renderDecouvrir(); });
   box.querySelectorAll('[data-rqmax]').forEach(b => b.onclick = () => { rech.max = +b.dataset.rqmax; renderDecouvrir(); lancerRech(); });
 }
 async function lancerRech(suite) {
@@ -1639,7 +1716,7 @@ async function onSuggestion(e) {
   }
   if (a.dataset.sug === 'non') {
     prefs.nonMerci = [...(prefs.nonMerci || []), Recherche.norm(x.titre)].slice(-300); savePrefs();
-    card.innerHTML = '<div class="nxspin">Je cherche un autre livre…</div>';
+    card.innerHTML = etatChargement('Je cherche un autre livre…');
     const y = await Recherche.decouvrir(x.theme, {exclude: b => dejaVu(b) || items.some(z => Recherche.norm(z.titre) === Recherche.norm(b.titre))}).catch(() => null);
     if (y) { retenir(y); items[i] = y; } else items.splice(i, 1);
     savePrefs(); renderDecouvrir();
@@ -1739,8 +1816,8 @@ function seriesPanel() {
     const lus = x.l.filter(b => b.statut === 'lu').length;
     const maxT = tomes.length ? tomes[tomes.length - 1] : 0;
     const manque = []; for (let t = 1; t < maxT && manque.length < 6; t++) if (!tomes.includes(t)) manque.push(t);
-    return `<div class="line" data-serie="${esc(x.nom)}"><div class="grow"><b>${esc(x.nom)}</b><div class="a" style="font-size:.84rem">${plural(x.l.length, 'tome')}${tomes.length ? ' (' + (tomes.length > 6 ? tomes[0] + ' à ' + maxT : tomes.join(', ')) + ')' : ''} · ${lus} lu${lus > 1 ? 's' : ''}${manque.length ? ' · il manque : ' + manque.join(', ') : ''}</div></div>
-      ${maxT ? `<button class="btn small" data-next="${esc(x.nom)}|${maxT + 1}">＋ T.${maxT + 1}</button>` : ''}</div>`;
+    return `<div class="line" data-serie="${esc(x.nom)}"><div class="grow"><b>${esc(x.nom)}</b><div class="a moyen">${plural(x.l.length, 'tome')}${tomes.length ? ' (' + (tomes.length > 6 ? tomes[0] + ' à ' + maxT : tomes.join(', ')) + ')' : ''} · ${lus} lu${lus > 1 ? 's' : ''}${manque.length ? ' · il manque : ' + manque.join(', ') : ''}</div></div>
+      ${maxT ? `<button class="btn small" data-next="${esc(x.nom)}|${maxT + 1}"><span class="ico i-ajouter" aria-hidden="true">＋</span> T.${maxT + 1}</button>` : ''}</div>`;
   }).join('')}</div></div>`;
 }
 
@@ -1764,8 +1841,8 @@ function bilan(y, ly) {
   const aband = books.filter(b => b.statut === 'abandon' && (b.dateFin || '').startsWith(String(y))).length;
   const fact = (k, v) => v ? `<div class="fact"><span class="k">${k}</span><span>${v}</span></div>` : '';
   const bk = r => `<b>${esc(r.b.titre)}</b>`;
-  return `<div class="panel"><h3 style="display:flex;align-items:center;gap:8px">🎉 Mon bilan ${y}<span style="flex:1"></span><button class="btn pri small" data-share="${y}">📤 Partager</button></h3>
-    <div class="lbl" style="margin-bottom:6px">Mon top ${top.length}</div>
+  return `<div class="panel"><h3 class="rangee">🎉 Mon bilan ${y}<span class="etire"></span><button class="btn pri small" data-share="${y}"><span class="ico i-partager" aria-hidden="true">📤</span> Partager</button></h3>
+    <div class="lbl mb-2">Mon top ${top.length}</div>
     <div class="top5">${top.map((r, i) => `<div><span class="rk">${i + 1}</span>${coverHtml(r.b, 'mini')}<span>${bk(r)}${r.note ? ` <span class="stars">${stars(r.note)}</span>` : ''}</span></div>`).join('')}</div>
     <div class="facts">
       ${fact('Auteur le plus lu', author ? `${esc(author[0])} (${plural(author[1], 'livre')})` : '')}
@@ -1796,7 +1873,7 @@ function backupInfo() {
   return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.` + copieRestauration();
 }
 // Après une restauration : bouton pour revenir à la bibliothèque d'avant
-const copieRestauration = () => prefs.avantRestauration ? `<br><button class="btn small" type="button" data-undorestore style="margin-top:8px">↩️ Revenir à ma bibliothèque d'avant (copie du ${fdate(iso(new Date(prefs.avantRestauration)))})</button>` : '';
+const copieRestauration = () => prefs.avantRestauration ? `<br><button class="btn small mt-2" type="button" data-undorestore><span class="ico i-retour" aria-hidden="true">↩️</span> Revenir à ma bibliothèque d'avant (copie du ${fdate(iso(new Date(prefs.avantRestauration)))})</button>` : '';
 function doExport(kind) {
   if (kind === 'excel') {
     const rows = [['Titre', 'Auteur', 'Série', 'Tome', 'Statut', 'Genre', 'Rayons', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Éditeur', 'Année', 'ISBN', 'Format', 'Possession', 'Mon avis']]
@@ -1927,10 +2004,10 @@ function quick(act, b) {
 function openActions(b) {
   $('#modal').innerHTML = `<h2>${esc(b.titre)}</h2>
     <div class="ajout">
-      <button type="button" data-act="timer"><b>⏱️ Lire avec le chrono</b><span>Mesure ta séance et ta vitesse de lecture</span></button>
-      <button type="button" data-act="quote"><b>✍️ Ajouter une citation</b><span>Une phrase qui t'a marqué</span></button>
-      <button type="button" data-act="fini"><b>✓ J'ai fini</b><span>Ranger le livre dans « Lus » et le noter</span></button>
-      <button type="button" data-act="edit"><b>📝 Modifier la fiche</b><span>Pages, dates, résumé, rayons…</span></button>
+      <button type="button" data-act="timer"><b><span class="ico i-chrono" aria-hidden="true">⏱️</span> Lire avec le chrono</b><span>Mesure ta séance et ta vitesse de lecture</span></button>
+      <button type="button" data-act="quote"><b><span class="ico i-modifier" aria-hidden="true">✍️</span> Ajouter une citation</b><span>Une phrase qui t'a marqué</span></button>
+      <button type="button" data-act="fini"><b><span class="ico i-fini" aria-hidden="true">✓</span> J'ai fini</b><span>Ranger le livre dans « Lus » et le noter</span></button>
+      <button type="button" data-act="edit"><b><span class="ico i-texte" aria-hidden="true">📝</span> Modifier la fiche</b><span>Pages, dates, résumé, rayons…</span></button>
     </div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
   showM();
@@ -1954,18 +2031,34 @@ function addNextTome(serie, n) {
 }
 
 /* ---------- Fenêtres ---------- */
-function showM() { $('#ov').classList.add('show'); $('#modal').scrollTop = 0; modalModifie = false; }
+// Erreur de saisie affichée sous le champ (et annoncée), effacée dès qu'on corrige
+function erreurChamp(id, message) {
+  const inp = $('#' + id); if (!inp) return;
+  let p = $('#' + id + '_err');
+  if (!p) { p = document.createElement('p'); p.className = 'erreur'; p.id = id + '_err'; p.setAttribute('role', 'alert'); inp.after(p); }
+  p.textContent = message; inp.setAttribute('aria-invalid', 'true'); inp.setAttribute('aria-describedby', p.id); inp.focus();
+  inp.addEventListener('input', () => { p.remove(); inp.removeAttribute('aria-invalid'); inp.removeAttribute('aria-describedby'); }, {once: true});
+}
+// (élément qui avait le focus avant la fenêtre : il le retrouve à la fermeture)
+let focusAvant = null;
+function showM() {
+  if (!$('#ov').classList.contains('show')) focusAvant = document.activeElement;
+  $('#ov').classList.add('show'); $('#modal').scrollTop = 0; modalModifie = false;
+  const h = $('#modal h2'); if (h) { h.id = 'modalTitre'; h.tabIndex = -1; h.focus({preventScroll: true}); }
+}
 function closeM() {
   $('#ov').classList.remove('show'); form = null;
   // (une autre fenêtre a changé la bibliothèque pendant que celle-ci était ouverte)
   if (Store.aRafraichir) { Store.aRafraichir = false; render(); }
+  if (focusAvant && document.contains(focusAvant)) focusAvant.focus({preventScroll: true});
+  focusAvant = null;
 }
 
 function openPage(b) {
   // En un geste : quelques pages de plus, ou « Fini » (au-dessus du champ, pour rester visibles quand le clavier s'ouvre)
   const cur = +b.pageActuelle || 0;
-  $('#modal').innerHTML = `<h2>Où en es-tu ?</h2><p class="a" style="margin-top:-6px">${esc(b.titre)}</p>
-    <div class="acts" id="p_vite" style="margin-bottom:10px">${[10, 25, 50].map(n => `<button class="btn" type="button" data-plus="${n}">+${n} p.</button>`).join('')}${b.pagesTotal ? '<button class="btn" type="button" data-plus="fin">Fini ✓</button>' : ''}</div>
+  $('#modal').innerHTML = `<h2>Où en es-tu ?</h2><p class="a remonte">${esc(b.titre)}</p>
+    <div class="acts mb-3" id="p_vite">${[10, 25, 50].map(n => `<button class="btn" type="button" data-plus="${n}">+${n} p.</button>`).join('')}${b.pagesTotal ? '<button class="btn" type="button" data-plus="fin">Fini ✓</button>' : ''}</div>
     <div class="f"><label for="p_val">Page actuelle${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
     <input id="p_val" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="p_ok">Enregistrer</button></div>`;
@@ -1992,7 +2085,7 @@ function openPage(b) {
 }
 
 function openQuote(b) {
-  $('#modal').innerHTML = `<h2>Nouvelle citation</h2><p class="a" style="margin-top:-6px">${esc(b.titre)}</p>
+  $('#modal').innerHTML = `<h2>Nouvelle citation</h2><p class="a remonte">${esc(b.titre)}</p>
     <div class="f"><label for="c_txt">La phrase</label><textarea id="c_txt" rows="4" placeholder="Une phrase qui t'a marqué…"></textarea></div>
     <div class="f"><label for="c_page">Page</label><input id="c_page" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="c_ok">Enregistrer</button></div>`;
@@ -2019,15 +2112,15 @@ function openForm(b, opts) {
   const searchOpen = isNew || form.aCompleter;
   $('#modal').innerHTML = `
     <h2>${opts.finish ? 'Bravo, livre terminé ! 🎉' : isNew ? 'Ajouter un livre' : 'Modifier le livre'}</h2>
-    <details ${searchOpen ? 'open' : ''}><summary>🔎 ${isNew ? 'Chercher le livre (remplit tout seul)' : 'Compléter les infos depuis internet'}</summary>
+    <details ${searchOpen ? 'open' : ''}><summary><span class="ico i-chercher" aria-hidden="true">🔎</span> ${isNew ? 'Chercher le livre (remplit tout seul)' : 'Compléter les infos depuis internet'}</summary>
       <div class="search"><input id="s_q" type="search" placeholder="Titre, auteur ou ISBN…" enterkeyhint="search" value="${esc(opts.query || (isNew ? '' : (form.aCompleter && form.isbn ? form.isbn : (form.isbn || (form.titre + ' ' + (form.auteur || ''))))))}">
       <button class="btn pri" id="s_go" type="button">Chercher</button></div>
-      <div style="margin-top:8px"><button class="btn" id="s_scan" type="button">📷 Scanner le code-barres</button></div>
+      <div class="mt-2"><button class="btn" id="s_scan" type="button"><span class="ico i-photo" aria-hidden="true">📷</span> Scanner le code-barres</button></div>
       <div class="srcs" id="s_st"></div>
       <div class="res" id="s_res"></div></details>
     <div class="prev" id="prev"></div>
     <div id="coverPick" hidden></div>
-    <div class="search" id="linkbox" hidden style="margin-bottom:12px"><input id="f_link" placeholder="Coller le lien d'une image (https://…)"><button class="btn" id="f_linkok" type="button">OK</button></div>
+    <div class="search mb-3" id="linkbox" hidden><input id="f_link" placeholder="Coller le lien d'une image (https://…)"><button class="btn" id="f_linkok" type="button">OK</button></div>
     <div class="f"><label for="f_titre">Titre *</label><input id="f_titre" value="${esc(form.aCompleter ? '' : form.titre)}" placeholder="${form.aCompleter ? 'Titre du livre' : ''}"></div>
     <div class="f"><label for="f_auteur">Auteur</label><input id="f_auteur" value="${esc(form.auteur)}"></div>
     <div class="row">
@@ -2041,7 +2134,7 @@ function openForm(b, opts) {
     <div class="row">
       <div class="f" data-show="en_cours abandon"><label for="f_page">Page actuelle</label><input id="f_page" type="number" min="0" inputmode="numeric" value="${esc(form.pageActuelle)}"></div>
       <div class="f"><label for="f_total">Nombre de pages</label><input id="f_total" type="number" min="0" inputmode="numeric" value="${esc(form.pagesTotal)}">
-        <span class="a" id="f_pgsrc" style="font-size:.76rem"></span></div>
+        <span class="a petit" id="f_pgsrc"></span></div>
     </div>
     <div class="row">
       <div class="f" data-show="en_cours lu abandon"><label for="f_debut">Commencé le</label><input id="f_debut" type="date" value="${esc(form.dateDebut)}"></div>
@@ -2049,16 +2142,16 @@ function openForm(b, opts) {
     </div>
     ${hist.length ? `<div class="hist">Lectures précédentes : ${hist.map(h => `${fdate(h.fin)}${h.note ? ' ' + stars(h.note) : ''}`).join(' · ')}</div>` : ''}
     <div class="f" data-show="lu"><label>Ma note</label><div class="starpick" id="f_note">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} étoile${n > 1 ? 's' : ''}">★</button>`).join('')}</div></div>
-    <details id="resBox" ${form.resume ? 'open' : ''}><summary>📝 Résumé${(form.sujets || []).length ? ' et thèmes' : ''}</summary>
+    <details id="resBox" ${form.resume ? 'open' : ''}><summary><span class="ico i-texte" aria-hidden="true">📝</span> Résumé${(form.sujets || []).length ? ' et thèmes' : ''}</summary>
       <div class="f"><textarea id="f_resume" rows="5" placeholder="Le résumé s'ajoute tout seul quand l'appli trouve le livre.">${esc(form.resume)}</textarea></div>
-      <div class="meta" id="f_sujets" style="margin:-4px 0 8px">${(form.sujets || []).map(s => `<span class="chip">${esc(s)}</span>`).join('')}</div>
-      <button class="btn small" id="f_getres" type="button" style="margin-bottom:10px">🔄 Chercher le résumé</button></details>
-    <details id="catBox"><summary>🏷️ Rayons <span id="f_catsn"></span></summary><div id="f_cats" style="margin:4px 0 10px"></div></details>
+      <div class="meta sous-titre" id="f_sujets">${(form.sujets || []).map(s => `<span class="chip">${esc(s)}</span>`).join('')}</div>
+      <button class="btn small mb-3" id="f_getres" type="button"><span class="ico i-relire" aria-hidden="true">🔄</span> Chercher le résumé</button></details>
+    <details id="catBox"><summary><span class="ico i-etiquette" aria-hidden="true">🏷️</span> Rayons <span id="f_catsn"></span></summary><div id="f_cats" class="mt-1 mb-3"></div></details>
     <div class="f"><label for="f_avis">Mon avis / mes notes</label><textarea id="f_avis" rows="3" placeholder="Ce que j'en retiens…">${esc(form.avis)}</textarea></div>
     <div class="f"><span class="lbl">Citations</span><div class="qlist" id="f_quotes"></div>
       <textarea id="f_qt" rows="2" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
-      <div class="search"><input id="f_qp" type="number" min="0" inputmode="numeric" placeholder="Page" style="max-width:110px"><button class="btn" id="f_qadd" type="button">＋ Ajouter la citation</button></div></div>
-    <details ${form.possession === 'prete' || form.possession === 'emprunte' ? 'open' : ''}><summary>📦 Format, prêt et infos d'édition</summary>
+      <div class="search"><input id="f_qp" type="number" min="0" inputmode="numeric" placeholder="Page" class="champ-page"><button class="btn" id="f_qadd" type="button"><span class="ico i-ajouter" aria-hidden="true">＋</span> Ajouter la citation</button></div></div>
+    <details ${form.possession === 'prete' || form.possession === 'emprunte' ? 'open' : ''}><summary><span class="ico i-colis" aria-hidden="true">📦</span> Format, prêt et infos d'édition</summary>
       <div class="row">
         <div class="f"><label for="f_format">Format</label><select id="f_format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}" ${k === form.format ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
         <div class="f"><label for="f_pos">Je l'ai ?</label><select id="f_pos">${Object.entries(POSSESSION).map(([k, v]) => `<option value="${k}" ${k === form.possession ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
@@ -2074,7 +2167,7 @@ function openForm(b, opts) {
       </div>
     </details>
     <div class="mfoot">${isNew ? '' : '<button class="btn del" id="f_del" type="button">Supprimer</button>'}
-      ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button">🔁 Relire</button>' : ''}<span class="sp"></span>
+      ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button"><span class="ico i-relire" aria-hidden="true">🔁</span> Relire</button>' : ''}<span class="sp"></span>
       <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
   showM();
   syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan(); paintCats(); paintPagesSrc();
@@ -2128,7 +2221,7 @@ function openForm(b, opts) {
   $('#f_quotes').onclick = e => { const x = e.target.closest('[data-qdel]'); if (x) { form.citations.splice(+x.dataset.qdel, 1); paintQuotes(); } };
   $('#f_save').onclick = async () => {
     collect();
-    if (!form.titre) { toast('Il faut au moins un titre'); $('#f_titre').focus(); return; }
+    if (!form.titre) return erreurChamp('f_titre', 'Il faut au moins un titre');
     // Nouveau livre déjà présent (même ISBN, ou même titre et auteur) : on demande avant d'en faire un doublon
     const double = isNew && !doublonAccepte && findOwned(form);
     if (double && !(await demander(`Tu as déjà « ${double.titre} » dans « ${STATUT_UN[double.statut]} ». L'ajouter quand même ?`, 'Ajouter quand même', 'Annuler'))) return;
@@ -2204,7 +2297,9 @@ function collect() {
   });
   form.pagesSource = sourcePages(form.pagesTotal);
   const pending = $('#f_qt').value.trim();
-  if (pending) form.citations.push({texte: pending, page: $('#f_qp').value, date: today()});
+  // (citation tapée sans « Ajouter » : elle rejoint la liste et le champ se vide, sinon un 2e « Enregistrer »
+  // — après « il manque le titre » ou « Annuler » sur un doublon — l'ajouterait encore)
+  if (pending) { form.citations.push({texte: pending, page: $('#f_qp').value, date: today()}); $('#f_qt').value = ''; $('#f_qp').value = ''; paintQuotes(); }
   if (form.statut !== 'lu' && form.statut !== 'abandon') form.dateFin = '';
   if (form.statut !== 'a_lire') form.epingle = false;
   if (!['prete', 'emprunte'].includes(form.possession)) { form.pretNom = ''; form.pretRetour = ''; }
@@ -2225,14 +2320,14 @@ function syncLoan() {
 function paintStars() { document.querySelectorAll('#f_note button').forEach(b => b.classList.toggle('on', +b.dataset.n <= (form.note || 0))); }
 function paintQuotes() {
   $('#f_quotes').innerHTML = form.citations.map((q, i) =>
-    `<div class="q"><p>« ${esc(q.texte)} »${q.page ? ` <span class="a">p. ${esc(q.page)}</span>` : ''}</p><button type="button" data-qdel="${i}" title="Retirer" aria-label="Retirer la citation">✕</button></div>`).join('');
+    `<div class="q"><p>« ${esc(q.texte)} »${q.page ? ` <span class="a">p. ${esc(q.page)}</span>` : ''}</p><button type="button" data-qdel="${i}" title="Retirer" aria-label="Retirer la citation"><span class="ico i-fermer" aria-hidden="true">✕</span></button></div>`).join('');
 }
 function paintPrev() {
   const has = coverList(form).length > 0;
   $('#prev').innerHTML = coverHtml({titre: ($('#f_titre') && $('#f_titre').value) || form.titre || '?', couverture: form.couverture, _covers: form._covers}, 'big') +
-    `<div class="btns"><button class="btn" type="button" id="f_find">🔍 ${has ? 'Autre' : 'Trouver une'} couverture</button>
-     <button class="btn" type="button" id="f_photo">📷 Photo</button>
-     <button class="btn" type="button" id="f_linkbtn">🔗 Lien d'image</button>
+    `<div class="btns"><button class="btn" type="button" id="f_find"><span class="ico i-chercher" aria-hidden="true">🔍</span> ${has ? 'Autre' : 'Trouver une'} couverture</button>
+     <button class="btn" type="button" id="f_photo"><span class="ico i-photo" aria-hidden="true">📷</span> Photo</button>
+     <button class="btn" type="button" id="f_linkbtn"><span class="ico i-lien" aria-hidden="true">🔗</span> Lien d'image</button>
      ${has ? '<button class="btn" type="button" id="f_nocov">Retirer</button>' : ''}</div>`;
   $('#f_find').onclick = findCovers;
   $('#f_photo').onclick = () => { $('#pick_cover').value = ''; $('#pick_cover').click(); };
@@ -2252,15 +2347,15 @@ function paintCats() {
     const opts = [r, ...Recherche.SOUS_RAYONS.filter(z => z.rayon === r.id)].filter(c => !pris.has(c.id));
     return opts.length ? `<optgroup label="${r.e} ${esc(r.nom)}">${opts.map(c => `<option value="${c.id}">${c === r ? esc(r.nom) + ' (tout le rayon)' : '› ' + esc(c.nom)}</option>`).join('')}</optgroup>` : '';
   }).join('');
-  const puce = (c, txt) => `<span class="chip catchip">${txt}<button type="button" data-catnon="${c.id}" aria-label="Retirer ${esc(c.nom)}" title="Retirer">✕</button></span>`;
+  const puce = (c, txt) => `<span class="chip catchip">${txt}<button type="button" data-catnon="${c.id}" aria-label="Retirer ${esc(c.nom)}" title="Retirer"><span class="ico i-fermer" aria-hidden="true">✕</span></button></span>`;
   box.innerHTML = (cs.length ? `<div class="meta">${cs.map(c => puce(c, c.e + ' ' + esc(c.nom))).join('')}</div>`
-      : `<div class="a" style="font-size:.85rem">${form.classTente ? 'Les catalogues ne donnent pas de classement pour ce livre.' : 'Pas encore de rayon : l\'appli cherche le classement du livre dans les catalogues quand tu l\'ajoutes (ou avec Stats → 🏷️ Mes livres par rayon).'} Tu peux en ajouter un à la main.</div>`) +
-    (ss.length ? `<div class="a" style="font-size:.85rem;margin-top:6px">Plus précisément :</div><div class="meta">${ss.map(z => puce(z, '› ' + esc(z.nom))).join('')}</div>` : '') +
-    `<select id="f_catadd" aria-label="Ajouter un rayon" style="margin-top:8px"><option value="">＋ Ajouter un rayon…</option>${menu}</select>` +
+      : `<div class="a moyen">${form.classTente ? 'Les catalogues ne donnent pas de classement pour ce livre.' : 'Pas encore de rayon : l\'appli cherche le classement du livre dans les catalogues quand tu l\'ajoutes (ou avec Stats → 🏷️ Mes livres par rayon).'} Tu peux en ajouter un à la main.</div>`) +
+    (ss.length ? `<div class="a moyen mt-2">Plus précisément :</div><div class="meta">${ss.map(z => puce(z, '› ' + esc(z.nom))).join('')}</div>` : '') +
+    `<select id="f_catadd" aria-label="Ajouter un rayon" class="mt-2"><option value="">＋ Ajouter un rayon…</option>${menu}</select>` +
     (cs.length || cl.length ? `<details class="pourquoi"><summary>D'où viennent ces rayons ?</summary>
       ${cs.length ? `<ul>${cs.map(c => `<li><b>${c.e} ${esc(c.nom)}</b> : ${c.raisons.map(esc).join(' ; ')}</li>`).join('')}${ss.map(z => `<li>› <b>${esc(z.nom)}</b> : ${esc(z.raison)}</li>`).join('')}</ul>` : ''}
-      ${cl.length ? `<div class="lbl" style="margin-top:6px">Classements d'origine des catalogues</div><ul>${cl.map(k => `<li>${esc(k.s || 'Catalogue')} · ${esc(CHAMP[k.c] || k.c)} : ${esc(k.l)}</li>`).join('')}</ul>` : ''}
-      <div class="a" style="font-size:.78rem">Les rayons sont des regroupements faits par l'appli, sur le modèle des librairies ; les codes et sujets officiels des catalogues sont gardés tels quels ci-dessus.</div></details>` : '');
+      ${cl.length ? `<div class="lbl mt-2">Classements d'origine des catalogues</div><ul>${cl.map(k => `<li>${esc(k.s || 'Catalogue')} · ${esc(CHAMP[k.c] || k.c)} : ${esc(k.l)}</li>`).join('')}</ul>` : ''}
+      <div class="a petit">Les rayons sont des regroupements faits par l'appli, sur le modèle des librairies ; les codes et sujets officiels des catalogues sont gardés tels quels ci-dessus.</div></details>` : '');
 }
 // Résumé dans la fiche ouverte
 function showResume(resume, sujets) {
@@ -2277,7 +2372,7 @@ async function fetchResume(x, bouton) {
   if (bouton) { bouton.disabled = true; bouton.textContent = 'Recherche…'; }
   const r = await Recherche.resume(x).catch(() => ({}));
   if (form !== f) return;
-  if (bouton) { bouton.disabled = false; bouton.textContent = '🔄 Chercher le résumé'; }
+  if (bouton) { bouton.disabled = false; bouton.innerHTML = ico('relire', '🔄') + ' Chercher le résumé'; }
   if ((r.classements || []).length) { f.classements = Recherche.unirClassements([f.classements, r.classements]); f.classTente = true; }
   if (r.resume) showResume(r.resume, r.sujets);
   else if (bouton) toast('Pas de résumé trouvé pour ce livre');
@@ -2338,7 +2433,7 @@ async function findCovers() {
   const l = await Recherche.chercherCouvertures(b, 12).catch(() => []);
   if (form !== f) return;
   if (!l.length) { box.innerHTML = '<div class="hint">Aucune couverture trouvée en ligne. Tu peux prendre le livre en photo 📷.</div>'; return; }
-  box.innerHTML = `<div class="lbl" style="margin-bottom:6px">Touche la bonne couverture :</div><div class="cpick">${l.map((u, i) =>
+  box.innerHTML = `<div class="lbl mb-2">Touche la bonne couverture :</div><div class="cpick">${l.map((u, i) =>
     `<button type="button" data-cov="${i}"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer"></button>`).join('')}</div>`;
   box.onclick = e => {
     const c = e.target.closest('[data-cov]'); if (!c) return;
@@ -2367,7 +2462,7 @@ async function doSearch(auto) {
     box.innerHTML = '<div class="hint">⚠️ Ce numéro ISBN n\'est pas valide : un chiffre est sûrement faux. Vérifie les chiffres sous le code-barres.</div>';
     $('#s_st').innerHTML = ''; return;
   }
-  box.innerHTML = '<div class="a">Recherche dans les catalogues…</div>';
+  box.innerHTML = squelettes(2);
   const onSt = st => { if (tok === doSearch.tok && form === f && $('#s_st')) $('#s_st').innerHTML = statusHtml(st); };
   let res = [];
   try { res = isbn ? await Recherche.parIsbn(isbn, onSt) : await Recherche.parTexte(q, onSt); } catch (e) {}
@@ -2623,7 +2718,7 @@ const clock = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600),
 function paintTimerPill() {
   const t = prefs.timer, p = $('#timerPill');
   p.hidden = !t || $('#timerOv').classList.contains('show');
-  if (t) p.textContent = (t.running ? '⏱️ ' : '⏸️ ') + clock(timerMs());
+  if (t) p.innerHTML = (t.running ? ico('chrono', '⏱️') : ico('pause', '⏸️')) + ' ' + clock(timerMs());
 }
 setInterval(() => { if (prefs.timer) { paintTimerPill(); const c = $('#clock'); if (c) c.textContent = clock(timerMs()); } }, 1000);
 function startTimer(b) {
@@ -2637,8 +2732,8 @@ function openTimer() {
   if (!b) { prefs.timer = null; savePrefs(); return paintTimerPill(); }
   $('#timerModal').innerHTML = `<h2>⏱️ Lecture en cours</h2>${coverHtml(b, 'mini')}<b> ${esc(b.titre)}</b>
     <div class="clock" id="clock">${clock(timerMs())}</div>
-    <div class="acts" style="justify-content:center"><button class="btn" id="t_pause">${t.running ? '⏸️ Pause' : '▶️ Reprendre'}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
-    <div id="t_end" hidden><div class="f" style="margin-top:12px"><label for="t_page">À quelle page t'es-tu arrêté ?${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
+    <div class="acts centre"><button class="btn" id="t_pause">${t.running ? ico('pause', '⏸️') + ' Pause' : ico('lecture', '▶️') + ' Reprendre'}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
+    <div id="t_end" hidden><div class="f mt-3"><label for="t_page">À quelle page t'es-tu arrêté ?${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
       <input id="t_page" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
       <div class="acts"><button class="btn pri" id="t_save">Enregistrer la séance</button></div></div>
     <div class="mfoot"><button class="btn del small" id="t_cancel">Annuler le chrono</button><span class="sp"></span><button class="btn" id="t_hide">Réduire</button></div>`;
@@ -2668,32 +2763,40 @@ $('#timerPill').onclick = openTimer;
 /* ---------- Réglages ---------- */
 function openSettings() {
   $('#modal').innerHTML = `<h2>⚙️ Réglages</h2>
-    <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', '☀️ Clair'], ['dark', '🌙 Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
-    <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>🔎 Recherche de livres</h3>
-      <div class="a" style="font-size:.88rem">L'appli fouille en même temps la <b>BnF</b>, le <b>Sudoc</b> (bibliothèques universitaires), <b>Open Library</b>, <b>Apple Books</b> et <b>Google Books</b>.
+    <div class="f"><label>Style</label><div class="seg styles" id="st_style">${Object.entries(STYLES).map(([k, v]) =>
+      `<button type="button" data-st="${k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${v}</button>`).join('')}</div></div>
+    <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', ico('soleil', '☀️') + ' Clair'], ['dark', ico('lune', '🌙') + ' Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+    <div class="panel encadre"><h3>🔎 Recherche de livres</h3>
+      <div class="a moyen">L'appli fouille en même temps la <b>BnF</b>, le <b>Sudoc</b> (bibliothèques universitaires), <b>Open Library</b>, <b>Apple Books</b> et <b>Google Books</b>.
       Google Books est souvent saturé quand on l'utilise sans clé. Avec ta propre clé (gratuite), il répond toujours et ajoute encore plus de livres.</div>
-      <div class="f" style="margin-top:10px"><label for="st_key">Clé Google Books (facultatif)</label><input id="st_key" value="${esc(prefs.googleKey)}" placeholder="AIza…" autocomplete="off"></div>
-      <details><summary>Comment obtenir une clé gratuite ?</summary><ol class="a" style="font-size:.86rem;padding-left:18px;margin:0">
+      <div class="f mt-3"><label for="st_key">Clé Google Books (facultatif)</label><input id="st_key" value="${esc(prefs.googleKey)}" placeholder="AIza…" autocomplete="off"></div>
+      <details><summary>Comment obtenir une clé gratuite ?</summary><ol class="a liste-aide">
         <li>Va sur <b>console.cloud.google.com</b> (connecté à ton compte Google) et accepte les conditions.</li>
         <li>En haut : <b>Sélectionner un projet → Nouveau projet</b> → nom « Mes lectures » → Créer.</li>
         <li>Menu ☰ → <b>API et services → Bibliothèque</b> → cherche « Books API » → <b>Activer</b>.</li>
         <li>Menu ☰ → <b>API et services → Identifiants → Créer des identifiants → Clé API</b>.</li>
         <li>Copie la clé (elle commence par AIza) et colle-la ici. C'est gratuit (1 000 recherches par jour).</li></ol></details>
       <div class="acts"><button class="btn" id="st_test">Tester la recherche</button></div><div class="srcs" id="st_res"></div></div>
-    <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>✨ Compléter mes livres</h3>
-      <div class="a" style="font-size:.88rem">Retrouve automatiquement ce qui manque à tes livres déjà enregistrés : couverture, nombre de pages, série et tome, ISBN, éditeur.
+    <div class="panel encadre"><h3>✨ Compléter mes livres</h3>
+      <div class="a moyen">Retrouve automatiquement ce qui manque à tes livres déjà enregistrés : couverture, nombre de pages, série et tome, ISBN, éditeur.
       Seules les cases vides sont remplies, et seulement si le titre et l'auteur correspondent bien.</div>
-      <div class="acts"><button class="btn pri" id="st_fill">✨ Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a" id="st_fillres" style="font-size:.85rem;margin-top:6px"></div></div>
-    <div class="panel" style="box-shadow:none;border:1px solid var(--line)"><h3>💾 Sauvegarde</h3><div class="a" style="font-size:.88rem;margin-bottom:8px">${backupInfo()}</div>
-      <div class="acts"><button class="btn pri" data-export="backup">💾 Sauvegarder</button><button class="btn" data-export="restore">📂 Restaurer</button></div></div>
-    <div class="a" style="font-size:.8rem">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
+      <div class="acts"><button class="btn pri" id="st_fill"><span class="ico i-etincelle" aria-hidden="true">✨</span> Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a moyen mt-2" id="st_fillres"></div></div>
+    <div class="panel encadre"><h3>💾 Sauvegarde</h3><div class="a moyen mb-2">${backupInfo()}</div>
+      <div class="acts"><button class="btn pri" data-export="backup"><span class="ico i-sauver" aria-hidden="true">💾</span> Sauvegarder</button><button class="btn" data-export="restore"><span class="ico i-restaurer" aria-hidden="true">📂</span> Restaurer</button></div></div>
+    <div class="a petit">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn pri" id="st_ok">Fermer</button></div>`;
   showM();
   // Mémoire « protégée » : Chrome ne l'efface pas tout seul quand le téléphone manque de place
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => {
     const el = $('#st_mem'); if (el) el.textContent = p ? ' · protégée ✓' : ' · non protégée (Chrome pourrait l\'effacer si le téléphone manque de place : sauvegarde souvent)';
   }).catch(() => {});
-  $('#st_theme').onclick = e => { const b = e.target.closest('[data-th]'); if (!b) return; prefs.theme = b.dataset.th; savePrefs(); applyTheme(); document.querySelectorAll('#st_theme button').forEach(x => x.classList.toggle('on', x === b)); };
+  $('#st_theme').onclick = e => { const b = e.target.closest('[data-th]'); if (!b) return; prefs.theme = b.dataset.th; savePrefs(); applyTheme(); document.querySelectorAll('#st_theme button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('#st_style .apercu').forEach(a => a.dataset.theme = document.documentElement.dataset.theme); };
+  $('#st_style').onclick = e => {
+    const b = e.target.closest('[data-st]'); if (!b) return;
+    prefs.style = b.dataset.st; savePrefs(); applyTheme();
+    document.querySelectorAll('#st_style button').forEach(x => x.classList.toggle('on', x === b));
+  };
   const keep = () => { prefs.googleKey = $('#st_key').value.trim(); savePrefs(); Recherche.setGoogleKey(prefs.googleKey); };
   $('#st_test').onclick = async () => {
     keep(); $('#st_res').innerHTML = 'Test en cours…';
@@ -2849,6 +2952,8 @@ document.addEventListener('click', e => {
   if (tab) { ui.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
   // (« Annuler » : comme la touche retour, on demande avant de perdre une fiche modifiée)
   if (e.target.closest('[data-close]')) return fermerFenetre();
+  if (e.target.closest('[data-ajouter]')) return openAjout();
+  if (e.target.closest('[data-effacer]')) { Object.assign(ui, {q: '', genre: '', cat: '', own: ''}); return render(); }
   if (e.target.id === 'ov') return fermerFenetre();   // toucher le fond grisé : on demande si la fiche a été modifiée
   if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
@@ -2891,10 +2996,22 @@ document.addEventListener('change', e => {
   if (e.target.id === 'own') { ui.own = e.target.value; renderCards(); }
   if (e.target.id === 'sort') { ui.sort = e.target.value; renderCards(); }
   // (le nombre de filtres actifs suit chaque changement)
-  if (['genre', 'cat', 'own', 'sort'].includes(e.target.id) && $('#filtres summary')) $('#filtres summary').textContent = filtresTitre();
+  if (['genre', 'cat', 'own', 'sort'].includes(e.target.id) && $('#filtres summary')) $('#filtres summary').innerHTML = filtresTitre();
   if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerDessus(); });
+// Touche Tab : le focus fait le tour de la fenêtre ouverte sans en sortir
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const o = fenetreOuverte(); if (!o) return;
+  const box = $(o + ' .modal') || $(o);
+  const f = [...box.querySelectorAll('button,[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent);
+  if (!f.length) return;
+  const a = f[0], z = f[f.length - 1];
+  if (!box.contains(document.activeElement) || (!e.shiftKey && document.activeElement === z)) { e.preventDefault(); a.focus(); }
+  // (Maj+Tab depuis le titre, qui n'est pas dans la liste, repart aussi du dernier élément)
+  else if (e.shiftKey && (document.activeElement === a || !f.includes(document.activeElement))) { e.preventDefault(); z.focus(); }
+});
 
 /* ---------- Touche « retour » d'Android : ferme la fenêtre ouverte (et non toute l'appli) ---------- */
 // Quand une fenêtre s'ouvre, on ajoute une étape dans l'historique : « retour » la consomme et ferme la fenêtre.
@@ -2911,9 +3028,10 @@ function syncRetour() {
 let reponseQuestion = null;
 function demander(question, oui, non) {
   if (reponseQuestion) reponseQuestion(false);
+  const avant = document.activeElement;
   $('#askTxt').textContent = question; $('#askOui').textContent = oui || 'Oui'; $('#askNon').textContent = non || 'Non';
   $('#askOv').classList.add('show'); $('#askOui').focus();
-  return new Promise(res => { reponseQuestion = ok => { reponseQuestion = null; $('#askOv').classList.remove('show'); res(ok); }; });
+  return new Promise(res => { reponseQuestion = ok => { reponseQuestion = null; $('#askOv').classList.remove('show'); if (avant && document.contains(avant)) avant.focus({preventScroll: true}); res(ok); }; });
 }
 $('#askOui').onclick = () => reponseQuestion && reponseQuestion(true);
 $('#askNon').onclick = () => reponseQuestion && reponseQuestion(false);
@@ -2946,9 +3064,9 @@ document.addEventListener('change', e => { if (e.target.closest && e.target.clos
 function openAjout() {
   $('#modal').innerHTML = `<h2>Ajouter</h2>
     <div class="ajout">
-      <button type="button" data-ajout="livre"><b>✍️ Un livre</b><span>Chercher par titre, auteur ou ISBN, ou remplir la fiche à la main</span></button>
-      <button type="button" data-ajout="scan"><b>📷 Scanner un code-barres</b><span>Celui au dos du livre</span></button>
-      <button type="button" data-ajout="rapide"><b>📦 Scan rapide</b><span>Plusieurs livres d'affilée, ajoutés tout seuls</span></button>
+      <button type="button" data-ajout="livre"><b><span class="ico i-modifier" aria-hidden="true">✍️</span> Un livre</b><span>Chercher par titre, auteur ou ISBN, ou remplir la fiche à la main</span></button>
+      <button type="button" data-ajout="scan"><b><span class="ico i-photo" aria-hidden="true">📷</span> Scanner un code-barres</b><span>Celui au dos du livre</span></button>
+      <button type="button" data-ajout="rapide"><b><span class="ico i-colis" aria-hidden="true">📦</span> Scan rapide</b><span>Plusieurs livres d'affilée, ajoutés tout seuls</span></button>
     </div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
   showM();
@@ -3012,7 +3130,7 @@ function goTab(dir) {
     $('#fab').hidden = true; paintNotice();
     $('#main').innerHTML = `<div class="empty">⚠️ <b>Impossible de lire tes livres pour l'instant.</b><br>Ils ne sont <b>pas effacés</b> :
       ferme complètement l'appli puis rouvre-la. Si ça continue, redémarre le téléphone.<br><small>(${esc(e.message || e)})</small><br><br>
-      <button class="btn pri" type="button" onclick="location.reload()">🔄 Réessayer</button></div>`;
+      <button class="btn pri" type="button" onclick="location.reload()"><span class="ico i-relire" aria-hidden="true">🔄</span> Réessayer</button></div>`;
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && !ESSAI) navigator.serviceWorker.register('sw.js').catch(() => {});

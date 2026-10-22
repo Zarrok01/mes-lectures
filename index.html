@@ -325,6 +325,12 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .histo .d{color:var(--texte-doux);white-space:nowrap}
 .livre-infos{display:grid;grid-template-columns:auto 1fr;gap:var(--e-1) var(--e-3);margin:0 0 var(--e-3);font-size:var(--t-s)}
 .livre-infos dt{color:var(--texte-doux)}.livre-infos dd{margin:0;min-width:0;overflow-wrap:anywhere}
+/* ---------- Ouverture du livre (animation) ---------- */
+#livreOv.masque{opacity:0}
+#ouverture{position:fixed;inset:0;z-index:26;pointer-events:none;overflow:hidden}
+#ouverture .ouv-page,#ouverture .ouv-livre{position:absolute;transform-origin:0 0;will-change:transform,opacity}
+#ouverture .ouv-page{background:var(--fond);border-radius:var(--r-s);box-shadow:var(--ombre-2)}
+#ouverture .ouv-couv{position:absolute;inset:0;border-radius:var(--r-s);backface-visibility:hidden;transform-origin:0 50%;box-shadow:var(--ombre-2);will-change:transform}
 </style>
 </head>
 <body>
@@ -390,7 +396,7 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et sw.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.22-2';
+const VERSION = '2026.10.22-3';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -434,7 +440,7 @@ const ui = {tab: 'en_cours', q: '', cq: '', genre: '', cat: '', own: '', sort: '
 // Page de tests (index.html?tests) : elle travaille dans une mémoire à part, jamais sur les vrais livres
 const ESSAI = new URLSearchParams(location.search).has('tests');
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
-const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'android', googleKey: '', bulkDest: 'a_lire'},
+const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'android', animation: 'complete', googleKey: '', bulkDest: 'a_lire'},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
 Recherche.setGoogleKey(prefs.googleKey);
@@ -1048,6 +1054,147 @@ function gcard(b) {
     <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${extra}</article>`;
 }
 
+/* ---------- 📖 Ouverture immersive du livre : réglage, mode, fluidité ---------- */
+const MODES_ANIM = {complete: 'Complète', simple: 'Simple', aucune: 'Aucune'};
+// Durées en millisecondes (ouverture : prendre, ouvrir, page ; fermeture : réduire, fermer, rentrer)
+const DUREES = {prendre: 200, ouvrir: 350, ouvrir2d: 260, page: 250, reduire: 180, fermer: 260, fermer2d: 200, rentrer: 180, fondu: 150};
+const reduitQuery = matchMedia('(prefers-reduced-motion: reduce)');
+// État de l'animation en cours : jeton (une animation dépassée s'arrête d'elle-même), animations, calque, dernière interruption
+const Ouverture = {jeton: 0, animations: [], calque: null, coupeeA: -1e9, gesteCoupe: false, reduit: () => reduitQuery.matches};
+// Mode réellement utilisé : le réglage du téléphone « réduire les animations » l'emporte (fondu seulement) ;
+// la 3D passe en Simple si elle a saccadé, ou si le navigateur ne sait pas faire de 3D
+function modeAnimation() {
+  if (Ouverture.reduit()) return 'fondu';
+  const m = Object.hasOwn(MODES_ANIM, prefs.animation) ? prefs.animation : 'complete';
+  if (m === 'complete' && (prefs.anim3dLent || !(window.CSS && CSS.supports('transform-style', 'preserve-3d')))) return 'simple';
+  return m;
+}
+// Fluidité d'une ouverture 3D : intervalle médian entre deux images ≤ 34 ms (30 images par seconde) ; trop peu d'images : pas d'avis
+function jugerFluidite(intervalles) {
+  if (!intervalles || intervalles.length < 5) return null;
+  const t = [...intervalles].sort((a, b) => a - b);
+  return t[Math.floor(t.length / 2)] <= 34;
+}
+// Deux ouvertures saccadées de suite : on passe en Simple (dit une fois) ; une ouverture fluide remet le compteur à zéro
+function noterFluidite(fluide) {
+  if (fluide === null || (fluide && prefs.anim3dSaccades === 0)) return;   // (rien n'a changé : on ne réécrit pas les préférences)
+  prefs.anim3dSaccades = fluide ? 0 : (prefs.anim3dSaccades || 0) + 1;
+  if (prefs.anim3dSaccades >= 2 && !prefs.anim3dLent) { prefs.anim3dLent = true; toast('Ouverture simplifiée : l\'animation 3D saccadait sur ce téléphone (Réglages → Animations)'); }
+  savePrefs();
+}
+
+/* ---------- 📖 Ouverture immersive du livre : l'animation ---------- */
+// Rectangles (x, y, largeur, hauteur) et passage de l'un à l'autre par un seul « transform » (origine en haut à gauche)
+const rectDe = el => { const r = el.getBoundingClientRect(); return {x: r.left, y: r.top, w: r.width, h: r.height}; };
+const rectEcran = () => ({x: 0, y: 0, w: innerWidth, h: innerHeight});
+function rectCentre() {
+  let w = Math.min(innerWidth * .55, 240), h = w * 1.5;
+  if (h > innerHeight * .7) { h = innerHeight * .7; w = h / 1.5; }
+  return {x: (innerWidth - w) / 2, y: (innerHeight - h) / 2, w, h};
+}
+const reduire = (r, k) => ({x: r.x + r.w * (1 - k) / 2, y: r.y + r.h * (1 - k) / 2, w: r.w * k, h: r.h * k});
+const versRect = (r, base) => `translate(${r.x - base.x}px, ${r.y - base.y}px) scale(${r.w / base.w}, ${r.h / base.h})`;
+// Couverture de la carte du livre, si elle est visible à l'écran (sinon : pas de point de départ)
+function couvertureCarte(id) {
+  const c = [...document.querySelectorAll('#list .card, #list .gcard')].find(x => x.dataset.id === id), ph = c && c.querySelector('.ph');
+  if (!ph) return null;
+  const r = rectDe(ph);
+  return r.w > 0 && r.y + r.h > 0 && r.y < innerHeight ? ph : null;
+}
+// Le calque : une page (couleur du carnet) et un livre qui contient une copie de la couverture (image ou initiale)
+function monterLivre(modele, ce) {
+  const calque = document.createElement('div'); calque.id = 'ouverture'; calque.setAttribute('aria-hidden', 'true');
+  const place = d => Object.assign(d.style, {left: ce.x + 'px', top: ce.y + 'px', width: ce.w + 'px', height: ce.h + 'px'});
+  const page = document.createElement('div'); page.className = 'ouv-page'; place(page);
+  const livre = document.createElement('div'); livre.className = 'ouv-livre'; place(livre);
+  const couv = modele.cloneNode(true); couv.className = 'ph ouv-couv';
+  couv.style.fontSize = Math.round(ce.w * .4) + 'px';
+  couv.querySelectorAll('img').forEach(i => { i.removeAttribute('onload'); i.removeAttribute('onerror'); i.removeAttribute('loading'); });
+  livre.appendChild(couv); calque.append(page, livre); document.body.appendChild(calque); Ouverture.calque = calque;
+  return {calque, page, livre, couv};
+}
+function nettoyerAnimation() {
+  Ouverture.animations.forEach(a => { try { a.cancel(); } catch (e) {} });
+  Ouverture.animations = [];
+  if (Ouverture.calque) Ouverture.calque.remove();
+  Ouverture.calque = null;
+  $('#livreOv').classList.remove('masque');
+}
+// Toucher, touche, retour, écran redimensionné : tout s'arrête tout de suite (rien ne reste à l'écran, la fiche est visible)
+function interrompreAnimation() {
+  if (!Ouverture.calque && !Ouverture.animations.length) return false;
+  Ouverture.jeton++; nettoyerAnimation(); Ouverture.coupeeA = performance.now();
+  return true;
+}
+// Une étape : ses animations se jouent ensemble ; renvoie faux si une interruption est passée entre-temps
+async function etape(jeton, liste) {
+  Ouverture.animations.push(...liste);
+  try { await Promise.all(liste.map(a => a.finished)); } catch (e) {}
+  return jeton === Ouverture.jeton;
+}
+// Intervalles entre images pendant l'ouverture 3D (pour le repli automatique)
+function mesurerImages(jeton) {
+  const l = []; let avant = 0, actif = true;
+  const tour = t => { if (!actif || jeton !== Ouverture.jeton) return; if (avant) l.push(t - avant); avant = t; requestAnimationFrame(tour); };
+  requestAnimationFrame(tour);
+  return {arreter: () => { actif = false; return l; }};
+}
+const anim = (duration, easing) => ({duration, easing: easing || 'ease-in-out', fill: 'both'});
+async function animerOuverture(id) {
+  const mode = modeAnimation(), ov = $('#livreOv');
+  if (mode === 'aucune') return;
+  interrompreAnimation(); const jeton = ++Ouverture.jeton;
+  if (mode === 'fondu') {
+    if (await etape(jeton, [ov.animate([{opacity: 0}, {opacity: 1}], {duration: DUREES.fondu, easing: 'linear'})])) nettoyerAnimation();
+    return;
+  }
+  const src = couvertureCarte(id), modele = src || $('#livre .ph'); if (!modele) return;
+  const ce = rectCentre(), {page, livre, couv} = monterLivre(modele, ce);
+  ov.classList.add('masque');
+  const images = mode === 'complete' ? mesurerImages(jeton) : null;
+  // 1. On prend le livre : de la carte au centre (sans carte visible : il apparaît au centre)
+  const venue = src ? [{transform: versRect(rectDe(src), ce), opacity: 1}, {transform: 'none', opacity: 1}] : [{transform: versRect(reduire(ce, .6), ce), opacity: 0}, {transform: 'none', opacity: 1}];
+  if (!(await etape(jeton, [page.animate(venue, anim(DUREES.prendre, 'ease-out')), livre.animate(venue, anim(DUREES.prendre, 'ease-out'))]))) return;
+  // 2. On l'ouvre : la couverture pivote sur sa tranche gauche (3D), ou se replie à plat (Simple)
+  const pivot = mode === 'complete' ? [{transform: 'perspective(1200px) rotateY(0deg)'}, {transform: 'perspective(1200px) rotateY(-180deg)'}] : [{transform: 'scaleX(1)'}, {transform: 'scaleX(0)'}];
+  if (!(await etape(jeton, [couv.animate(pivot, anim(mode === 'complete' ? DUREES.ouvrir : DUREES.ouvrir2d))]))) return;
+  // 3. La page devient le carnet
+  if (!(await etape(jeton, [page.animate([{transform: 'none'}, {transform: versRect(rectEcran(), ce)}], anim(DUREES.page)),
+    ov.animate([{opacity: 0}, {opacity: 0, offset: .4}, {opacity: 1}], anim(DUREES.page, 'linear'))]))) return;
+  nettoyerAnimation();
+  if (images) noterFluidite(jugerFluidite(images.arreter()));
+}
+// Fermeture : la fiche est déjà fermée ; le calque refait le chemin (page qui rétrécit, couverture qui se referme,
+// livre qui rentre dans sa carte — ou qui s'efface au centre si la carte n'est plus là)
+async function animerFermeture(id, modele) {
+  const mode = modeAnimation(); if (mode === 'aucune' || !modele) return;
+  interrompreAnimation(); const jeton = ++Ouverture.jeton, ce = rectCentre(), ecran = versRect(rectEcran(), ce);
+  const {page, livre, couv} = monterLivre(modele, ce);
+  if (mode === 'fondu') {
+    livre.remove();
+    if (await etape(jeton, [page.animate([{transform: ecran, opacity: 1}, {transform: ecran, opacity: 0}], {duration: DUREES.fondu, easing: 'linear', fill: 'both'})])) nettoyerAnimation();
+    return;
+  }
+  const ouverte = mode === 'complete' ? 'perspective(1200px) rotateY(-180deg)' : 'scaleX(0)', fermee = mode === 'complete' ? 'perspective(1200px) rotateY(0deg)' : 'scaleX(1)';
+  couv.style.transform = ouverte;
+  if (!(await etape(jeton, [page.animate([{transform: ecran}, {transform: 'none'}], anim(DUREES.reduire))]))) return;
+  if (!(await etape(jeton, [couv.animate([{transform: ouverte}, {transform: fermee}], anim(mode === 'complete' ? DUREES.fermer : DUREES.fermer2d))]))) return;
+  const src = couvertureCarte(id);
+  const retour = src ? [{transform: 'none', opacity: 1}, {transform: versRect(rectDe(src), ce), opacity: 1}] : [{transform: 'none', opacity: 1}, {transform: versRect(reduire(ce, .6), ce), opacity: 0}];
+  if (!(await etape(jeton, [page.animate(retour, anim(DUREES.rentrer, 'ease-in')), livre.animate(retour, anim(DUREES.rentrer, 'ease-in'))]))) return;
+  nettoyerAnimation();
+}
+// Un toucher, une touche ou un écran qui change de taille arrêtent l'animation tout de suite
+// (un toucher qui coupe l'OUVERTURE, la fiche encore invisible : son clic, au relâchement, ne déclenche rien,
+// sauf « ← » qui ferme alors sans animation de fermeture)
+document.addEventListener('pointerdown', () => { Ouverture.gesteCoupe = $('#livreOv').classList.contains('masque') && interrompreAnimation(); }, true);
+document.addEventListener('click', e => {
+  if (!Ouverture.gesteCoupe || (e.target.closest && e.target.closest('[data-fiche="fermer"]'))) return;
+  Ouverture.gesteCoupe = false; e.preventDefault(); e.stopPropagation();
+}, true);
+document.addEventListener('keydown', () => { Ouverture.gesteCoupe = false; interrompreAnimation(); }, true);
+window.addEventListener('resize', () => interrompreAnimation());
+
 /* ---------- 📖 Carnet du livre : historique (seulement ce qui est enregistré) ---------- */
 // Rang dans une même journée : du dernier au premier dans la suite logique (fini, chrono, progression, commencé, ajouté)
 const RANG_HISTO = {fin: 5, precedente: 5, chrono: 4, progression: 3, debut: 2, 'precedente-debut': 2, ajout: 1};
@@ -1084,21 +1231,28 @@ function ouvrirFiche(id, section) {
   if (!b) { toast('Ce livre n\'est plus dans ta bibliothèque'); return false; }
   // (une note ou une citation est en cours sur un autre livre : on ne l'efface pas sans rien dire)
   if (fiche.id && fiche.id !== id && fiche.edition && fiche.edition.texte.trim()) { toast('Termine d\'abord ce que tu écris'); return false; }
+  const dejaOuverte = fiche.id === id && $('#livreOv').classList.contains('show');
   Object.assign(fiche, {id, edition: fiche.id === id ? fiche.edition : null, dernier: b, toutHisto: false});
   $('#livreOv').classList.add('show'); $('#livreOv').scrollTop = 0; peindreFiche();
   const h = $('#livreTitre'); if (h) { h.tabIndex = -1; h.focus({preventScroll: true}); }
   const s = section && $('#fs_' + section); if (s) s.scrollIntoView({block: 'start'});
+  // (second toucher rapide sur le même livre : pas de seconde animation)
+  if (!dejaOuverte) animerOuverture(id);
   return true;
 }
 // Fermer : on demande avant de perdre une note ou une citation en cours ; le focus revient à la carte d'origine
 async function fermerFiche() {
   if (fiche.edition && fiche.edition.texte.trim() && !(await demander('Abandonner ce que tu as écrit ?', 'Abandonner', 'Continuer'))) return false;
+  // (fermer pendant l'ouverture, ou juste après une interruption : tout de suite, sans animation de fermeture)
+  const coupee = interrompreAnimation() || Ouverture.gesteCoupe || performance.now() - Ouverture.coupeeA < 80, modele = $('#livre .ph');
+  Ouverture.gesteCoupe = false;
   const id = fiche.id; fiche.id = ''; fiche.edition = null;
   $('#livreOv').classList.remove('show');
   if (Store.aRafraichir && !fenetreOuverte()) { Store.aRafraichir = false; render(); }
   const c = [...document.querySelectorAll('#list .card, #list .gcard')];
   const cible = c.find(x => x.dataset.id === id) || c[0];
   if (cible) cible.focus({preventScroll: false});
+  if (!coupee) animerFermeture(id, modele);
   return true;
 }
 const ligneSi = (cond, html) => cond ? html : '';
@@ -3187,6 +3341,9 @@ function openSettings() {
     <div class="f"><label>Style</label><div class="seg styles" id="st_style">${Object.entries(STYLES).map(([k, v]) =>
       `<button type="button" data-st="${k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${v}</button>`).join('')}</div></div>
     <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', ico('soleil', '☀️') + ' Clair'], ['dark', ico('lune', '🌙') + ' Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+    <div class="f"><label>Animations</label><div class="seg" id="st_anim">${Object.entries(MODES_ANIM).map(([k, v]) => `<button data-an="${k}" class="${(Object.hasOwn(MODES_ANIM, prefs.animation) ? prefs.animation : 'complete') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      ${Ouverture.reduit() ? '<p class="a petit">Ton téléphone demande moins d\'animations : seul un fondu est utilisé.</p>'
+        : prefs.anim3dLent && (prefs.animation || 'complete') === 'complete' ? '<p class="a petit">L\'ouverture 3D saccadait sur ce téléphone : la version simple est utilisée. Choisis « Complète » pour réessayer.</p>' : ''}</div>
     <div class="panel encadre"><h3>🔎 Recherche de livres</h3>
       <div class="a moyen">L'appli fouille en même temps la <b>BnF</b>, le <b>Sudoc</b> (bibliothèques universitaires), <b>Open Library</b>, <b>Apple Books</b> et <b>Google Books</b>.
       Google Books est souvent saturé quand on l'utilise sans clé. Avec ta propre clé (gratuite), il répond toujours et ajoute encore plus de livres.</div>
@@ -3217,6 +3374,13 @@ function openSettings() {
     const b = e.target.closest('[data-st]'); if (!b) return;
     prefs.style = b.dataset.st; savePrefs(); applyTheme();
     document.querySelectorAll('#st_style button').forEach(x => x.classList.toggle('on', x === b));
+  };
+  $('#st_anim').onclick = e => {
+    const b = e.target.closest('[data-an]'); if (!b) return;
+    prefs.animation = b.dataset.an;
+    // (« Complète » choisi de nouveau : on efface le repli automatique, pour réessayer)
+    if (b.dataset.an === 'complete') { prefs.anim3dLent = false; prefs.anim3dSaccades = 0; }
+    savePrefs(); document.querySelectorAll('#st_anim button').forEach(x => x.classList.toggle('on', x === b));
   };
   const keep = () => { prefs.googleKey = $('#st_key').value.trim(); savePrefs(); Recherche.setGoogleKey(prefs.googleKey); };
   $('#st_test').onclick = async () => {

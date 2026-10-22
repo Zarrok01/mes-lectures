@@ -35,7 +35,9 @@
 
   await vider();
   // Mémoire de test propre : les livres « déjà proposés » ou refusés lors d'un passage précédent ne doivent pas fausser celui-ci
-  prefs.proposes = []; prefs.nonMerci = []; prefs.selection = null; savePrefs();
+  prefs.proposes = []; prefs.nonMerci = []; prefs.selection = null;
+  prefs.animation = 'aucune';   // (la suite reste rapide ; les tests d'animation choisissent leur mode eux-mêmes)
+  savePrefs();
 
   /* ---------- 1. Rayons de librairie (règles de rangement) ---------- */
   const B = (c, l) => ({c, l, s: 'BnF'});
@@ -1549,6 +1551,125 @@
     const r = (ok ? 'ouvert' : 'refusé') + '|' + (ficheEtat.edition ? ficheEtat.edition.texte : '?'); ficheEtat.edition = null; await fermerTout(); return r;
   });
   // (fin de la section 12)
+
+  /* ---------- 13. Étape 3 : ouverture immersive ---------- */
+  await test('Fluidité : règle de repli automatique (16 ms fluide, 50 ms saccadé, trop court sans avis, deux saccades → Simple, fluide → compteur à zéro)', 'true|false|null|simple|complete|0', () => {
+    const p0 = prefs.animation, r0 = Ouverture.reduit; prefs.animation = 'complete'; delete prefs.anim3dLent; prefs.anim3dSaccades = 0; Ouverture.reduit = () => false;
+    const r = [jugerFluidite(Array(10).fill(16)), jugerFluidite(Array(10).fill(50)), jugerFluidite([16, 16])];
+    noterFluidite(false); noterFluidite(false); r.push(modeAnimation());
+    prefs.anim3dLent = false; prefs.anim3dSaccades = 1; noterFluidite(true); r.push(modeAnimation(), prefs.anim3dSaccades);
+    prefs.animation = p0; Ouverture.reduit = r0; delete prefs.anim3dLent; delete prefs.anim3dSaccades; savePrefs();
+    return r.map(String).join('|');
+  });
+  await test('Réglages : « Animations » (3 choix, Complète par défaut, mémorisé ; repli signalé, effacé par « Complète »)', 'Complète,Simple,Aucune|Complète|aucune|signalé|effacé', async () => {
+    const p0 = prefs.animation; delete prefs.animation; openSettings();
+    const r = [[...document.querySelectorAll('#st_anim button')].map(b => b.textContent.trim()).join(','), ($('#st_anim .on') || {textContent: '?'}).textContent.trim()];
+    $('#st_anim [data-an="aucune"]').click(); r.push(JSON.parse(localStorage.getItem(CLE + '-prefs')).animation); closeM(); await pause(250);
+    prefs.animation = 'complete'; prefs.anim3dLent = true; openSettings(); r.push($('#modal').textContent.includes('saccadait') ? 'signalé' : '?');
+    $('#st_anim [data-an="complete"]').click(); r.push(prefs.anim3dLent ? '?' : 'effacé'); closeM(); await pause(250);
+    prefs.animation = p0; delete prefs.anim3dLent; delete prefs.anim3dSaccades; savePrefs(); return r.join('|');
+  });
+  const attendre = async (cond, max) => { const t = performance.now(); while (!cond() && performance.now() - t < max) await pause(15); return Math.round(performance.now() - t); };
+  const effets = () => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && (a.effect.target.closest('#ouverture') || a.effect.target.id === 'livreOv'));
+  const formes = () => effets().map(a => JSON.stringify(a.effect.getKeyframes().map(k => k.transform || '')));
+  const avecAnim = async (mode, fn, reduit) => {
+    const m0 = prefs.animation, r0 = Ouverture.reduit; prefs.animation = mode; Ouverture.reduit = () => !!reduit;
+    try { return await fn(); }
+    finally { interrompreAnimation(); prefs.animation = m0; Ouverture.reduit = r0; delete prefs.anim3dLent; delete prefs.anim3dSaccades; savePrefs(); ficheEtat.edition = null; if (ficheEtat.id) await fermerFiche(); interrompreAnimation(); await pause(50); }
+  };
+  const carteAnim = () => { books = [fiche('Anim', {statut: 'en_cours', couverture: COUV, pagesTotal: 100, pageActuelle: 10})]; ui.tab = 'en_cours'; prefs.view = 'liste'; render(); return $('#list .card[data-id="t-Anim"]'); };
+  await test('Ouverture complète : fiche ouverte tout de suite, départ de la carte, pivot 3D, puis plus rien à l\'écran', 'fiche|calque|depuis la carte|pivot 3D|fini|visible|durée ok', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click();
+    const r = [ficheEtat.id === 't-Anim' && $('#livreOv').classList.contains('show') ? 'fiche' : '?', $('#ouverture') && $('#ouverture').getAttribute('aria-hidden') === 'true' ? 'calque' : '?'];
+    const vus = new Set(formes()); r.push([...vus].some(k => k.includes('translate')) ? 'depuis la carte' : '?');
+    const duree = await attendre(() => { formes().forEach(k => vus.add(k)); return !$('#ouverture'); }, 2000);
+    r.push([...vus].some(k => k.includes('rotateY')) ? 'pivot 3D' : '?', !$('#ouverture') ? 'fini' : '?',
+      !$('#livreOv').classList.contains('masque') && getComputedStyle($('#livreOv')).opacity === '1' ? 'visible' : '?', duree >= 600 && duree <= 1100 ? 'durée ok' : 'durée ' + duree);
+    return r.join('|');
+  }));
+  await test('Ouverture simple : repli à plat, jamais de 3D', 'repli à plat|pas de 3D', () => avecAnim('simple', async () => {
+    carteAnim().querySelector('.t').click(); const vus = new Set();
+    await attendre(() => { formes().forEach(k => vus.add(k)); return !$('#ouverture'); }, 2000);
+    return ([...vus].some(k => k.includes('scaleX(0)')) ? 'repli à plat' : '?') + '|' + ([...vus].some(k => k.includes('rotateY')) ? '3D !' : 'pas de 3D');
+  }));
+  await test('Ouverture « Aucune » : pas de calque, fiche directement', 'pas de calque|fiche', () => avecAnim('aucune', async () => {
+    carteAnim().querySelector('.t').click();
+    return ($('#ouverture') ? 'calque !' : 'pas de calque') + '|' + ($('#livreOv').classList.contains('show') && !effets().length ? 'fiche' : '?');
+  }));
+  await test('Réduction des animations du téléphone : un simple fondu, aucun calque, même en Complète', 'fondu|pas de calque|court', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const f = effets();
+    const r = [f.length === 1 && f[0].effect.target.id === 'livreOv' && +f[0].effect.getKeyframes()[0].opacity === 0 ? 'fondu' : '?', $('#ouverture') ? 'calque !' : 'pas de calque'];
+    r.push((await attendre(() => !effets().length, 1000)) <= 300 ? 'court' : 'long'); return r.join('|');
+  }, true));
+  await test('Double toucher : une seule fiche, un seul calque', 't-Anim|1', () => avecAnim('complete', async () => {
+    const c = carteAnim(); c.querySelector('.t').click(); c.querySelector('.t').click();
+    return ficheEtat.id + '|' + document.querySelectorAll('#ouverture').length;
+  }));
+  await test('Redimensionnement pendant l\'animation : fin immédiate, fiche visible', 'arrêtée|fiche visible', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await pause(100); window.dispatchEvent(new Event('resize'));
+    return ($('#ouverture') ? 'continue' : 'arrêtée') + '|' + (!$('#livreOv').classList.contains('masque') && !effets().length ? 'fiche visible' : '?');
+  }));
+  await test('Toucher pendant l\'animation : fin immédiate, fiche visible', 'arrêtée|fiche visible', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await pause(100); document.body.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    return ($('#ouverture') ? 'continue' : 'arrêtée') + '|' + (!$('#livreOv').classList.contains('masque') && !effets().length ? 'fiche visible' : '?');
+  }));
+  await test('Ouverture sans carte de départ (depuis une citation) : apparition au centre', 'apparition au centre|fini', () => avecAnim('complete', async () => {
+    books = [fiche('Cit', {statut: 'lu', couverture: COUV, citations: [{id: 'c-1', texte: 'P', date: today()}]})]; ui.tab = 'citations'; render();
+    $('#qlist .quote').click(); const l = effets().find(a => a.effect.target.classList.contains('ouv-livre'));
+    const r = [l && +l.effect.getKeyframes()[0].opacity === 0 ? 'apparition au centre' : '?'];
+    await attendre(() => !$('#ouverture'), 2000); r.push($('#ouverture') ? '?' : 'fini'); ui.tab = 'en_cours'; render(); return r.join('|');
+  }));
+  await test('Copie de couverture fidèle (sans image : initiale et couleur)', 'S|couleur', () => avecAnim('complete', async () => {
+    books = [norm({id: 'sans', titre: 'Sans image', statut: 'en_cours'})]; ui.tab = 'en_cours'; render(); $('#list .card .t').click();
+    const c = $('#ouverture .ouv-couv'), r = [c ? c.textContent.trim() : '?', c && getComputedStyle(c).backgroundColor !== 'rgba(0, 0, 0, 0)' ? 'couleur' : '?']; return r.join('|');
+  }));
+  await test('Une ouverture complète enregistre une mesure de fluidité', 'mesurée', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await attendre(() => !$('#ouverture'), 2000); await pause(30);
+    return typeof prefs.anim3dSaccades === 'number' ? 'mesurée' : 'pas de mesure';
+  }));
+  await test('Retour pendant l\'ouverture : fiche fermée tout de suite, plus de calque, pas d\'animation de fermeture', 'fermée|plus de calque|pas de fermeture animée', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await pause(100); fermerDessus();
+    const r = [!$('#livreOv').classList.contains('show') && !fenetreOuverte() ? 'fermée' : '?', $('#ouverture') ? '?' : 'plus de calque'];
+    await pause(60); r.push($('#ouverture') ? 'fermeture animée !' : 'pas de fermeture animée'); return r.join('|');
+  }));
+  await test('Fermeture vers la carte (déplacement) et vers une carte absente (effacement au centre)', 'vers la carte|fini|effacée au centre|fini', () => avecAnim('complete', async () => {
+    const r = [], dernier = () => { const l = effets().filter(a => a.effect.target.classList.contains('ouv-livre')); return l.length ? l[l.length - 1].effect.getKeyframes() : null; };
+    carteAnim().querySelector('.t').click(); await attendre(() => !$('#ouverture'), 2000);
+    fermerFiche(); let k = null; await attendre(() => { const d = dernier(); if (d) k = d; return !$('#ouverture'); }, 2000);
+    r.push(k && String(k[k.length - 1].transform).includes('translate') && +(k[k.length - 1].opacity ?? 1) !== 0 ? 'vers la carte' : '?', $('#ouverture') ? '?' : 'fini');
+    carteAnim(); ouvrirFiche('t-Anim'); await attendre(() => !$('#ouverture'), 2000); ui.tab = 'lu'; render();
+    fermerFiche(); k = null; await attendre(() => { const d = dernier(); if (d) k = d; return !$('#ouverture'); }, 2000);
+    r.push(k && +k[k.length - 1].opacity === 0 ? 'effacée au centre' : '?', $('#ouverture') ? '?' : 'fini');
+    ui.tab = 'en_cours'; render(); return r.join('|');
+  }));
+  // (relecture : le vrai geste au doigt, c'est « appui » puis « clic » au relâchement, sur la fiche encore invisible)
+  const appui = el => el.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  await test('Toucher pour passer l\'ouverture : le clic du même geste ne déclenche pas un bouton invisible', 'a_lire|en_cours', () => avecAnim('complete', async () => {
+    books = [fiche('Geste', {statut: 'a_lire', couverture: COUV})]; ui.tab = 'a_lire'; prefs.view = 'liste'; render();
+    $('#list .card .t').click(); await pause(100);
+    const b = $('#livre [data-fiche="start"]'); appui(b); await pause(120); b.click(); const r = [books[0].statut];
+    const b2 = $('#livre [data-fiche="start"]'); if (b2) { appui(b2); b2.click(); } r.push(books[0].statut);
+    ui.tab = 'en_cours'; return r.join('|');
+  }));
+  await test('« ← » touché pendant l\'ouverture (relâché 150 ms après l\'appui) : fermée sans animation de fermeture', 'fermée|pas de fermeture animée', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await pause(100);
+    const b = $('#livre [data-fiche="fermer"]'); appui(b); await pause(150); b.click(); await pause(60);
+    return (!$('#livreOv').classList.contains('show') ? 'fermée' : '?') + '|' + ($('#ouverture') ? 'fermeture animée !' : 'pas de fermeture animée');
+  }));
+  await test('Toucher une carte pendant la fermeture animée : le livre s\'ouvre (le clic n\'est pas avalé)', 'ouverte', () => avecAnim('complete', async () => {
+    const c = carteAnim(); c.querySelector('.t').click(); await attendre(() => !$('#ouverture'), 2000);
+    fermerFiche(); await pause(60); const t = $('#list .card[data-id="t-Anim"] .t'); appui(t); t.click();
+    return ficheEtat.id === 't-Anim' && $('#livreOv').classList.contains('show') ? 'ouverte' : 'pas ouverte';
+  }));
+  await test('Mesure de fluidité sans changement : les préférences ne sont pas réécrites (pas d\'écrasement d\'une autre fenêtre)', 'intactes|écrites', () => {
+    const p0 = localStorage.getItem(CLE + '-prefs'); prefs.anim3dSaccades = 0; delete prefs.anim3dLent;
+    localStorage.setItem(CLE + '-prefs', '{"marque":1}'); noterFluidite(true);
+    const r = [localStorage.getItem(CLE + '-prefs') === '{"marque":1}' ? 'intactes' : 'réécrites'];
+    noterFluidite(false); r.push(localStorage.getItem(CLE + '-prefs').includes('anim3dSaccades') ? 'écrites' : '?');
+    delete prefs.anim3dSaccades; if (p0 === null) localStorage.removeItem(CLE + '-prefs'); else localStorage.setItem(CLE + '-prefs', p0); savePrefs();
+    return r.join('|');
+  });
+  // (fin de la section 13)
 
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {

@@ -658,9 +658,9 @@
     const r = (confirmDemande ? 'demandé' : 'pas demandé') + '|' + plural(books.length, 'livre');
     reponseConfirm = true; modalModifie = false; closeM(); await pause(250); return r;
   });
-  await test('Version : index.html et recherche.js ont le même numéro (affiché dans les Réglages)', true, async () => {
+  await test('Version : index.html, recherche.js et taxonomie.js ont le même numéro (affiché dans les Réglages)', true, async () => {
     openSettings(); const vu = $('#modal').textContent.includes('Version de l\'appli : ' + VERSION); closeM(); await pause(250);
-    return Recherche.VERSION === VERSION && vu;
+    return Recherche.VERSION === VERSION && typeof Taxonomie !== 'undefined' && Taxonomie.VERSION === VERSION && vu;
   });
   await test('Sécurité : politique de contenu active (l\'appli ne parle qu\'aux catalogues prévus)', true, () => {
     const m = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
@@ -869,7 +869,8 @@
     'bibliothèque': async () => { closeM(); books = [fiche('Livre en cours', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 50, genre: 'Roman'}),
       ...[1, 2, 3, 4, 5].map(n => fiche('Lu ' + n, {statut: 'lu', note: n, genre: 'Essai', classements: [B('686', '320')]}))]; ui.tab = 'lu'; ui.filtres = true; render(); },
     'fiche': async () => { openForm(books[1]); await pause(50); },
-    'découvrir': async () => { modalModifie = false; closeM(); ui.tab = 'decouvrir'; render(); },
+    'carnet': async () => { modalModifie = false; closeM(); ouvrirFiche(books[1].id); await pause(50); },
+    'découvrir': async () => { modalModifie = false; closeM(); if (ficheEtat.id) await fermerFiche(); ui.tab = 'decouvrir'; render(); },
     'stats': async () => { ui.tab = 'stats'; render(); },
     'réglages': async () => { openSettings(); await pause(50); }
   };
@@ -878,7 +879,7 @@
     for (const [s, t] of combos || [['android', 'light']]) await avecStyle(s, t, async () => {
       for (const [nom, prep] of Object.entries(ECRANS)) { await prep(); fautes.push(...mesure().map(f => nom + ' ' + s + '/' + t + ' : ' + f)); }
     });
-    modalModifie = false; closeM(); await pause(250); ui.tab = 'en_cours'; ui.filtres = false; render();
+    modalModifie = false; closeM(); if (ficheEtat.id) await fermerFiche(); await pause(250); ui.tab = 'en_cours'; ui.filtres = false; render();
     return [...new Set(fautes)].slice(0, 20);
   };
   const PERMIS = /^(width|height|grid-column(-start|-end)?)$/;
@@ -1079,6 +1080,475 @@
     $('#genre').value = 'Roman'; $('#genre').dispatchEvent(new Event('change', {bubbles: true}));
     const n = document.querySelectorAll('#filtres summary .ico').length; ui.genre = ''; ui.tab = 'en_cours'; render(); return n;
   });
+
+  /* ---------- 11. Étape 1 : données v3, migration, sauvegarde vérifiable ---------- */
+  await test('Genres principaux : correspondance exacte seulement (majuscules, accents, pluriel)', 'roman|roman|essai|memoires|bd||', () =>
+    ['roman', 'Romans', ' ESSAIS ', 'Mémoires', 'Bande dessinée', 'Science-fiction', 'Roman policier'].map(Taxonomie.genreDepuisTexte).join('|'));
+  await test('Genres principaux : 16 genres, identifiants uniques', '16|16', () => Taxonomie.GENRES.length + '|' + new Set(Taxonomie.GENRES.map(g => g.id)).size);
+  // Copies représentatives des sauvegardes (livres fictifs). V1 : la forme la plus ancienne que l'appli sait encore lire
+  // (version 1, nombres en texte, anciens noms de rayons, champs absents, deux citations identiques, un prêt).
+  const SAUV_V1 = () => ({app: 'mes-lectures', version: 1, date: '2025-03-01T10:00:00.000Z', goal: '12', books: [
+    {id: 'v1-a', titre: 'Ancien roman', auteur: 'Auteur Un', genre: 'roman', statut: 'lu', note: '4', serie: 'Saga', tome: '2', pagesTotal: '320', pageActuelle: '320',
+      dateDebut: '2025-01-02', dateFin: '2025-02-03', epingle: 'true', catOui: ['philo', 'sf/dystopie'], catNon: ['bio'], avis: 'Bien aimé',
+      citations: [{texte: 'Phrase un', page: '12'}, {texte: 'Phrase un', page: '12'}], journal: [{date: '2025-01-02', page: 0}, {date: '2025-01-20', page: '150'}],
+      possession: 'prete', pretNom: 'Léa', pretRetour: '2025-03-01'},
+    {id: 'v1-b', titre: 'Sans genre', statut: 'a_lire'}
+  ]});
+  // V2 : le format actuel, complet et déjà propre (classements, sujets, corrections manuelles, emprunt, relecture, chrono, couvertures…)
+  const SAUV_V2 = () => ({app: 'mes-lectures', version: 2, date: '2026-10-01T08:00:00.000Z', goal: 20, books: [
+    {id: 'v2-a', titre: 'Le fascisme', auteur: 'Pierre Milza', serie: '', genre: 'Essai', note: 4, avis: 'Clair et précis', resume: 'Une histoire du fascisme.',
+      isbn: '9782213000000', editeur: 'Fayard', annee: '1997', pretNom: 'Médiathèque', couverture: 'data:image/png;base64,iVBORw0KGgo=', ajoute: '2026-01-05T09:00:00.000Z',
+      dateDebut: '2026-01-05', dateFin: '2026-02-10', pretRetour: '2026-11-02', tome: '', pagesTotal: 480, pageActuelle: 480, statut: 'lu', epingle: false,
+      aCompleter: false, format: 'papier', possession: 'emprunte',
+      citations: [{texte: 'Le fascisme est un mouvement.', page: '33', date: '2026-01-20'}],
+      journal: [{date: '2026-01-05', page: 0}, {date: '2026-01-25', page: 240}, {date: '2026-02-10', page: 480}],
+      historique: [{debut: '2025-03-01', fin: '2025-04-01', note: 3}], sessions: [{date: '2026-01-25', min: 45, pages: 30}],
+      coversAlt: ['https://covers.openlibrary.org/b/id/1-L.jpg'], sujets: ['Fascisme', 'Histoire politique'],
+      classements: [{c: '686', l: '320.533'}, {c: '606', l: 'Fascisme', s: 'BnF'}], catOui: ['histoire'], catNon: ['shs/philo'], pagesSource: 'edition'},
+    {id: 'v2-b', titre: 'À compléter', auteur: '', serie: 'Cycle', genre: 'Science-fiction', note: 0, avis: '', resume: '', isbn: '', editeur: '', annee: '',
+      pretNom: '', couverture: '', ajoute: '2026-09-01T09:00:00.000Z', dateDebut: '2026-10-01', dateFin: '', pretRetour: '', tome: 3, pagesTotal: 300, pageActuelle: 120,
+      statut: 'en_cours', epingle: false, aCompleter: true, format: 'audio', possession: 'a_moi', citations: [],
+      journal: [{date: '2026-10-01', page: 0}, {date: '2026-10-05', page: 120}], historique: [], sessions: [], coversAlt: [], sujets: [], classements: [],
+      catOui: [], catNon: [], pagesSource: 'manuel'}
+  ]});
+  // V3 : nouveau format, avec des valeurs à nettoyer et des champs inconnus (venus d'une version plus récente)
+  const SAUV_V3 = () => ({app: 'mes-lectures', version: 3, schema: 3, date: '2026-10-22T08:00:00.000Z', goal: 5, resume: {livres: 1, citations: 1, notes: 2, journal: 1}, books: [
+    {id: 'v3-a', titre: 'Carnet', auteur: 'Auteur Trois', genre: 'Roman', statut: 'en_cours', pagesTotal: 200, pageActuelle: 50,
+      classif: {genre: 'roman', sousGenres: ['roman/historique'], themes: ['famille', 'famille'], ambiances: ['intense'], refus: ['genre:essai'], futurClassif: 1},
+      etiquettes: ['  Été 2026 ', 'été 2026', '', 'Club'],
+      notes: [{id: 'n-1', date: '2026-10-20', modif: '2026-10-21', texte: ' Première note ', page: '12'}, {id: 'n-2', date: '2026-10-21', texte: 'Deuxième'}, {id: 'n-3', texte: '   '}],
+      citations: [{id: 'c-fixe', texte: 'Une phrase', page: '3', date: '2026-10-20', commentaire: 'Belle', futurCitation: 'gardé'}],
+      journal: [{date: '2026-10-20', page: 50}], futur: {x: 1}}
+  ]});
+  const egalJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  await test('Migration V1 : chaque valeur d\'origine retrouvée sous sa forme normale', [], () => {
+    const [a, b] = SAUV_V1().books.map(norm), f = [];
+    const attendu = {id: 'v1-a', titre: 'Ancien roman', auteur: 'Auteur Un', genre: 'roman', statut: 'lu', note: 4, serie: 'Saga', tome: 2, pagesTotal: 320, pageActuelle: 320,
+      dateDebut: '2025-01-02', dateFin: '2025-02-03', epingle: true, avis: 'Bien aimé', possession: 'prete', pretNom: 'Léa', pretRetour: '2025-03-01'};
+    for (const [k, v] of Object.entries(attendu)) if (!egalJSON(a[k], v)) f.push(k + ' : ' + JSON.stringify(a[k]));
+    if (!egalJSON(a.catOui, ['shs/philo', 'imaginaire/dystopie']) || !egalJSON(a.catNon, ['litterature/bio'])) f.push('corrections de rayons');
+    if (!egalJSON(a.journal, [{date: '2025-01-02', page: 0}, {date: '2025-01-20', page: 150}])) f.push('journal');
+    if (a.citations.length !== 2 || a.citations.some(q => q.texte !== 'Phrase un' || q.page !== '12')) f.push('citations');
+    if (b.id !== 'v1-b' || b.titre !== 'Sans genre' || b.statut !== 'a_lire') f.push('livre 2');
+    return f;
+  });
+  await test('Migration V2 : chaque champ d\'origine strictement identique (citations : id et commentaire ajoutés seulement)', [], () => {
+    const f = [];
+    for (const o of SAUV_V2().books) {
+      const n = norm(o);
+      for (const k of Object.keys(o)) {
+        const v = k === 'citations' ? n.citations.map(q => { const {id, commentaire, ...reste} = q; return reste; }) : n[k];
+        if (!egalJSON(v, o[k])) f.push(o.id + '.' + k + ' : ' + JSON.stringify(n[k]));
+      }
+    }
+    return f;
+  });
+  await test('Migration : nouveaux champs présents et vides par défaut (rien d\'inventé)', '{"genre":"","sousGenres":[],"themes":[],"ambiances":[],"refus":[]}|[]|[]', () => {
+    const b = norm(SAUV_V2().books[0]); return JSON.stringify(b.classif) + '|' + JSON.stringify(b.etiquettes) + '|' + JSON.stringify(b.notes);
+  });
+  await test('Migration répétée : même résultat (V1, V2, V3)', 'V1 ok|V2 ok|V3 ok', () =>
+    [['V1', SAUV_V1], ['V2', SAUV_V2], ['V3', SAUV_V3]].map(([n, s]) => n + (s().books.every(o => { const a = norm(o); return egalJSON(norm(a), a); }) ? ' ok' : ' DIFFÉRENT')).join('|'));
+  await test('Citations : identifiants présents, uniques dans un livre, identiques d\'une migration à l\'autre', '2 uniques|stables|gardé c-fixe', () => {
+    const a = norm(SAUV_V1().books[0]), b = norm(SAUV_V1().books[0]), ids = a.citations.map(q => q.id);
+    return (ids.every(Boolean) && new Set(ids).size === 2 ? '2 uniques' : JSON.stringify(ids)) + '|' + (egalJSON(ids, b.citations.map(q => q.id)) ? 'stables' : 'instables') + '|gardé ' + norm(SAUV_V3().books[0]).citations[0].id;
+  });
+  // (V2 est déjà propre : on compare la fiche telle quelle et migrée ; V1 porte d'anciens noms de rayons que la remise en ordre
+  // convertissait déjà avant le format v3 : on compare donc aux rayons que l'appli affichait pour elle)
+  await test('Rayons calculés identiques avant et après la migration (corrections manuelles comprises)', 'v2 identiques|imaginaire,shs', () =>
+    (SAUV_V2().books.every(o => egalJSON(cats(o), cats(norm(o)))) ? 'v2 identiques' : 'v2 DIFFÉRENTS') + '|' + cats(norm(SAUV_V1().books[0])).join(','));
+  await test('Ancien genre : conservé ; seul un genre exact est proposé ; jamais de sous-genre ; rien d\'enregistré', 'roman,roman,essai,|Science-fiction|0|',
+    () => {
+      const l = [{genre: 'roman'}, {genre: 'Romans'}, {genre: 'Essai'}, {genre: 'Science-fiction'}].map(x => norm({...x, titre: 'G'}));
+      return l.map(suggestionGenre).join(',') + '|' + l[3].genre + '|' + l.reduce((n, b) => n + b.classif.sousGenres.length, 0) + '|' + l.map(b => b.classif.genre).join('');
+    });
+  await test('Suggestion de genre : aucune si un genre est confirmé ou si la proposition a été refusée', '||roman', () => [
+    norm({titre: 'A', genre: 'roman', classif: {genre: 'essai'}}), norm({titre: 'B', genre: 'roman', classif: {refus: ['genre:roman']}}), norm({titre: 'C', genre: 'roman'})
+  ].map(suggestionGenre).join('|'));
+  await test('V3 : valeurs nettoyées (doublons, espaces, notes vides) et champs inconnus gardés', 'famille|Été 2026,Club|n-1:Première note,n-2:Deuxième|futur|gardé|1', () => {
+    const b = norm(SAUV_V3().books[0]);
+    return b.classif.themes.join(',') + '|' + b.etiquettes.join(',') + '|' + b.notes.map(n => n.id + ':' + n.texte).join(',') + '|' + (b.futur && b.futur.x === 1 ? 'futur' : '?') + '|' + b.citations[0].futurCitation + '|' + b.classif.futurClassif;
+  });
+  await test('Fiche abîmée : classification, notes et citations invalides n\'empêchent rien', 'Abîmé|{"genre":"","sousGenres":[],"themes":[],"ambiances":[],"refus":[]}|0|1', () => {
+    const b = norm({id: 'x', titre: 'Abîmé', classif: ['pas', 'un', 'objet'], notes: 'texte au lieu d\'une liste', etiquettes: 42, citations: [{texte: ''}, 'n\'importe quoi', {texte: 'Vraie'}]});
+    return b.titre + '|' + JSON.stringify(b.classif) + '|' + b.notes.length + '|' + b.citations.length;
+  });
+  await test('Enregistrement : les données portent « schema: 3 »', 3, async () => { books = [fiche('Schéma')]; await Store.persist(); return (await Store.get('data')).schema; });
+  await test('Copie avant migration : faite une seule fois, intacte, jamais écrasée ; rien pour des données déjà v3 ou vides', 'copiée|intacte|déjà|non écrasée|rien|rien|invitation', async () => {
+    await Store.set('avant-migration-v3', null); delete prefs.avantMigration; delete prefs.inviterSauvegarde;
+    const v2 = SAUV_V2(), r = [await preparerMigration(v2)];
+    const copie = await Store.get('avant-migration-v3'); r.push(egalJSON(copie.books, SAUV_V2().books) ? 'intacte' : 'modifiée');
+    r.push(await preparerMigration(SAUV_V1())); r.push(egalJSON((await Store.get('avant-migration-v3')).books, SAUV_V2().books) ? 'non écrasée' : 'écrasée');
+    r.push(await preparerMigration({...SAUV_V3()})); r.push(await preparerMigration({books: [], goal: 0}));
+    r.push(prefs.inviterSauvegarde ? 'invitation' : 'pas d\'invitation');
+    return r.join('|');
+  });
+  await test('Copie avant migration impossible (mémoire pleine) → invitation à sauvegarder, la mise à jour continue', 'échec|invitation', async () => {
+    await Store.set('avant-migration-v3', null); delete prefs.inviterSauvegarde;
+    const vrai = Store.set; Store.set = () => Promise.reject(new Error('mémoire pleine'));
+    try { return (await preparerMigration(SAUV_V2())) + '|' + (prefs.inviterSauvegarde ? 'invitation' : '?'); } finally { Store.set = vrai; }
+  });
+  await test('« Revenir à ma bibliothèque d\'avant la mise à jour » : bouton visible, livres remis, annulable', 'bouton|v2-a,v2-b|annulable', async () => {
+    await Store.set('avant-migration-v3', null); delete prefs.avantMigration;
+    await preparerMigration(SAUV_V2()); books = [fiche('Après la mise à jour')]; await Store.persist();
+    openSettings(); const bouton = $('#modal [data-undomigration]') ? 'bouton' : 'pas de bouton'; closeM(); await pause(250);
+    reponseConfirm = true; await revenirAvantMigration();
+    const r = bouton + '|' + books.map(b => b.id).join(',') + '|' + ((await Store.get('avant-retour-migration')).books.some(b => b.titre === 'Après la mise à jour') ? 'annulable' : '?');
+    await Store.set('avant-migration-v3', null); await Store.set('avant-retour-migration', null); delete prefs.avantMigration; delete prefs.migrationRemise; delete prefs.inviterSauvegarde; savePrefs();
+    return r;
+  });
+  await test('Restauration d\'une copie V1 : résumé affiché, livres remis en ordre avec identifiants de citations', '2 livres, 2 citations et 0 note|v1-a,v1-b|2 id', async () => {
+    books = [fiche('Avant V1')]; await Store.persist();
+    await restaurer(SAUV_V1()); const vu = ($('#modal').textContent.match(/\d+ livres?, \d+ citations? et \d+ notes?/) || ['?'])[0];
+    $('#r_ok').click(); await pause(400);
+    return vu + '|' + books.map(b => b.id).join(',') + '|' + books[0].citations.filter(q => q.id).length + ' id';
+  });
+  await test('Restauration : un fichier dont le résumé ne correspond pas est signalé avant de remplacer', 'signalé', async () => {
+    const s = SAUV_V3(); s.resume = {livres: 4, citations: 1, notes: 2, journal: 1};
+    await restaurer(s); const r = $('#modal').textContent.includes('semble incomplet') ? 'signalé' : 'non signalé'; closeM(); await pause(250); return r;
+  });
+  await test('Export v3 : version, schéma et résumé ; aller-retour export → restauration sans aucune perte', '3|3|{"livres":2,"citations":2,"notes":2,"journal":4}|identique', async () => {
+    books = [...SAUV_V2().books.slice(0, 1), ...SAUV_V3().books].map(norm); await Store.persist();
+    const avant = JSON.stringify(books); let texte = ''; const dl = window.download; window.download = (n, c) => { texte = c; };
+    try { doExport('backup'); } finally { window.download = dl; }
+    const d = JSON.parse(texte);
+    await restaurer(texte); $('#r_ok').click(); await pause(400);
+    return d.version + '|' + d.schema + '|' + JSON.stringify(d.resume) + '|' + (JSON.stringify(books) === avant ? 'identique' : 'DIFFÉRENT');
+  });
+  await test('Vérification d\'une sauvegarde : complète → oui ; citation retirée → non ; texte illisible → non', 'oui|non|non', () => {
+    const l = SAUV_V3().books.map(norm), bon = JSON.stringify({app: 'mes-lectures', version: 3, schema: 3, goal: 0, resume: resumeDe(l), books: l});
+    const abime = JSON.parse(bon); abime.books[0].citations = [];
+    return [bon, JSON.stringify(abime), '{"app": "mes-lectures", "books": ['].map(t => verifierSauvegarde(t) ? 'oui' : 'non').join('|');
+  });
+  await test('Restauration : une sauvegarde d\'une version plus récente que 3 est signalée', 'signalé', async () => {
+    await restaurer({...SAUV_V3(), version: 4}); const r = $('#modal').textContent.includes('version plus récente') ? 'signalé' : 'non signalé'; closeM(); await pause(250); return r;
+  });
+  // (relecture finale de l'étape 1)
+  await test('Retour d\'avant la mise à jour : un second appui ne perd rien, la copie de restauration reste intacte, le retour s\'annule', 'déjà remise|v2-a,v2-b|restauration intacte|bouton annuler|L', async () => {
+    await Store.set('avant-migration-v3', null); delete prefs.avantMigration; delete prefs.migrationRemise;
+    await Store.set('avant-restauration', {books: [fiche('Copie R')], goal: 0, date: new Date().toISOString()});
+    await preparerMigration(SAUV_V2()); books = [fiche('L')]; await Store.persist();
+    reponseConfirm = true; await revenirAvantMigration(); const second = await revenirAvantMigration();
+    const ids = books.map(b => b.id).join(',');
+    const rest = (await Store.get('avant-restauration')).books.map(b => b.titre).join(',') === 'Copie R' ? 'restauration intacte' : 'restauration écrasée';
+    openSettings(); const btn = $('#modal [data-undoretour]') && !$('#modal [data-undomigration]') ? 'bouton annuler' : 'boutons ?'; closeM(); await pause(250);
+    await annulerRetourMigration();
+    const r = [second, ids, rest, btn, books.map(b => b.titre).join(',')].join('|');
+    await Store.set('avant-migration-v3', null); await Store.set('avant-retour-migration', null); delete prefs.avantMigration; delete prefs.migrationRemise; savePrefs();
+    return r;
+  });
+  await test('Copie de sécurité impossible : bandeau qui reste jusqu\'à la prochaine sauvegarde', 'bandeau|disparu', async () => {
+    await Store.set('avant-migration-v3', null); delete prefs.copieMigrationEchec;
+    const vrai = Store.set; Store.set = () => Promise.reject(new Error('mémoire pleine'));
+    try { await preparerMigration(SAUV_V2()); } finally { Store.set = vrai; }
+    books = [fiche('B')]; paintNotice(); const a = !$('#notice').hidden && $('#notice').textContent.includes('copie de sécurité') ? 'bandeau' : 'pas de bandeau';
+    const dl = window.download; window.download = () => {}; try { doExport('backup'); } finally { window.download = dl; }
+    paintNotice(); const b = !$('#notice').hidden && $('#notice').textContent.includes('copie de sécurité') ? 'encore là' : 'disparu';
+    delete prefs.copieMigrationEchec; delete prefs.inviterSauvegarde; savePrefs(); return a + '|' + b;
+  });
+  await test('Étiquettes : coupe à 40 caractères stable (pas d\'espace finale, pas d\'émoji coupé)', 'stable|39|📚', () => {
+    const a = norm({titre: 'E', etiquettes: ['a'.repeat(39) + ' bc', 'x'.repeat(39) + '📚📚']}), b = norm(a);
+    return (egalJSON(a.etiquettes, b.etiquettes) ? 'stable' : 'instable') + '|' + a.etiquettes[0].length + '|' + Array.from(a.etiquettes[1]).pop();
+  });
+  await test('Genres principaux : pluriels en « s » reconnus (Théâtres, Récits & témoignages, Contes)', 'theatre|recit|conte', () =>
+    ['Théâtres', 'Récits & témoignages', 'Contes'].map(Taxonomie.genreDepuisTexte).join('|'));
+  await test('Restauration : pas d\'avertissement pour un fichier complet ni pour une ancienne sauvegarde sans résumé', 'rien|rien', async () => {
+    const l = SAUV_V3().books.map(norm), r = [];
+    for (const s of [{app: 'mes-lectures', version: 3, schema: 3, goal: 0, resume: resumeDe(l), books: l}, SAUV_V2()]) {
+      await restaurer(s); r.push($('#modal').textContent.includes('semble incomplet') ? 'averti' : 'rien'); closeM(); await pause(250);
+    }
+    return r.join('|');
+  });
+  await vider(); try { await Store.set('avant-restauration', null); await Store.set('avant-migration-v3', null); await Store.set('avant-retour-migration', null); } catch (e) {}
+  delete prefs.avantRestauration; delete prefs.avantMigration; delete prefs.inviterSauvegarde; savePrefs();
+  // (fin de la section 11)
+
+  /* ---------- 12. Étape 2 : carnet du livre ---------- */
+  await test('Historique : événements enregistrés seulement, plus récents d\'abord, ordre défini le même jour', JSON.stringify([
+    '2026-01-10 Fini', '2026-01-10 p. 300 (+180) sur 300', '2026-01-05 Séance de chrono : 30 min · 40 p.', '2026-01-05 Séance de chrono : 20 min',
+    '2026-01-05 p. 120 (+120) sur 300', '2026-01-02 Commencé', '2026-01-01 Ajouté à ta bibliothèque', '2025-06-20 Lecture précédente terminée · note 4/5',
+    '2025-01-01 Lecture précédente commencée']), () => {
+    const b = norm({id: 'h', titre: 'H', statut: 'lu', pagesTotal: 300, ajoute: '2026-01-01T10:00:00.000Z', dateDebut: '2026-01-02', dateFin: '2026-01-10',
+      journal: [{date: '2026-01-02', page: 0}, {date: '2026-01-05', page: 120}, {date: '2026-01-10', page: 300}],
+      sessions: [{date: '2026-01-05', min: 30, pages: 40}, {date: '2026-01-05', min: 20}],
+      historique: [{debut: '2025-06-01', fin: '2025-06-20', note: 4}, {debut: '2025-01-01', fin: '', note: 0}]});
+    return JSON.stringify(evenementsLivre(b).map(e => e.date + ' ' + e.texte));
+  });
+  await test('Historique : rien d\'inventé (pas de reprise, pas d\'événement sans date, abandon = « Arrêté »)', 'Arrêté|pas de reprise|2', () => {
+    const a = norm({id: 'r', titre: 'R', statut: 'abandon', dateDebut: '2026-02-01', dateFin: '2026-02-09', historique: [{debut: '', fin: '', note: 0}]});
+    const b = norm({id: 'q', titre: 'Q', statut: 'en_cours', dateDebut: '2026-03-01', journal: [{date: '2026-03-01', page: 0}, {date: '2026-03-04', page: 50}]});
+    const ev = evenementsLivre(b);
+    return evenementsLivre(a)[0].texte + '|' + (ev.some(e => /repri/i.test(e.texte)) ? 'reprise inventée' : 'pas de reprise') + '|' + ev.length;
+  });
+  const fermerTout = async () => { modalModifie = false; closeM(); ficheEtat.edition = null; if (ficheEtat.id) await fermerFiche(); await pause(250); };
+  const COUV = 'data:image/png;base64,iVBORw0KGgo=';
+  await test('Carnet : toucher une carte (liste puis grille) ouvre la fiche, pas le formulaire ; boutons rapides inchangés', 'fiche|fiche|pas de formulaire|où j\'en suis', async () => {
+    books = [fiche('Carte', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10})]; ui.tab = 'en_cours'; prefs.view = 'liste'; render();
+    const r = [];
+    $('#list .card .t').click(); await pause(50); r.push(ficheEtat.id === 't-Carte' && $('#livreOv').classList.contains('show') ? 'fiche' : '?'); await fermerTout();
+    prefs.view = 'grille'; render(); $('#list .gcard').click(); await pause(50); r.push(ficheEtat.id === 't-Carte' ? 'fiche' : '?');
+    r.push($('#ov').classList.contains('show') ? 'formulaire ouvert' : 'pas de formulaire'); await fermerTout();
+    prefs.view = 'liste'; render(); $('#list .card [data-act="pages"]').click(); await pause(50);
+    r.push(!$('#livreOv').classList.contains('show') && $('#modal h2').textContent.includes('Où en es-tu') ? 'où j\'en suis' : '?'); await fermerTout();
+    return r.join('|');
+  });
+  await test('Carnet : une citation, un prêt « Voir » et une ligne de rayon ouvrent la fiche', 'citations|prêt|rayon sans fenêtre', async () => {
+    books = [fiche('Cité', {statut: 'lu', citations: [{id: 'c-1', texte: 'Phrase', page: '3', date: today()}]}), fiche('Prêté', {statut: 'en_cours', possession: 'emprunte', pretRetour: today()})];
+    ui.tab = 'citations'; render(); $('#qlist .quote').click(); await pause(80);
+    const o = $('#livreOv'), s = $('#fs_citations');
+    const a = ficheEtat.id === 't-Cité' && s && (s.getBoundingClientRect().top < 160 || o.scrollTop + o.clientHeight >= o.scrollHeight - 2) ? 'citations' : '?'; await fermerTout();
+    ui.tab = 'en_cours'; render(); paintNotice(); $('#notice [data-open]').click(); await pause(50); const b = ficheEtat.id === 't-Prêté' ? 'prêt' : '?'; await fermerTout();
+    $('#modal').innerHTML = '<h2>Rayon</h2><button type="button" class="catline" data-open="t-Cité">x</button>'; showM(); $('#modal [data-open]').click(); await pause(50);
+    const c = ficheEtat.id === 't-Cité' && !$('#ov').classList.contains('show') ? 'rayon sans fenêtre' : '?'; await fermerTout();
+    return [a, b, c].join('|');
+  });
+  await test('Carnet : « Modifier » ouvre le formulaire par-dessus ; enregistré → fiche à jour ; annulé → fiche intacte', 'formulaire|Nouveau titre|fiche intacte', async () => {
+    books = [fiche('Avant', {statut: 'a_lire', couverture: COUV, resumeTente: true, classTente: true})]; await Store.persist(); ouvrirFiche('t-Avant'); await pause(50);
+    $('#livreOv [data-fiche="modifier-livre"]').click(); await pause(50);
+    const a = $('#ov').classList.contains('show') && $('#livreOv').classList.contains('show') ? 'formulaire' : '?';
+    $('#f_titre').value = 'Nouveau titre'; $('#f_save').click(); await pause(300);
+    const b = $('#livreTitre').textContent;
+    $('#livreOv [data-fiche="modifier-livre"]').click(); await pause(50); $('#f_titre').value = 'Pas gardé'; modalModifie = false; $('#modal [data-close]').click(); await pause(250);
+    const c = $('#livreTitre').textContent === 'Nouveau titre' && $('#livreOv').classList.contains('show') ? 'fiche intacte' : '?';
+    await fermerTout(); return [a, b, c].join('|');
+  });
+  await test('Carnet : « Où j\'en suis » depuis la fiche met la progression à jour', 'p. 60 sur 100', async () => {
+    books = [fiche('Page', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10, couverture: COUV})]; ouvrirFiche('t-Page');
+    $('#fs_progression [data-fiche="pages"]').click(); await pause(50); $('#p_val').value = '60'; $('#p_ok').click(); await pause(200);
+    const r = ($('#fs_progression').textContent.match(/p\. \d+ sur \d+/) || ['?'])[0]; await fermerTout(); return r;
+  });
+  await test('Carnet : retour couche par couche (question → formulaire → fiche → bibliothèque)', 'question|formulaire|fiche|bibliothèque', async () => {
+    books = [fiche('Couches', {couverture: COUV})]; ouvrirFiche('t-Couches'); $('#livreOv [data-fiche="modifier-livre"]').click(); await pause(50);
+    const r = [];
+    $('#askOv').classList.add('show'); r.push(fenetreOuverte() === '#askOv' ? 'question' : '?'); $('#askOv').classList.remove('show');
+    r.push(fenetreOuverte() === '#ov' ? 'formulaire' : '?'); modalModifie = false; fermerDessus(); await pause(250);
+    r.push(fenetreOuverte() === '#livreOv' ? 'fiche' : '?'); fermerDessus(); await pause(250);
+    r.push(!fenetreOuverte() ? 'bibliothèque' : '?'); await fermerTout();
+    return r.join('|');
+  });
+  await test('Carnet : focus sur le titre, Tab reste dans la fiche, retour sur la carte d\'origine (même après un nouvel affichage)', 'titre|dans la fiche|carte|liste', async () => {
+    books = [fiche('Focus A', {statut: 'a_lire'}), fiche('Focus B', {statut: 'a_lire'})]; ui.tab = 'a_lire'; prefs.view = 'liste'; render();
+    const carte = $('#list .card[data-id="t-Focus B"]'); carte.focus(); carte.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); await pause(50);
+    const r = [document.activeElement === $('#livreTitre') ? 'titre' : '?'];
+    const f = [...$('#livreOv').querySelectorAll('button,input,select,textarea,summary,[href]')].filter(x => !x.disabled && x.offsetParent);
+    f[f.length - 1].focus(); document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true}));
+    r.push(document.activeElement === f[0] ? 'dans la fiche' : 'sorti');
+    render(); await fermerFiche(); r.push(document.activeElement && document.activeElement.dataset.id === 't-Focus B' ? 'carte' : '?');
+    ouvrirFiche('t-Focus A'); books = books.filter(b => b.id !== 't-Focus A'); render(); await fermerFiche();
+    r.push($('#list').contains(document.activeElement) ? 'liste' : '?');
+    ui.tab = 'en_cours'; render(); return r.join('|');
+  });
+  await test('Carnet : fiche complète (classification en lecture seule, suggestion marquée, avis, infos, historique)', 'Roman · suggéré|Mon avis|Fayard|Commencé|aucun bouton de classification', async () => {
+    books = [fiche('Complet', {statut: 'en_cours', genre: 'roman', avis: 'Très bien', editeur: 'Fayard', dateDebut: '2026-01-02', pagesTotal: 200, pageActuelle: 20,
+      journal: [{date: '2026-01-02', page: 0}, {date: '2026-01-04', page: 20}], classements: [{c: '686', l: '843'}]})];
+    ouvrirFiche('t-Complet'); const t = $('#livre').textContent;
+    const r = [$('#livre .chip.suggere') ? $('#livre .chip.suggere').textContent.trim() : '?', t.includes('Mon avis') ? 'Mon avis' : '?', t.includes('Fayard') ? 'Fayard' : '?',
+      $('#fs_historique').textContent.includes('Commencé') ? 'Commencé' : '?', $('#livre [data-fiche*="classif"]') ? 'bouton de classification !' : 'aucun bouton de classification'];
+    await fermerTout(); return r.join('|');
+  });
+  await test('Carnet : livre presque vide (titre seul) — fiche sans erreur, sections vides réduites', 'Seul|pas de progression|aucune note|aucune citation|aucun événement|infos minimales', async () => {
+    books = [norm({id: 'vide', titre: 'Seul', statut: 'a_lire'})]; ouvrirFiche('vide');
+    const t = s => ($(s) || {textContent: ''}).textContent;
+    const r = [t('#livreTitre'), t('#fs_progression').includes('Pas encore de progression') ? 'pas de progression' : '?', t('#fs_notes').includes('Aucune note') ? 'aucune note' : '?',
+      t('#fs_citations').includes('Aucune citation') ? 'aucune citation' : '?', t('#fs_historique').includes('Aucun événement enregistré') ? 'aucun événement' : '?',
+      $('#fs_infos').querySelectorAll('dt').length === 2 ? 'infos minimales' : 'infos : ' + $('#fs_infos').querySelectorAll('dt').length];
+    await fermerTout(); return r.join('|');
+  });
+  await test('Carnet : identifiant inconnu → pas de fiche, message', 'refusé|pas ouverte|message', async () => {
+    books = []; const ok = ouvrirFiche('inconnu');
+    return [ok ? 'ouverte ?' : 'refusé', $('#livreOv').classList.contains('show') ? 'ouverte' : 'pas ouverte', $('#toast').textContent.includes('plus dans ta bibliothèque') ? 'message' : '?'].join('|');
+  });
+  await test('Carnet : historique long → 20 événements puis « Tout afficher »', '20|Tout afficher (31)|31', async () => {
+    const j = Array.from({length: 30}, (_, k) => ({date: '2026-04-' + String(k + 1).padStart(2, '0'), page: (k + 1) * 10}));
+    books = [fiche('Long', {statut: 'en_cours', dateDebut: '2026-03-31', journal: j})]; ouvrirFiche('t-Long');
+    const n = () => $('#fs_historique').querySelectorAll('.histo .d').length, a = n(), b = $('#fs_historique [data-fiche="histo"]').textContent.trim();
+    $('#fs_historique [data-fiche="histo"]').click(); const c = n(); await fermerTout(); return [a, b, c].join('|');
+  });
+  const ficheNote = extra => fiche('Carnet', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 40, couverture: COUV, resumeTente: true, classTente: true, ...extra});
+  const taper = (sel, v) => { const x = $(sel); x.value = v; x.dispatchEvent(new Event('input', {bubbles: true})); };
+  await test('Notes : ajout (identifiant immédiat), modification (même identifiant, date de modification), retrouvées après relecture', `1|même id|Texte modifié|${today()}|relu`, async () => {
+    books = [ficheNote()]; await Store.persist(); ouvrirFiche('t-Carnet');
+    $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', 'Ma première note'); taper('#fe_page', '12'); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(200);
+    const n = books[0].notes, id = n[0] && n[0].id;
+    $(`#fs_notes [data-fiche="modifier"][data-id="${id}"]`).click(); taper('#fe_texte', 'Texte modifié'); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(200);
+    const m = books[0].notes[0], d = await Store.get('data');
+    const r = [n.length, m.id === id && /^n-/.test(id) ? 'même id' : '?', m.texte, m.modif, d.books[0].notes[0].texte === 'Texte modifié' && d.books[0].notes[0].id === id ? 'relu' : '?'];
+    await fermerTout(); return r.join('|');
+  });
+  await test('Citations : ajout avec page et commentaire, modification sans changer l\'identifiant, retrouvées après relecture', 'Belle phrase|12|Mon avis dessus|même id|relu', async () => {
+    books = [ficheNote()]; await Store.persist(); ouvrirFiche('t-Carnet');
+    $('#fs_citations [data-fiche="ajouter"]').click(); taper('#fe_texte', 'Une phrase'); taper('#fe_page', '12'); taper('#fe_com', 'Mon avis dessus'); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(200);
+    const id = books[0].citations[0].id;
+    $(`#fs_citations [data-fiche="modifier"][data-id="${id}"]`).click(); taper('#fe_texte', 'Belle phrase'); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(200);
+    const q = books[0].citations[0], d = (await Store.get('data')).books[0].citations[0];
+    const r = [q.texte, q.page, q.commentaire, q.id === id && /^c-/.test(id) ? 'même id' : '?', d.id === id && d.texte === 'Belle phrase' ? 'relu' : '?'];
+    await fermerTout(); return r.join('|');
+  });
+  await test('Notes et citations : supprimer demande confirmation (« Garder » ne retire rien), par identifiant', '1|0|reste c-b', async () => {
+    books = [ficheNote({notes: [{id: 'n-x', texte: 'N', date: today()}], citations: [{id: 'c-a', texte: 'Pareil', date: today()}, {id: 'c-b', texte: 'Pareil', date: today()}]})]; ouvrirFiche('t-Carnet');
+    reponseConfirm = false; $('#fs_notes [data-fiche="retirer"][data-id="n-x"]').click(); await pause(100); const a = books[0].notes.length;
+    reponseConfirm = true; $('#fs_notes [data-fiche="retirer"][data-id="n-x"]').click(); await pause(150); const b = books[0].notes.length;
+    $('#fs_citations [data-fiche="retirer"][data-id="c-a"]').click(); await pause(150);
+    const r = [a, b, 'reste ' + books[0].citations.map(q => q.id).join(',')]; await fermerTout(); return r.join('|');
+  });
+  await test('Citations identiques : modifier l\'une ne touche jamais l\'autre', 'c-a:Pareil|c-b:Changée', async () => {
+    books = [ficheNote({citations: [{id: 'c-a', texte: 'Pareil', date: today()}, {id: 'c-b', texte: 'Pareil', date: today()}]})]; ouvrirFiche('t-Carnet');
+    $('#fs_citations [data-fiche="modifier"][data-id="c-b"]').click(); taper('#fe_texte', 'Changée'); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(150);
+    const r = books[0].citations.map(q => q.id + ':' + q.texte).sort().join('|'); await fermerTout(); return r;
+  });
+  await test('Note vide : erreur sous le champ, rien d\'enregistré', 'erreur|0', async () => {
+    books = [ficheNote()]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', '   '); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(50);
+    const r = ($('#fe_texte_err') ? 'erreur' : '?') + '|' + (books[0].notes || []).length; await fermerTout(); return r;
+  });
+  await test('Quitter la fiche avec une note en cours : question ; « Continuer » garde le texte', 'pas fermée|Brouillon|fermée', async () => {
+    books = [ficheNote()]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', 'Brouillon');
+    reponseConfirm = false; const a = await fermerFiche(); await pause(50);
+    const r = [a ? 'fermée ?' : 'pas fermée', $('#fe_texte') ? $('#fe_texte').value : '?'];
+    reponseConfirm = true; r.push((await fermerFiche()) ? 'fermée' : '?'); return r.join('|');
+  });
+  await test('Édition en cours gardée quand la fiche se repeint (autre fenêtre), avec le focus', 'En cours d\'écriture|focus', async () => {
+    books = [ficheNote()]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', 'En cours d\'écriture'); $('#fe_texte').focus();
+    books = [{...books[0], avis: 'changé ailleurs'}]; peindreFiche();
+    const r = $('#fe_texte').value + '|' + (document.activeElement === $('#fe_texte') ? 'focus' : 'focus perdu'); ficheEtat.edition = null; await fermerTout(); return r;
+  });
+  await test('Entrée supprimée ailleurs pendant la modification : texte gardé', 'n-x:Gardé', async () => {
+    books = [ficheNote({notes: [{id: 'n-x', texte: 'Avant', date: today()}]})]; ouvrirFiche('t-Carnet');
+    $('#fs_notes [data-fiche="modifier"][data-id="n-x"]').click(); taper('#fe_texte', 'Gardé');
+    books = [{...books[0], notes: []}]; $('#livreOv [data-fiche="enregistrer"]').click(); await pause(150);
+    const r = books[0].notes.map(n => n.id + ':' + n.texte).join(','); await fermerTout(); return r;
+  });
+  await test('Formulaire : retirer une citation par identifiant ; citation tapée et « Nouvelle citation » ont un identifiant', 'c-a|id|id', async () => {
+    books = [ficheNote({citations: [{id: 'c-a', texte: 'Pareil', date: today()}, {id: 'c-b', texte: 'Pareil', date: today()}]})];
+    openForm(books[0]); await pause(50); $('#f_quotes [data-qdel="c-b"]').click(); const a = form.citations.map(q => q.id).join(',');
+    $('#f_qt').value = 'Tapée sans ajouter'; $('#f_save').click(); await pause(300);
+    const b = books[0].citations.find(q => q.texte === 'Tapée sans ajouter'); modalModifie = false; closeM(); await pause(250);
+    openQuote(books[0]); $('#c_txt').value = 'Par la boîte'; $('#c_ok').click(); await pause(200);
+    const c = books[0].citations.find(q => q.texte === 'Par la boîte');
+    return [a, b && /^c-/.test(b.id) ? 'id' : '?', c && /^c-/.test(c.id) ? 'id' : '?'].join('|');
+  });
+  const livreSuppr = (n, c) => fiche('Suppr', {couverture: COUV, notes: Array.from({length: n}, (_, i) => ({id: 'n-' + i, texte: 'N' + i, date: today()})),
+    citations: Array.from({length: c}, (_, i) => ({id: 'c-' + i, texte: 'C' + i, date: today()}))});
+  await test('Suppression : la question compte exactement les notes et citations (0, 1, plusieurs)', JSON.stringify(['Supprimer « Suppr » ?',
+    'Supprimer « Suppr » ? Sa note sera supprimée aussi.', 'Supprimer « Suppr » ? Sa citation sera supprimée aussi.',
+    'Supprimer « Suppr » ? Ses 2 notes et 1 citation seront supprimées aussi.']), async () => {
+    const r = []; reponseConfirm = false;
+    for (const [n, c] of [[0, 0], [1, 0], [0, 1], [2, 1]]) { books = [livreSuppr(n, c)]; await supprimerLivre('t-Suppr'); r.push($('#askTxt').textContent); }
+    reponseConfirm = true; return JSON.stringify(r);
+  });
+  await test('Suppression depuis la fiche et le formulaire : « Garder » ne fait rien ; « Supprimer » retire et ferme ; « Annuler » remet tout', 'gardé|supprimé, fiche fermée|remis avec 2 notes|formulaire : supprimé', async () => {
+    books = [livreSuppr(2, 1)]; ouvrirFiche('t-Suppr'); reponseConfirm = false; $('#livreOv [data-fiche="supprimer-livre"]').click(); await pause(100);
+    const r = [books.length === 1 && $('#livreOv').classList.contains('show') ? 'gardé' : '?'];
+    reponseConfirm = true; $('#livreOv [data-fiche="supprimer-livre"]').click(); await pause(150);
+    r.push(!books.length && !$('#livreOv').classList.contains('show') ? 'supprimé, fiche fermée' : '?');
+    $('#toastBtn').click(); await pause(80); r.push(books.length === 1 && books[0].notes.length === 2 ? 'remis avec 2 notes' : '?');
+    openForm(books[0]); await pause(50); $('#f_del').click(); await pause(150); r.push(!books.length && !$('#ov').classList.contains('show') ? 'formulaire : supprimé' : '?');
+    return r.join('|');
+  });
+  const FUS = (mes, autre, base) => { Store.conflits = []; return Store.fusion(mes, autre, new Map(base.map(b => [b.id, b])), true); };
+  await test('Fusion : champ changé d\'un seul côté repris ; changé des deux côtés → ma valeur, conflit signalé', 'ici|5|Moi|avis', () => {
+    const o = fiche('F', {avis: 'base', note: 2, auteur: 'A'}), [r] = FUS([{...o, avis: 'ici', auteur: 'Moi'}], [{...o, avis: 'ailleurs', note: 5}], [o]);
+    return [r.avis, r.note, r.auteur, Store.conflits.map(c => (c.champs || []).join(',')).join(';')].join('|');
+  });
+  await test('Fusion des notes par identifiant (modifiée, supprimée, ajoutée, modifiée des deux côtés)', 'a-moi,b-eux,d-eux*,d-moi,n5,n6|1', () => {
+    const n = (id, t) => ({id, texte: t, date: '2026-01-01', modif: '', page: ''});
+    const o = fiche('N', {notes: [n('n1', 'a'), n('n2', 'b'), n('n3', 'c'), n('n4', 'd')]});
+    const moi = {...o, notes: [n('n1', 'a-moi'), n('n3', 'c'), n('n4', 'd-moi'), n('n5', 'n5')]};
+    const eux = {...o, notes: [n('n1', 'a'), n('n2', 'b-eux'), n('n4', 'd-eux'), n('n6', 'n6')]};
+    const [r] = FUS([moi], [eux], [o]);
+    return r.notes.map(x => x.texte + (x.conflit ? '*' : '')).sort().join(',') + '|' + r.notes.filter(x => x.conflit).length;
+  });
+  await test('Conflit de note : une seule copie, même après une deuxième fusion (passe de « persist »)', 1, () => {
+    const n = (id, t) => ({id, texte: t, date: '2026-01-01', modif: '', page: ''});
+    const o = fiche('D', {notes: [n('n1', 'base')]}), moi = {...o, notes: [n('n1', 'moi')]};
+    const [r1] = FUS([moi], [{...o, notes: [n('n1', 'eux')]}], [o]);
+    // (seconde passe de « persist » : le livre a encore changé ici pendant l'écriture)
+    const pendant = {...moi, avis: 'changé pendant écriture'}, [r2] = Store.fusion([pendant], [r1], new Map([[moi.id, moi]]));
+    return r2.notes.filter(x => x.conflit).length;
+  });
+  await test('Fusion : livre supprimé ici mais modifié ailleurs → gardé et signalé ; supprimé ailleurs, intact ici → supprimé ; supprimé ailleurs, modifié ici → gardé', 't-G|garde|vide|t-M|remis', () => {
+    const g = fiche('G'), a = FUS([], [{...g, avis: 'ailleurs'}], [g]).map(b => b.id).join(','), c1 = Store.conflits[0] && Store.conflits[0].garde ? 'garde' : '?';
+    const s = fiche('S'), b = FUS([s], [], [s]).length ? 'gardé ?' : 'vide';
+    const m = fiche('M'), c = FUS([{...m, avis: 'ici'}], [], [m]).map(x => x.id).join(','), c2 = Store.conflits[0] && Store.conflits[0].remis ? 'remis' : '?';
+    return [a, c1, b, c, c2].join('|');
+  });
+  await test('Fusion : journal le même jour des deux côtés → la plus grande page ; corrigé d\'un seul côté → la correction ; séances réunies sans doublon', '150|80|3', () => {
+    const o = fiche('J', {journal: [{date: '2026-01-01', page: 100}], sessions: [{date: '2026-01-01', min: 10}]});
+    const [r1] = FUS([{...o, journal: [{date: '2026-01-01', page: 120}], sessions: [...o.sessions, {date: '2026-01-02', min: 5}]}],
+      [{...o, journal: [{date: '2026-01-01', page: 150}], sessions: [...o.sessions, {date: '2026-01-03', min: 7}]}], [o]);
+    const [r2] = FUS([{...o, journal: [{date: '2026-01-01', page: 80}], avis: 'x'}], [{...o, note: 3}], [o]);
+    return [r1.journal[0].page, r2.journal[0].page, r1.sessions.length].join('|');
+  });
+  await test('Deux fenêtres (relecture réelle) : notes ajoutées des deux côtés gardées ; conflit de champ annoncé', 'ailleurs,ici|ici|annoncé', async () => {
+    const n = (id, t) => ({id, texte: t, date: today(), modif: '', page: ''});
+    books = [fiche('R', {couverture: COUV})]; await Store.persist(); const o = books[0];
+    await autreFenetre([{...o, avis: 'ailleurs', notes: [n('n-eux', 'ailleurs')]}], 6000);
+    books = [{...o, avis: 'ici', notes: [n('n-moi', 'ici')]}]; await Store.relire(); await pause(50);
+    return [books[0].notes.map(x => x.texte).join(','), books[0].avis, $('#toast').textContent.includes('tes changements ont été gardés pour : avis') ? 'annoncé' : '?'].join('|');
+  });
+  await test('Fiche ouverte : livre supprimé dans une autre fenêtre → bandeau, modifications bloquées, « Le remettre » le remet', 'bandeau|bloqué|remis', async () => {
+    books = [fiche('Carnet', {couverture: COUV})]; await Store.persist(); ouvrirFiche('t-Carnet');
+    await autreFenetre([], 7000); await Store.relire(); await pause(50);
+    const r = [$('#livreOv').textContent.includes('supprimé dans une autre fenêtre') ? 'bandeau' : '?', $('#livreOv [data-fiche="ajouter"]') ? 'modifiable' : 'bloqué'];
+    $('#livreOv [data-fiche="remettre"]').click(); await pause(200);
+    r.push(books.some(b => b.id === 't-Carnet') && $('#livreTitre').textContent === 'Carnet' ? 'remis' : '?');
+    await fermerTout(); return r.join('|');
+  });
+  await test('Carnet : rien ne dépasse en largeur (fiche complète, éditeur ouvert)', 'ok', async () => {
+    books = [ficheNote({titre: 'Un titre très long qui ne doit jamais faire déborder la fiche du carnet', auteur: 'Autrice au nom très long également',
+      notes: [{id: 'n-1', texte: 'x'.repeat(300), date: today()}], citations: [{id: 'c-1', texte: 'Une citation assez longue pour aller à la ligne plusieurs fois', page: '12', commentaire: 'Commentaire', date: today()}]})];
+    ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); await pause(50);
+    const o = $('#livreOv'), r = o.scrollWidth <= o.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1 ? 'ok' : 'déborde : ' + o.scrollWidth + ' > ' + o.clientWidth;
+    ficheEtat.edition = null; await fermerTout(); return r;
+  });
+  await test('Carnet : le titre qui reçoit le focus à l\'ouverture n\'affiche pas de cadre (ce n\'est pas une commande)', 'none', async () => {
+    books = [ficheNote()]; ouvrirFiche('t-Carnet'); const r = document.activeElement === $('#livreTitre') ? getComputedStyle($('#livreTitre')).outlineStyle : 'pas de focus';
+    await fermerTout(); return r;
+  });
+  // (relecture finale de l'étape 2)
+  await test('Note modifiée ici puis supprimée ailleurs (relecture réelle) : l\'éditeur reste, « Enregistrer » la remet', 'éditeur visible|message|n-x:Avant, puis ma suite', async () => {
+    books = [ficheNote({notes: [{id: 'n-x', texte: 'Avant', date: today()}]})]; await Store.persist(); const o = books[0]; ouvrirFiche('t-Carnet');
+    $('#fs_notes [data-fiche="modifier"][data-id="n-x"]').click(); taper('#fe_texte', 'Avant, puis ma suite'); document.activeElement.blur();
+    await autreFenetre([{...o, notes: []}], 8000); await Store.relire(); await pause(50);
+    const r = [$('#fe_texte') && $('#livreOv [data-fiche="enregistrer"]') ? 'éditeur visible' : 'éditeur perdu', $('#fs_notes').textContent.includes('supprimée dans une autre fenêtre') ? 'message' : '?'];
+    if ($('#livreOv [data-fiche="enregistrer"]')) { $('#livreOv [data-fiche="enregistrer"]').click(); await pause(150); }
+    r.push(books[0].notes.map(n => n.id + ':' + n.texte).join(',')); ficheEtat.edition = null; await fermerTout(); return r.join('|');
+  });
+  await test('Écriture en cours : un nouvel affichage ne déplace pas le curseur', 'focus|curseur à la fin', async () => {
+    books = [ficheNote()]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', 'Un texte en cours de frappe');
+    const t = $('#fe_texte'), n = t.value.length; t.focus(); t.setSelectionRange(n, n);
+    books = [{...books[0], avis: 'changé ailleurs'}]; render();
+    const p = $('#fe_texte').selectionStart;
+    const r = (document.activeElement === $('#fe_texte') ? 'focus' : 'perdu') + '|' + (p === n ? 'curseur à la fin' : 'curseur en ' + p); ficheEtat.edition = null; await fermerTout(); return r;
+  });
+  await test('Glisser le doigt dans la fiche ne change pas l\'onglet de la bibliothèque', 'en_cours|fiche ouverte', async () => {
+    books = [ficheNote()]; ui.tab = 'en_cours'; render(); ouvrirFiche('t-Carnet');
+    const cible = $('#fs_historique'), touche = x => new Touch({identifier: 1, target: cible, clientX: x, clientY: 300});
+    cible.dispatchEvent(new TouchEvent('touchstart', {touches: [touche(300)], changedTouches: [touche(300)], bubbles: true}));
+    cible.dispatchEvent(new TouchEvent('touchend', {touches: [], changedTouches: [touche(150)], bubbles: true}));
+    const r = ui.tab + '|' + ($('#livreOv').classList.contains('show') ? 'fiche ouverte' : 'fiche fermée'); await fermerTout(); ui.tab = 'en_cours'; render(); return r;
+  });
+  await test('Fusion : version de départ non remise en ordre → ni faux conflit, ni suppression refusée', 'vide|0|true|ailleurs|0', () => {
+    const brut = {id: 't-Z', titre: 'Z', statut: 'a_lire'}, a = FUS([], [norm(brut)], [brut]);
+    const r = [a.length ? 'gardé à tort' : 'vide', Store.conflits.length];
+    const [b] = FUS([{...brut, epingle: true}], [{...norm(brut), avis: 'ailleurs'}], [brut]);
+    return [...r, b.epingle, b.avis, Store.conflits.length].join('|');
+  });
+  await test('Fusion : page corrigée ici un jour, autre jour ajouté ailleurs → la correction reste', '2026-10-20:80,2026-10-21:100', () => {
+    const o = fiche('K', {journal: [{date: '2026-10-20', page: 100}]});
+    const [r] = FUS([{...o, journal: [{date: '2026-10-20', page: 80}]}], [{...o, journal: [{date: '2026-10-20', page: 100}, {date: '2026-10-21', page: 100}]}], [o]);
+    return r.journal.map(e => e.date + ':' + e.page).join(',');
+  });
+  await test('Conflits annoncés en mots simples (champs techniques nommés ou tus)', 'gardés pour : couvertures, avis|rien', () => {
+    Store.conflits = [{id: 'x', titre: 'T', champs: ['coversAlt', 'classTente', 'avis']}]; signalerConflits();
+    const a = (($('#toast').firstChild || {}).textContent || '?').replace(/^.*?(gardés pour : )/, '$1').trim();
+    $('#toast').textContent = ''; Store.conflits = [{id: 'x', titre: 'T', champs: ['classTente', 'resumeTente']}]; signalerConflits();
+    return a + '|' + ($('#toast').textContent ? 'annoncé' : 'rien');
+  });
+  await test('« Voir » pendant une note en cours : le texte n\'est pas effacé sans question', 'refusé|Brouillon gardé', async () => {
+    books = [ficheNote(), fiche('Autre', {couverture: COUV})]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', 'Brouillon gardé');
+    const ok = ouvrirFiche('t-Autre');
+    const r = (ok ? 'ouvert' : 'refusé') + '|' + (ficheEtat.edition ? ficheEtat.edition.texte : '?'); ficheEtat.edition = null; await fermerTout(); return r;
+  });
+  // (fin de la section 12)
 
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {

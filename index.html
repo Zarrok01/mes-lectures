@@ -296,6 +296,35 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .tourne{width:28px;height:28px;border:3px solid var(--trait);border-top-color:var(--accent);border-radius:50%;animation:tourne 1s linear infinite}
 @keyframes tourne{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion: reduce){.sq,.tourne{animation:none}}
+/* ---------- Carnet du livre (fiche plein écran) ---------- */
+#livreOv{position:fixed;inset:0;z-index:25;background:var(--fond);display:none;overflow:auto;overscroll-behavior:contain}
+#livreOv.show{display:block}
+.livre{max-width:760px;margin:0 auto;padding:0 var(--e-4) var(--e-6)}
+.livre-tete{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:var(--e-2);padding:calc(env(safe-area-inset-top) + var(--e-2)) 0 var(--e-2);background:var(--fond);border-bottom:1px solid var(--trait)}
+.livre-tete .etire{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--texte-doux);font-size:var(--t-s)}
+.livre-tete .icon{background:var(--surface);color:var(--texte);border:1px solid var(--trait)}
+.livre-haut{display:flex;gap:var(--e-4);padding:var(--e-4) 0 var(--e-3)}
+.livre-titre{margin:0 0 var(--e-1);font-size:var(--t-xl);line-height:1.25;font-family:var(--police-titres);overflow-wrap:anywhere}
+.chip.suggere{border-style:dashed}
+#livreTitre:focus{outline:none}   /* (le titre reçoit le focus à l'ouverture pour les lecteurs d'écran : ce n'est pas une commande) */
+.livre-avis{border-left:4px solid var(--accent);background:var(--surface-2);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);margin-bottom:var(--e-3)}
+.livre-avis p{margin:0 0 var(--e-1);white-space:pre-wrap;font-style:italic}
+.livre-nav{display:flex;gap:var(--e-2);overflow-x:auto;scrollbar-width:none;padding:var(--e-1) 0 var(--e-3)}
+.livre-nav::-webkit-scrollbar{display:none}
+.livre-nav .chipb{flex:0 0 auto}
+.livre-section{border-top:1px solid var(--trait);padding:var(--e-3) 0;scroll-margin-top:72px}
+.livre-section h3{display:flex;align-items:center;justify-content:space-between;gap:var(--e-2);margin:0 0 var(--e-2);font-size:var(--t-s);font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.livre-section .bar{margin-bottom:var(--e-2)}
+.entree{background:var(--surface-2);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);margin-bottom:var(--e-2)}
+.entree p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.entree.citation p{font-family:var(--police-titres);font-style:italic}
+.entree .meta{margin-top:var(--e-1)}
+.entree.conflit{border:1px dashed var(--alerte)}
+.editeur{background:var(--surface-2);border-radius:var(--r-s);padding:var(--e-3);margin-bottom:var(--e-2)}
+.histo{display:grid;grid-template-columns:auto 1fr;gap:var(--e-1) var(--e-3);font-size:var(--t-s)}
+.histo .d{color:var(--texte-doux);white-space:nowrap}
+.livre-infos{display:grid;grid-template-columns:auto 1fr;gap:var(--e-1) var(--e-3);margin:0 0 var(--e-3);font-size:var(--t-s)}
+.livre-infos dt{color:var(--texte-doux)}.livre-infos dd{margin:0;min-width:0;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -316,6 +345,7 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 <button class="fab" id="fab" title="Ajouter (un livre, un code-barres, plusieurs livres)" aria-label="Ajouter"><span class="ico i-ajouter" aria-hidden="true">＋</span></button>
 <button class="pill" id="timerPill" hidden></button>
 
+<div id="livreOv" role="dialog" aria-modal="true" aria-labelledby="livreTitre"><div class="livre" id="livre"></div></div>
 <div class="ov" id="ov"><div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitre"></div></div>
 
 <div class="ov" id="scanOv"><div class="modal">
@@ -354,12 +384,15 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 <div id="print"></div>
 
 <script src="recherche.js"></script>
+<script src="taxonomie.js"></script>
 <script>
 /* =====================================================================
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et sw.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.21-2';
+const VERSION = '2026.10.22-2';
+// Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
+const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
 const STATUT_UN = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lu', abandon: 'Abandonné'};
 const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Jeunesse', 'Autre'];
@@ -517,6 +550,29 @@ const entier = v => { const n = parseInt(v, 10); return Number.isFinite(n) && n 
 const txt = v => typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
 const objets = v => parseList(v).filter(x => x && typeof x === 'object' && !Array.isArray(x));
 const mots = v => parseList(v).filter(x => typeof x === 'string');
+// Identifiant stable des citations et notes : gardé s'il existe (une seule fois par livre) ; sinon calculé à partir
+// du livre, du texte et de la date. La même fiche migrée deux fois (ou la même sauvegarde restaurée deux fois)
+// reçoit donc les mêmes identifiants ; deux entrées identiques d'un même livre reçoivent un suffixe différent.
+const empreinte = s => { let h = 0x811c9dc5; for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
+function avecIds(livre, prefixe, liste) {
+  const pris = new Set();
+  const gardes = liste.map(x => { const id = txt(x.id); if (id && !pris.has(id)) { pris.add(id); return id; } return ''; });
+  return liste.map((x, i) => {
+    if (gardes[i]) return {...x, id: gardes[i]};
+    const base = prefixe + '-' + empreinte(livre + '|' + x.texte + '|' + (x.date || ''));
+    let id = base, k = 2;
+    while (pris.has(id)) id = base + '-' + k++;
+    pris.add(id); return {...x, id};
+  });
+}
+// Suggestion de genre principal, calculée à l'affichage et jamais enregistrée : seulement si l'ancien champ « Genre »
+// est exactement un genre de la liste, qu'aucun genre n'est confirmé et que cette proposition n'a pas été refusée
+function suggestionGenre(b) {
+  const c = b.classif || {};
+  if (c.genre) return '';
+  const id = Taxonomie.genreDepuisTexte(b.genre);
+  return id && !(c.refus || []).includes('genre:' + id) ? id : '';
+}
 function norm(b) {
   b = b && typeof b === 'object' && !Array.isArray(b) ? b : {};
   const out = {...b};
@@ -544,6 +600,17 @@ function norm(b) {
   out.catNon = rangement(b.catNon); out.catOui = rangement(b.catOui);
   // D'où vient le nombre de pages : édition exacte (ISBN), estimation (une autre édition), ou tapé à la main
   out.pagesSource = out.pagesTotal && Object.keys(PAGES_SOURCES).includes(b.pagesSource) ? b.pagesSource : '';
+  // ---- Format v3 : classification fine, étiquettes, notes ; citations avec identifiant et commentaire.
+  // Ajouts seulement : rien n'est retiré ni renommé, les clés inconnues sont gardées. Seul ce qui est confirmé
+  // (ou refusé) est enregistré : les suggestions sont calculées à l'affichage (voir suggestionGenre).
+  const c = b.classif && typeof b.classif === 'object' && !Array.isArray(b.classif) ? b.classif : {};
+  const uniques = v => [...new Set(mots(v).map(s => s.trim()).filter(Boolean))];
+  out.classif = {...c, genre: txt(c.genre).trim(), sousGenres: uniques(c.sousGenres), themes: uniques(c.themes), ambiances: uniques(c.ambiances), refus: uniques(c.refus)};
+  const vues = new Set();
+  // (40 caractères au plus, sans couper un émoji en deux ni laisser d'espace finale : un 2e passage ne change plus rien)
+  out.etiquettes = mots(b.etiquettes).map(s => Array.from(s.trim()).slice(0, 40).join('').trim()).filter(s => s && !vues.has(s.toLowerCase()) && vues.add(s.toLowerCase()));
+  out.notes = avecIds(out.id, 'n', objets(b.notes).map(n => ({...n, texte: txt(n.texte).trim(), page: txt(n.page), date: jour(n.date), modif: jour(n.modif)})).filter(n => n.texte));
+  out.citations = avecIds(out.id, 'c', out.citations.map(q => ({...q, commentaire: txt(q.commentaire)})));
   return out;
 }
 const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : '';
@@ -565,6 +632,67 @@ if (darkQuery.addEventListener) darkQuery.addEventListener('change', applyTheme)
 applyTheme();
 
 /* ---------- Stockage sur l'appareil (IndexedDB : grande capacité) ---------- */
+/* ---------- Fusion entre fenêtres : champ par champ, puis note par note et citation par citation ---------- */
+// m : ma version ; a : celle de l'autre fenêtre ; b : la version commune de départ. Rien n'est perdu sans le dire.
+const jsonDe = x => JSON.stringify(x);
+// Notes et citations, par identifiant : un changement d'un seul côté est repris ; une entrée supprimée d'un côté mais
+// modifiée de l'autre est gardée ; modifiée des deux côtés, les deux versions restent (celle d'ailleurs marquée « conflit »)
+function fusionListe(m, a, b, prefixe) {
+  const M = new Map(m.map(x => [x.id, x])), A = new Map(a.map(x => [x.id, x])), B = new Map(b.map(x => [x.id, x]));
+  const out = []; let conflit = false;
+  for (const id of [...new Set([...a.map(x => x.id), ...m.map(x => x.id)])]) {
+    const x = M.get(id), y = A.get(id), z = B.get(id);
+    if (x && y) {
+      if (jsonDe(x) === jsonDe(y) || jsonDe(x) === jsonDe(z)) out.push(y);
+      else if (jsonDe(y) === jsonDe(z)) out.push(x);
+      else { out.push(x); out.push({...y, id: prefixe + '-' + newId(), conflit: true}); conflit = true; }
+    } else if (x) { if (!z || jsonDe(x) !== jsonDe(z)) out.push(x); }
+    else if (y) { if (!z || jsonDe(y) !== jsonDe(z)) out.push(y); }
+  }
+  return {liste: out, conflit};
+}
+// Listes sans identifiant : changées d'un seul côté → ce côté ; des deux côtés → réunies
+function fusionTriple(m, a, b, unir) { return jsonDe(m) === jsonDe(a) || jsonDe(m) === jsonDe(b) ? a : jsonDe(a) === jsonDe(b) ? m : unir(m, a, b); }
+// Journal, jour par jour et à trois versions : un jour changé d'un seul côté → ce côté (une correction à la baisse est
+// respectée) ; changé des deux côtés → la plus grande page
+const unirJournal = (m, a, b) => {
+  const pages = l => new Map(l.map(e => [e.date, +e.page || 0])), M = pages(m), A = pages(a), B = pages(b), out = [];
+  for (const date of new Set([...A.keys(), ...M.keys()])) {
+    const x = M.get(date), y = A.get(date), z = B.get(date);
+    const page = x === y ? x : x === z ? y : y === z ? x : Math.max(x || 0, y || 0);
+    if (page !== undefined) out.push({date, page});
+  }
+  return out.sort((x, y) => x.date.localeCompare(y.date)).slice(-400);
+};
+const unirSansDoublon = (m, a) => { const vus = new Set(a.map(jsonDe)); return [...a, ...m.filter(x => !vus.has(jsonDe(x)))]; };
+function fusionLivre(m, a, b, conflits) {
+  const out = {...a}, champs = [];
+  for (const k of new Set([...Object.keys(m), ...Object.keys(a), ...Object.keys(b)])) {
+    if (k === 'notes' || k === 'citations') { const r = fusionListe(m[k] || [], a[k] || [], b[k] || [], k === 'notes' ? 'n' : 'c'); out[k] = r.liste; if (r.conflit) champs.push(k); continue; }
+    if (k === 'journal') { out[k] = fusionTriple(m[k] || [], a[k] || [], b[k] || [], unirJournal); continue; }
+    if (k === 'sessions' || k === 'historique') { out[k] = fusionTriple(m[k] || [], a[k] || [], b[k] || [], unirSansDoublon); continue; }
+    if (jsonDe(m[k]) === jsonDe(a[k]) || jsonDe(m[k]) === jsonDe(b[k])) continue;   // (pas changé ici, ou pareil des deux côtés)
+    if (jsonDe(a[k]) !== jsonDe(b[k])) champs.push(k);                          // (changé des deux côtés, différemment : ma valeur, et on le dit)
+    if (m[k] === undefined) delete out[k]; else out[k] = m[k];
+  }
+  if (champs.length) conflits.push({id: out.id, titre: out.titre, champs});
+  return out;
+}
+// Noms des champs dans les messages (les réglages internes de l'appli, absents d'ici, ne sont pas annoncés)
+const NOMS_CHAMPS = {titre: 'titre', auteur: 'auteur', statut: 'statut', pageActuelle: 'page', pagesTotal: 'nombre de pages', note: 'note', avis: 'avis',
+  resume: 'résumé', dateDebut: 'date de début', dateFin: 'date de fin', notes: 'notes', citations: 'citations', classif: 'classification', etiquettes: 'étiquettes',
+  couverture: 'couverture', coversAlt: 'couvertures', genre: 'genre', serie: 'série', tome: 'tome', isbn: 'ISBN', editeur: 'éditeur', annee: 'année', format: 'format',
+  possession: 'possession', pretNom: 'prêt', pretRetour: 'date de retour', epingle: 'épinglage', catOui: 'rayons', catNon: 'rayons', classements: 'classement des catalogues',
+  sujets: 'sujets', pagesSource: 'nombre de pages'};
+function signalerConflits() {
+  const l = Store.conflits.splice(0).map(x => x.champs ? {...x, champs: [...new Set(x.champs.map(c => NOMS_CHAMPS[c]).filter(Boolean))]} : x).filter(x => !x.champs || x.champs.length);
+  if (!l.length) return;
+  const x = l[0], autres = l.length > 1 ? ` (et ${plural(l.length - 1, 'autre livre')})` : '';
+  const msg = x.garde ? `« ${x.titre} » a été modifié dans une autre fenêtre : il est gardé`
+    : x.remis ? `« ${x.titre} » avait été supprimé dans une autre fenêtre : il est gardé, car tu l'as modifié ici`
+    : `« ${x.titre} » a aussi été modifié dans une autre fenêtre : tes changements ont été gardés pour : ${x.champs.join(', ')}`;
+  toast(msg + autres, {label: 'Voir', fn: () => ouvrirFiche(x.id)});
+}
 const Store = {
   fallback: !('indexedDB' in window),
   queue: Promise.resolve(),
@@ -607,13 +735,27 @@ const Store = {
   // Plusieurs fenêtres peuvent ouvrir la même bibliothèque (l'appli + un onglet Chrome du site, deux onglets…).
   // Chaque fenêtre retient la version qu'elle a lue (vu) et les livres tels qu'elle les a lus ou écrits (base) :
   // si une autre fenêtre a enregistré entre-temps, on fusionne livre par livre au lieu d'écraser ses changements.
-  moi: newId(), vu: '', base: new Map(), baseGoal: 0,
+  moi: newId(), vu: '', base: new Map(), baseGoal: 0, conflits: [],
   retenir(d) { this.vu = d.savedAt || ''; this.base = new Map((d.books || []).map(b => [b.id, b])); this.baseGoal = d.goal || 0; },
-  // Mes changements depuis « base » (livres modifiés, ajoutés, supprimés), appliqués sur la liste « autre »
-  fusion(mes, autre, base) {
+  // Mes changements depuis « base », appliqués sur la liste « autre » : livre par livre, et pour un livre changé
+  // des deux côtés, champ par champ (fusionLivre). « signaler » : les conflits sont gardés pour être annoncés.
+  fusion(mes, autre, base, signaler) {
+    const conflits = signaler ? this.conflits : [];
     const m = new Map(autre.map(b => [b.id, b])), ids = new Set(mes.map(b => b.id));
-    for (const b of mes) if (base.get(b.id) !== b) m.set(b.id, b);
-    for (const id of base.keys()) if (!ids.has(id)) m.delete(id);
+    for (const b of mes) {
+      const o = base.get(b.id);
+      if (o === b) continue;                                       // (pas changé ici)
+      const a = m.get(b.id);
+      if (!a) { m.set(b.id, b); if (o) conflits.push({id: b.id, titre: b.titre, remis: true}); continue; }   // (supprimé ailleurs, modifié ici : gardé)
+      // (les trois versions sont comparées remises en ordre : une fiche gardée telle qu'écrite ne passe pas pour « changée »)
+      const on = o && norm(o), an = norm(a);
+      m.set(b.id, on && jsonDe(an) !== jsonDe(on) ? fusionLivre(norm(b), an, on, conflits) : b);
+    }
+    for (const [id, o] of base) if (!ids.has(id) && m.has(id)) {
+      const a = m.get(id);
+      if (jsonDe(norm(a)) !== jsonDe(norm(o))) conflits.push({id, titre: a.titre, garde: true});   // (supprimé ici, modifié ailleurs : gardé)
+      else m.delete(id);
+    }
     return [...m.values()];
   },
   // Écrit dans une seule transaction (deux fenêtres ne peuvent pas écrire en même temps) ;
@@ -625,7 +767,7 @@ const Store = {
       const ecrit = (l, g, fusion) => {
         const savedAt = new Date().toISOString();
         out = {books: l, goal: g, savedAt, fusion};
-        st.put({books: l, goal: g, savedAt}, 'data'); st.put({savedAt, par: this.moi}, 'version');
+        st.put({books: l, goal: g, savedAt, schema: SCHEMA}, 'data'); st.put({savedAt, par: this.moi}, 'version');
       };
       // (« à jour » : personne n'a écrit depuis ma dernière lecture ou écriture)
       const aJour = v => !v || !this.vu || (v.savedAt || '') <= this.vu || v.par === this.moi;
@@ -639,7 +781,7 @@ const Store = {
           const d = rd.result;
           if (!d || aJour(v || {savedAt: d.savedAt})) return ecrit(mes, monGoal, false);
           const autres = (d.books || []).map(norm);
-          ecrit(this.fusion(mes, autres, this.base), monGoal !== this.baseGoal ? monGoal : entier(d.goal) || 0, true);
+          ecrit(this.fusion(mes, autres, this.base, true), monGoal !== this.baseGoal ? monGoal : entier(d.goal) || 0, true);
         };
       };
       t.oncomplete = () => res(out); t.onerror = () => rej(t.error);
@@ -688,13 +830,15 @@ const Store = {
             books = this.fusion(books, out.books, new Map(mes.map(b => [b.id, b]))); goal = goal !== monGoal ? goal : out.goal;
             this.retenir(out);
             if (!fenetreOuverte()) render(); else this.aRafraichir = true;
+            if (fiche.id) peindreFiche();
+            signalerConflits();
           } else this.retenir(out);
           // La mémoire principale remarche : la copie de secours ne sert plus
           if (localStorage.getItem(CLE + '-data')) localStorage.removeItem(CLE + '-data');
           if (this.canal) this.canal.postMessage({savedAt: out.savedAt, par: this.moi});
         } catch (e) {}
       }
-      if (!ok) localStorage.setItem(CLE + '-data', JSON.stringify({books: mes, goal: monGoal, savedAt: new Date().toISOString()}));   // peut échouer aussi (mémoire pleine)
+      if (!ok) localStorage.setItem(CLE + '-data', JSON.stringify({books: mes, goal: monGoal, savedAt: new Date().toISOString(), schema: SCHEMA}));   // peut échouer aussi (mémoire pleine)
       if (this.erreur) { this.erreur = false; paintNotice(); }
     }).catch(() => {
       this.erreur = true; paintNotice();
@@ -710,10 +854,12 @@ const Store = {
     catch (e) { return; }
     if (!d || (d.savedAt || '') <= this.vu) return;
     const autres = (d.books || []).map(norm);
-    books = this.fusion(books, autres, this.base); goal = goal !== this.baseGoal ? goal : entier(d.goal) || 0;
+    books = this.fusion(books, autres, this.base, true); goal = goal !== this.baseGoal ? goal : entier(d.goal) || 0;
     this.retenir({...d, books: autres});
     // (une fiche en cours de saisie n'est pas fermée : l'affichage sera rafraîchi à sa fermeture)
     if (!fenetreOuverte()) render(); else this.aRafraichir = true;
+    if (fiche.id) peindreFiche();
+    signalerConflits();
   }
 };
 if ('BroadcastChannel' in window) { Store.canal = new BroadcastChannel(CLE); Store.canal.onmessage = () => Store.relire(); }
@@ -770,7 +916,9 @@ function speed() {
 }
 
 /* ---------- Affichage ---------- */
-const render = avecCache(renderTout);
+const renderBase = avecCache(renderTout);
+// (la fiche du livre, si elle est ouverte, suit chaque nouvel affichage)
+const render = () => { renderBase(); if (fiche.id) peindreFiche(); };
 function renderTout() {
   const c = counts(), nq = allQuotes().length;
   const sel = prefs.selection, neuf = sel && sel.items && sel.items.length && !sel.vu;
@@ -888,7 +1036,7 @@ function card(b) {
   }
   const chips = [b.aCompleter ? '<span class="chip warn">⚠️ À compléter</span>' : '', serieLabel(b) ? `<span class="chip">${esc(serieLabel(b))}</span>` : '',
     b.genre ? `<span class="chip">${esc(b.genre)}</span>` : '', b.format !== 'papier' ? `<span class="chip">${FORMATS[b.format].split(' ')[0]}</span>` : '', loanChip(b)].join('');
-  return `<article class="card" data-id="${esc(b.id)}">${coverHtml(b)}<div class="info">
+  return `<article class="card" data-id="${esc(b.id)}" tabindex="0">${coverHtml(b)}<div class="info">
       <div class="t">${b.epingle && b.statut === 'a_lire' ? '📌 ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
       ${chips.trim() ? `<div class="meta">${chips}</div>` : ''}
       ${extra}${acts ? `<div class="acts">${acts}</div>` : ''}</div></article>`;
@@ -896,8 +1044,197 @@ function card(b) {
 function gcard(b) {
   let extra = '';
   if (b.statut === 'en_cours') { const p = progress(b); if (p.tot) extra = `<div class="bar"><i style="width:${p.pct}%"></i></div>`; }
-  return `<article class="gcard" data-id="${esc(b.id)}">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
+  return `<article class="gcard" data-id="${esc(b.id)}" tabindex="0">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
     <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${extra}</article>`;
+}
+
+/* ---------- 📖 Carnet du livre : historique (seulement ce qui est enregistré) ---------- */
+// Rang dans une même journée : du dernier au premier dans la suite logique (fini, chrono, progression, commencé, ajouté)
+const RANG_HISTO = {fin: 5, precedente: 5, chrono: 4, progression: 3, debut: 2, 'precedente-debut': 2, ajout: 1};
+function evenementsLivre(b) {
+  const ev = [], add = (date, type, texte) => { if (jour(date)) ev.push({date: jour(date), type, texte}); };
+  add(b.ajoute, 'ajout', 'Ajouté à ta bibliothèque');
+  add(b.dateDebut, 'debut', 'Commencé');
+  let avant = null;
+  for (const e of b.journal || []) {
+    // (la page 0 du jour du début est déjà dite par « Commencé »)
+    if (!(e.page === 0 && e.date === b.dateDebut)) {
+      const ecart = avant !== null && e.page > avant ? ` (+${e.page - avant})` : '';
+      add(e.date, 'progression', `p. ${e.page}${ecart}${b.pagesTotal ? ' sur ' + b.pagesTotal : ''}`);
+    }
+    avant = e.page;
+  }
+  for (const s of b.sessions || []) add(s.date, 'chrono', `Séance de chrono : ${fdur(s.min)}${+s.pages ? ' · ' + s.pages + ' p.' : ''}`);
+  if (b.statut === 'lu' || b.statut === 'abandon') add(b.dateFin, 'fin', b.statut === 'lu' ? 'Fini' : 'Arrêté');
+  for (const h of b.historique || []) {
+    if (h.fin) add(h.fin, 'precedente', `Lecture précédente terminée${h.note ? ' · note ' + h.note + '/5' : ''}`);
+    else add(h.debut, 'precedente-debut', 'Lecture précédente commencée');
+  }
+  // (plus récents d'abord ; le même jour, par rang ; même jour et même type : dans l'ordre où ils ont été enregistrés)
+  return ev.map((x, i) => ({...x, i})).sort((x, y) => y.date.localeCompare(x.date) || (RANG_HISTO[y.type] || 0) - (RANG_HISTO[x.type] || 0) || x.i - y.i);
+}
+
+/* ---------- 📖 Carnet du livre : la fiche en consultation ---------- */
+// Livre affiché (par son identifiant), édition en cours (note ou citation), dernière version connue (si le livre
+// disparaît dans une autre fenêtre), historique déplié
+const fiche = {id: '', edition: null, dernier: null, toutHisto: false};
+window.ficheEtat = fiche;   // (pour la page de tests, où « fiche » désigne autre chose)
+function ouvrirFiche(id, section) {
+  const b = books.find(x => x.id === id);
+  if (!b) { toast('Ce livre n\'est plus dans ta bibliothèque'); return false; }
+  // (une note ou une citation est en cours sur un autre livre : on ne l'efface pas sans rien dire)
+  if (fiche.id && fiche.id !== id && fiche.edition && fiche.edition.texte.trim()) { toast('Termine d\'abord ce que tu écris'); return false; }
+  Object.assign(fiche, {id, edition: fiche.id === id ? fiche.edition : null, dernier: b, toutHisto: false});
+  $('#livreOv').classList.add('show'); $('#livreOv').scrollTop = 0; peindreFiche();
+  const h = $('#livreTitre'); if (h) { h.tabIndex = -1; h.focus({preventScroll: true}); }
+  const s = section && $('#fs_' + section); if (s) s.scrollIntoView({block: 'start'});
+  return true;
+}
+// Fermer : on demande avant de perdre une note ou une citation en cours ; le focus revient à la carte d'origine
+async function fermerFiche() {
+  if (fiche.edition && fiche.edition.texte.trim() && !(await demander('Abandonner ce que tu as écrit ?', 'Abandonner', 'Continuer'))) return false;
+  const id = fiche.id; fiche.id = ''; fiche.edition = null;
+  $('#livreOv').classList.remove('show');
+  if (Store.aRafraichir && !fenetreOuverte()) { Store.aRafraichir = false; render(); }
+  const c = [...document.querySelectorAll('#list .card, #list .gcard')];
+  const cible = c.find(x => x.dataset.id === id) || c[0];
+  if (cible) cible.focus({preventScroll: false});
+  return true;
+}
+const ligneSi = (cond, html) => cond ? html : '';
+function editeurHtml() {
+  const e = fiche.edition, cit = e.type === 'citation';
+  return `<div class="editeur" id="fe">
+    <div class="f"><label for="fe_texte">${cit ? 'La phrase' : 'Ma note'}</label><textarea id="fe_texte" rows="4">${esc(e.texte)}</textarea></div>
+    ${ligneSi(cit, `<div class="f"><label for="fe_com">Mon commentaire (facultatif)</label><textarea id="fe_com" rows="2">${esc(e.commentaire)}</textarea></div>`)}
+    <div class="f"><label for="fe_page">Page (facultatif)</label><input id="fe_page" type="number" min="0" inputmode="numeric" value="${esc(e.page)}" class="champ-page"></div>
+    <div class="acts"><button class="btn" type="button" data-fiche="annuler-edition">Annuler</button><button class="btn pri" type="button" data-fiche="enregistrer">Enregistrer</button></div></div>`;
+}
+function entreeHtml(x, type) {
+  if (fiche.edition && fiche.edition.id === x.id && fiche.edition.type === type) return editeurHtml();
+  const meta = [x.date ? fdate(x.date) : '', x.page ? 'p. ' + esc(x.page) : '', x.modif && x.modif !== x.date ? 'modifiée le ' + fdate(x.modif) : ''].filter(Boolean).join(' · ');
+  const bouton = (a, t, cls) => `<button class="btn small${cls || ''}" type="button" data-fiche="${a}" data-id="${esc(x.id)}" data-type="${type}">${t}</button>`;
+  return `<div class="entree ${type}${x.conflit ? ' conflit' : ''}">
+    ${ligneSi(x.conflit, '<div class="lbl">Version venue d\'une autre fenêtre</div>')}
+    <p>${type === 'citation' ? '« ' + esc(x.texte) + ' »' : esc(x.texte)}</p>
+    ${ligneSi(type === 'citation' && x.commentaire, `<div class="a">${esc(x.commentaire)}</div>`)}
+    ${ligneSi(meta, `<div class="meta">${meta}</div>`)}
+    <div class="acts">${x.conflit ? bouton('garder', 'Garder') : bouton('modifier', 'Modifier')}${bouton('retirer', 'Supprimer', ' del')}</div></div>`;
+}
+function peindreFicheSupprimee() {
+  const b = fiche.dernier;
+  $('#livre').innerHTML = `<div class="livre-tete"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button><span class="etire">Bibliothèque</span></div>
+    <div class="notice danger" role="alert">Ce livre a été supprimé dans une autre fenêtre.</div>
+    <h2 id="livreTitre" class="livre-titre">${esc(b ? b.titre : '')}</h2>
+    <div class="acts">${ligneSi(b, '<button class="btn pri" type="button" data-fiche="remettre">Le remettre</button>')}<button class="btn" type="button" data-fiche="fermer">Fermer</button></div>`;
+}
+function peindreFiche() {
+  if (!fiche.id) return;
+  const box = $('#livre'), b = books.find(x => x.id === fiche.id);
+  // (le champ où l'on écrit garde le focus quand la fiche se repeint)
+  const actif = document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : '';
+  if (!b) { peindreFicheSupprimee(); return; }
+  // (on écrit dans l'éditeur : on ne repeint pas maintenant — le curseur et la saisie du clavier resteraient bousculés ;
+  // la fiche sera repeinte à l'enregistrement, à l'annulation ou au prochain affichage hors de l'éditeur)
+  if (fiche.edition && document.activeElement && document.activeElement.closest && document.activeElement.closest('#fe')) return;
+  fiche.dernier = b;
+  const p = progress(b), ray = Recherche.rayons(b), sous = Recherche.sousRayons(b);
+  const gc = Taxonomie.genre((b.classif || {}).genre), sg = gc ? '' : suggestionGenre(b);
+  const notes = [...(b.notes || [])].sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+  const cits = [...(b.citations || [])].sort((x, y) => (+x.page || 1e9) - (+y.page || 1e9) || (x.date || '').localeCompare(y.date || ''));
+  const ev = evenementsLivre(b), evVus = fiche.toutHisto ? ev : ev.slice(0, 20);
+  const derniere = (b.journal || []).length ? b.journal[b.journal.length - 1].date : '';
+  const pret = b.possession === 'prete' || b.possession === 'emprunte' ? [b.pretNom, b.pretRetour ? 'retour prévu le ' + fdate(b.pretRetour) : ''].filter(Boolean).join(' · ') : '';
+  const infos = [['Éditeur', b.editeur], ['Année', b.annee], ['ISBN', b.isbn], ['Format', (FORMATS[b.format] || '').split(' ').slice(1).join(' ')],
+    ['Je l\'ai ?', POSSESSION[b.possession]], ['Prêt', pret], ['Nombre de pages', b.pagesSource ? PAGES_SOURCES[b.pagesSource] : '']].filter(([, v]) => v);
+  // (éditeur en tête de section : pour une nouvelle entrée, ou pour une entrée supprimée dans une autre fenêtre
+  // pendant qu'on la modifiait ici — ce qui a été écrit n'est pas perdu, « Enregistrer » la remet)
+  const orpheline = type => fiche.edition && fiche.edition.id && fiche.edition.type === type && !(type === 'note' ? notes : cits).some(x => x.id === fiche.edition.id);
+  const nouveau = type => !fiche.edition || fiche.edition.type !== type ? '' : !fiche.edition.id ? editeurHtml()
+    : orpheline(type) ? `<p class="a">Cette ${type === 'note' ? 'note' : 'citation'} a été supprimée dans une autre fenêtre : « Enregistrer » la remet.</p>${editeurHtml()}` : '';
+  const action = b.statut === 'en_cours' ? `<button class="btn pri" type="button" data-fiche="pages">${ico('livre', '📖')} Où j'en suis</button>`
+    : b.statut === 'a_lire' ? '<button class="btn pri" type="button" data-fiche="start">Commencer</button>'
+    : b.statut === 'abandon' ? '<button class="btn" type="button" data-fiche="resume">Reprendre</button>' : '';
+  const section = (k, titre, corps, bouton) => `<section class="livre-section" id="fs_${k}" aria-labelledby="fh_${k}"><h3 id="fh_${k}"><span>${titre}</span>${bouton || ''}</h3>${corps}</section>`;
+  const ajouter = (type, t) => `<button class="btn small" type="button" data-fiche="ajouter" data-type="${type}">${ico('ajouter', '＋')} ${t}</button>`;
+  box.innerHTML = `
+    <div class="livre-tete"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button>
+      <span class="etire">${esc(STATUTS[b.statut] || '')}</span>
+      <button class="btn" type="button" data-fiche="modifier-livre">${ico('modifier', '✍️')} Modifier</button>
+      ${ligneSi(b.statut === 'en_cours', `<button class="icon" type="button" data-fiche="plus" aria-label="Autres actions : chrono, citation, j'ai fini">${ico('plus', '⋯')}</button>`)}</div>
+    <div class="livre-haut">${coverHtml(b, 'big')}<div class="info">
+      <h2 id="livreTitre" class="livre-titre">${esc(b.titre)}</h2>
+      ${ligneSi(b.auteur, `<div class="a">${esc(b.auteur)}</div>`)}
+      <div class="meta">${[serieLabel(b) ? esc(serieLabel(b)) : '', b.pagesTotal ? esc(b.pagesTotal) + ' p.' : ''].filter(Boolean).map(s => `<span>${s}</span>`).join('')}</div>
+      <div class="meta"><span class="chip">${esc(STATUT_UN[b.statut])}${b.statut === 'en_cours' && p.tot ? ' · ' + p.pct + ' %' : ''}</span>${ligneSi(b.note, `<span class="stars" aria-label="Note : ${b.note} sur 5">${stars(b.note)}</span>`)}</div>
+      <div class="meta">${ray.map(c => `<span class="chip">${c.e} ${esc(c.nom)}</span>`).join('')}${sous.map(z => `<span class="chip">› ${esc(z.nom)}</span>`).join('')}${gc ? `<span class="chip">${esc(gc.nom)}</span>` : ''}${ligneSi(sg, `<span class="chip suggere" title="Proposé d'après le genre « ${esc(b.genre)} » : pas encore confirmé">${esc((Taxonomie.genre(sg) || {}).nom || '')} · suggéré</span>`)}</div>
+    </div></div>
+    ${ligneSi(b.avis, `<div class="livre-avis"><p>${esc(b.avis)}</p><div class="a">Mon avis</div></div>`)}
+    <nav class="livre-nav" aria-label="Sections du carnet">${[['progression', 'Progression'], ['notes', 'Notes' + (notes.length ? ' ' + notes.length : '')], ['citations', 'Citations' + (cits.length ? ' ' + cits.length : '')], ['historique', 'Historique'], ['infos', 'Infos']]
+      .map(([k, t]) => `<button type="button" class="chipb" data-fiche="aller" data-section="${k}">${t}</button>`).join('')}</nav>
+    ${section('progression', 'Progression', (p.tot ? `<div class="bar"><i style="width:${p.pct}%"></i></div><p class="moyen">p. ${p.cur} sur ${p.tot} · ${p.pct} %${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>`
+      : p.cur ? `<p class="moyen">p. ${p.cur}${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>` : '<p class="a">Pas encore de progression</p>') + ligneSi(action, `<div class="acts">${action}</div>`))}
+    ${section('notes', 'Mes notes', nouveau('note') + (notes.length ? notes.map(x => entreeHtml(x, 'note')).join('') : nouveau('note') ? '' : '<p class="a">Aucune note pour l\'instant</p>'), ajouter('note', 'Note'))}
+    ${section('citations', 'Citations', nouveau('citation') + (cits.length ? cits.map(x => entreeHtml(x, 'citation')).join('') : nouveau('citation') ? '' : '<p class="a">Aucune citation pour l\'instant</p>'), ajouter('citation', 'Citation'))}
+    ${section('historique', 'Historique', ev.length ? `<div class="histo">${evVus.map(e => `<span class="d">${fdate(e.date)}</span><span>${esc(e.texte)}</span>`).join('')}</div>${ligneSi(!fiche.toutHisto && ev.length > 20, `<button class="btn small mt-2" type="button" data-fiche="histo">Tout afficher (${ev.length})</button>`)}` : '<p class="a">Aucun événement enregistré pour ce livre</p>')}
+    ${section('infos', 'Infos', `<dl class="livre-infos">${infos.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${ligneSi(b.resume, `<div class="lbl">Résumé</div><p class="moyen">${esc(b.resume)}</p>`)}
+      <div class="acts"><button class="btn del" type="button" data-fiche="supprimer-livre">${ico('fermer', '✕')} Supprimer ce livre…</button></div>`)}`;
+  if (actif && $('#' + actif)) $('#' + actif).focus({preventScroll: true});
+}
+// Tous les gestes de la fiche passent par ici (par identifiant : jamais par la position d'une note ou d'une citation)
+$('#livreOv').addEventListener('click', e => {
+  const x = e.target.closest('[data-fiche]'); if (!x) return;
+  const a = x.dataset.fiche, b = books.find(z => z.id === fiche.id);
+  if (a === 'fermer') return fermerFiche();
+  if (a === 'remettre') { if (fiche.dernier) save({...fiche.dernier}, 'Livre remis ✓'); return; }
+  if (!b) return;   // (livre supprimé dans une autre fenêtre : plus rien n'est modifiable)
+  if (a === 'modifier-livre') return openForm(b);
+  if (a === 'plus') return openActions(b);
+  if (a === 'pages' || a === 'start' || a === 'resume') return quick(a, b);
+  if (a === 'aller') { const s = $('#fs_' + x.dataset.section); if (s) s.scrollIntoView({block: 'start'}); return; }
+  if (a === 'histo') { fiche.toutHisto = true; return peindreFiche(); }
+  if (a === 'supprimer-livre') return supprimerLivre(b.id);
+  if (a === 'ajouter' || a === 'modifier') return commencerEdition(x.dataset.type, a === 'modifier' ? x.dataset.id : null);
+  if (a === 'annuler-edition') { fiche.edition = null; return peindreFiche(); }
+  if (a === 'enregistrer') return enregistrerEdition();
+  if (a === 'retirer') return retirerEntree(x.dataset.type, x.dataset.id);
+  if (a === 'garder') return garderEntree(x.dataset.type, x.dataset.id);
+});
+// Ce qui est tapé dans l'éditeur est gardé dans « fiche.edition » (la fiche peut se repeindre à tout moment)
+$('#livreOv').addEventListener('input', e => {
+  if (!fiche.edition) return;
+  if (e.target.id === 'fe_texte') fiche.edition.texte = e.target.value;
+  if (e.target.id === 'fe_page') fiche.edition.page = e.target.value;
+  if (e.target.id === 'fe_com') fiche.edition.commentaire = e.target.value;
+});
+// Édition en place d'une note ou d'une citation (une seule à la fois)
+function commencerEdition(type, id) {
+  if (fiche.edition && fiche.edition.texte.trim()) { toast('Termine d\'abord ce que tu écris'); const t = $('#fe_texte'); if (t) t.focus(); return; }
+  const b = books.find(z => z.id === fiche.id); if (!b) return;
+  const x = id ? (b[type === 'note' ? 'notes' : 'citations'] || []).find(z => z.id === id) : null;
+  fiche.edition = {type, id: x ? x.id : null, texte: x ? x.texte : '', page: x ? x.page || '' : type === 'citation' && b.statut === 'en_cours' && b.pageActuelle ? String(b.pageActuelle) : '', commentaire: x ? x.commentaire || '' : ''};
+  peindreFiche(); const t = $('#fe_texte'); if (t) t.focus();
+}
+function enregistrerEdition() {
+  const e = fiche.edition, b = books.find(z => z.id === fiche.id); if (!e || !b) return;
+  const texte = e.texte.trim(); if (!texte) return erreurChamp('fe_texte', e.type === 'note' ? 'Écris ta note' : 'Écris la citation');
+  const cle = e.type === 'note' ? 'notes' : 'citations', items = [...(b[cle] || [])], i = e.id ? items.findIndex(z => z.id === e.id) : -1;
+  const champs = {texte, page: String(e.page || '').trim(), ...(e.type === 'citation' ? {commentaire: e.commentaire.trim()} : {})};
+  if (i >= 0) items[i] = {...items[i], ...champs, modif: today()};
+  // (nouvelle entrée, ou entrée supprimée dans une autre fenêtre pendant qu'on la modifiait ici : ce qui a été écrit est gardé)
+  else items.push({id: e.id || (e.type === 'note' ? 'n-' : 'c-') + newId(), date: today(), modif: '', ...champs});
+  fiche.edition = null;
+  save({...b, [cle]: items}, i >= 0 ? 'Modifié ✓' : e.type === 'note' ? 'Note ajoutée ✓' : 'Citation ajoutée ✍️');
+}
+async function retirerEntree(type, id) {
+  if (!(await demander(type === 'note' ? 'Supprimer cette note ?' : 'Supprimer cette citation ?', 'Supprimer', 'Garder'))) return;
+  const cle = type === 'note' ? 'notes' : 'citations', b = books.find(z => z.id === fiche.id); if (!b) return;
+  save({...b, [cle]: (b[cle] || []).filter(z => z.id !== id)}, type === 'note' ? 'Note supprimée' : 'Citation supprimée');
+}
+// Version venue d'une autre fenêtre (conflit) : « Garder » en fait une entrée ordinaire
+function garderEntree(type, id) {
+  const cle = type === 'note' ? 'notes' : 'citations', b = books.find(z => z.id === fiche.id); if (!b) return;
+  save({...b, [cle]: (b[cle] || []).map(z => { if (z.id !== id) return z; const {conflit, ...reste} = z; return reste; })}, 'Gardée ✓');
 }
 
 /* ---------- Bandeau d'alerte (retours de prêt, sauvegarde) ---------- */
@@ -911,6 +1248,12 @@ function paintNotice() {
   if (Store.erreur) {
     bar.innerHTML = `⚠️ <b>Tes dernières modifications ne sont pas enregistrées</b> (mémoire du téléphone pleine ?). Libère de la place, puis réessaie. Par précaution, fais une sauvegarde.
       <button class="btn small" type="button" data-resave>Réessayer</button><button class="btn pri small" data-export="backup">Sauvegarder</button>`;
+    bar.className = 'notice danger'; bar.hidden = false; return;
+  }
+  // Copie de sécurité de la mise à jour impossible : le bandeau reste jusqu'à la prochaine sauvegarde
+  if (prefs.copieMigrationEchec && !((prefs.lastBackup || '') >= prefs.copieMigrationEchec)) {
+    bar.innerHTML = `⚠️ <b>La copie de sécurité de la mise à jour n'a pas pu être faite</b> (mémoire du téléphone pleine ?). Fais une sauvegarde maintenant.
+      <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.className = 'notice danger'; bar.hidden = false; return;
   }
   const due = books.filter(b => b.possession === 'emprunte' && b.pretRetour && b.pretRetour <= addDays(3)).sort((a, b) => a.pretRetour.localeCompare(b.pretRetour))[0];
@@ -1868,12 +2211,25 @@ function download(name, content, type) {
 }
 function backupInfo() {
   const last = prefs.lastBackup;
-  if (!last) return '<b>Aucune sauvegarde pour l\'instant.</b>' + copieRestauration();
+  if (!last) return '<b>Aucune sauvegarde pour l\'instant.</b>' + copieRestauration() + copieMigration();
   const days = Math.floor((Date.now() - new Date(last)) / 864e5);
-  return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.` + copieRestauration();
+  return `Dernière sauvegarde : <b>${days === 0 ? 'aujourd\'hui' : days === 1 ? 'hier' : 'il y a ' + days + ' jours'}</b>.` + copieRestauration() + copieMigration();
 }
 // Après une restauration : bouton pour revenir à la bibliothèque d'avant
 const copieRestauration = () => prefs.avantRestauration ? `<br><button class="btn small mt-2" type="button" data-undorestore><span class="ico i-retour" aria-hidden="true">↩️</span> Revenir à ma bibliothèque d'avant (copie du ${fdate(iso(new Date(prefs.avantRestauration)))})</button>` : '';
+// (après un retour : le bouton devient « Annuler le retour », pour qu'un second appui ne puisse rien écraser)
+const copieMigration = () => !prefs.avantMigration ? '' : prefs.migrationRemise
+  ? `<br><button class="btn small mt-2" type="button" data-undoretour>${ico('retour', '↩️')} Annuler le retour à ma bibliothèque d'avant la mise à jour</button>`
+  : `<br><button class="btn small mt-2" type="button" data-undomigration>${ico('retour', '↩️')} Revenir à ma bibliothèque d'avant la mise à jour (copie du ${fdate(iso(new Date(prefs.avantMigration)))})</button>`;
+// Résumé d'une bibliothèque, pour vérifier qu'une sauvegarde est complète : livres, citations, notes, relevés de pages
+const resumeDe = l => ({livres: l.length, citations: l.reduce((n, b) => n + (b.citations || []).length, 0),
+  notes: l.reduce((n, b) => n + (b.notes || []).length, 0), journal: l.reduce((n, b) => n + (b.journal || []).length, 0)});
+const memeResume = (a, b) => !!a && !!b && ['livres', 'citations', 'notes', 'journal'].every(k => +a[k] === +b[k]);
+// Relit le texte d'une sauvegarde comme le ferait la restauration et vérifie qu'il contient bien ce qu'il annonce
+function verifierSauvegarde(texte) {
+  try { const d = JSON.parse(texte); return !!d && d.app === 'mes-lectures' && Array.isArray(d.books) && memeResume(d.resume, resumeDe(d.books.map(norm))); }
+  catch (e) { return false; }
+}
 function doExport(kind) {
   if (kind === 'excel') {
     const rows = [['Titre', 'Auteur', 'Série', 'Tome', 'Statut', 'Genre', 'Rayons', 'Note', 'Commencé le', 'Fini le', 'Pages', 'Éditeur', 'Année', 'ISBN', 'Format', 'Possession', 'Mon avis']]
@@ -1891,11 +2247,13 @@ function doExport(kind) {
       (quotes.length ? `<h2>Citations (${quotes.length})</h2>${quotes.map(x => `<blockquote>« ${esc(x.q.texte)} » — ${esc(x.b.titre)}${x.q.page ? ', p. ' + esc(x.q.page) : ''}</blockquote>`).join('')}` : '');
     window.print();
   } else if (kind === 'backup') {
-    const data = {app: 'mes-lectures', version: 2, date: new Date().toISOString(), goal, books};
-    download(`mes-lectures-sauvegarde-${today()}.json`, JSON.stringify(data), 'application/json');
+    const data = {app: 'mes-lectures', version: 3, schema: SCHEMA, date: new Date().toISOString(), goal, resume: resumeDe(books), books};
+    const texte = JSON.stringify(data);
+    download(`mes-lectures-sauvegarde-${today()}.json`, texte, 'application/json');
     prefs.lastBackup = new Date().toISOString(); savePrefs(); paintNotice();
     if (ui.tab === 'stats') renderStats();
-    toast('Sauvegarde téléchargée 💾');
+    // (le fichier produit est relu et recompté : on prévient s'il ne contient pas tout)
+    toast(verifierSauvegarde(texte) ? 'Sauvegarde téléchargée 💾' : '⚠️ La sauvegarde semble incomplète : réessaie, et garde aussi l\'ancienne.');
   } else if (kind === 'restore') {
     $('#pick_backup').value = ''; $('#pick_backup').click();
   }
@@ -1912,11 +2270,13 @@ $('#pick_backup').onchange = async e => {
   const vus = new Set();
   const propres = recues.map(norm).map(b => { if (vus.has(b.id)) b = {...b, id: newId()}; vus.add(b.id); return b; });
   const ecartes = d.books.length - propres.length;
+  const res = resumeDe(propres), annonce = d.resume && typeof d.resume === 'object' ? d.resume : null;
   const dateSauv = d.date && !isNaN(new Date(d.date)) ? fdate(iso(new Date(d.date))) : 'date inconnue';
   $('#modal').innerHTML = `<h2>Restaurer la sauvegarde ?</h2>
-    <p>Le fichier contient <b>${plural(propres.length, 'livre')}</b> (sauvegarde du ${esc(dateSauv)}).</p>
+    <p>Le fichier contient <b>${plural(res.livres, 'livre')}</b>, ${plural(res.citations, 'citation')} et ${plural(res.notes, 'note')} (sauvegarde du ${esc(dateSauv)}).</p>
+    ${annonce && !memeResume(annonce, res) ? '<p class="a">⚠️ Ce fichier semble incomplet : il ne contient pas tout ce qu\'il annonce. Vérifie que c\'est bien la bonne sauvegarde.</p>' : ''}
     ${ecartes ? `<p class="a">⚠️ ${plural(ecartes, 'entrée')} illisible${ecartes > 1 ? 's' : ''} ser${ecartes > 1 ? 'ont' : 'a'} ignorée${ecartes > 1 ? 's' : ''}.</p>` : ''}
-    ${+d.version > 2 ? '<p class="a">⚠️ Cette sauvegarde vient d\'une version plus récente de l\'appli : mets l\'appli à jour d\'abord si possible.</p>' : ''}
+    ${+d.version > 3 ? '<p class="a">⚠️ Cette sauvegarde vient d\'une version plus récente de l\'appli : mets l\'appli à jour d\'abord si possible.</p>' : ''}
     ${books.length ? `<p class="a">${books.length > 1 ? `Les ${books.length} livres actuellement dans l'appli seront <b>remplacés</b>` : `Le livre actuellement dans l'appli sera <b>remplacé</b>`}.
       Une copie de sécurité est gardée : tu pourras <b>revenir en arrière</b>.</p>` : ''}
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn pri" id="r_ok" ${propres.length ? '' : 'disabled'}>Remplacer</button></div>`;
@@ -1932,7 +2292,10 @@ $('#pick_backup').onchange = async e => {
     fillStop = true;   // « Compléter mes livres » en cours : on l'arrête (il travaillait sur les anciens livres)
     books = propres; goal = entier(d.goal) || 0;
     await Store.persist(); render();
-    toast('Livres restaurés ✓', prefs.avantRestauration ? {label: 'Annuler', fn: annulerRestauration} : null);
+    // (on relit ce qui a été enregistré : le nombre de livres doit être celui du fichier)
+    let relu = null; try { relu = await Store.get('data'); } catch (err) {}
+    const ok = Store.fallback || (!!relu && Array.isArray(relu.books) && relu.books.length === propres.length);
+    toast(ok ? 'Livres restaurés ✓' : '⚠️ Restauration peut-être incomplète : vérifie tes livres', prefs.avantRestauration ? {label: 'Annuler', fn: annulerRestauration} : null);
   };
 };
 // Revenir à la bibliothèque d'avant la dernière restauration
@@ -1950,6 +2313,55 @@ async function annulerRestauration() {
   render(); toast('Bibliothèque précédente remise ✓', {label: 'Annuler', fn: annulerRestauration});
 }
 
+/* ---------- Passage au format v3 : copie intacte avant la première conversion ---------- */
+// Données lues sans « schema: 3 » et non vides : on garde une copie telle quelle (une seule fois, jamais écrasée),
+// puis on invitera à exporter une sauvegarde. Si la copie est impossible, la mise à jour continue (elle n'efface rien)
+// et on invite tout de suite à sauvegarder.
+async function preparerMigration(d) {
+  if (!d || +d.schema >= SCHEMA || !Array.isArray(d.books) || !d.books.length) return 'rien';
+  try {
+    if (await Store.get('avant-migration-v3')) return 'déjà';
+    await Store.set('avant-migration-v3', {books: d.books, goal: d.goal || 0, date: new Date().toISOString()});
+    prefs.avantMigration = new Date().toISOString(); prefs.inviterSauvegarde = true; savePrefs();
+    return 'copiée';
+  } catch (e) {
+    // (signalé par un bandeau qui reste jusqu'à la prochaine sauvegarde : voir paintNotice)
+    prefs.inviterSauvegarde = true; prefs.copieMigrationEchec = new Date().toISOString(); savePrefs(); paintNotice();
+    return 'échec';
+  }
+}
+// Remettre la bibliothèque telle qu'elle était juste avant la mise à jour. La bibliothèque du moment est rangée à part
+// (« avant-retour-migration ») et le bouton devient « Annuler le retour » : un second appui ne peut rien écraser,
+// et la copie de la dernière restauration n'est pas touchée.
+async function revenirAvantMigration() {
+  if (prefs.migrationRemise) { toast('Ta bibliothèque d\'avant la mise à jour est déjà remise'); return 'déjà remise'; }
+  let c = null;
+  try { c = await Store.get('avant-migration-v3'); } catch (e) {}
+  if (!c || !Array.isArray(c.books)) { toast('Pas de copie d\'avant la mise à jour'); return 'aucune copie'; }
+  if (!(await demander(`Remettre ta bibliothèque telle qu'elle était avant la mise à jour (${fdate(iso(new Date(c.date)))}) ? Ce que tu as changé depuis sera mis de côté : tu pourras revenir en arrière.`, 'Remettre', 'Annuler'))) return 'annulé';
+  try { await Store.set('avant-retour-migration', {books, goal, date: new Date().toISOString()}); }
+  catch (e) { toast('Impossible pour l\'instant (mémoire pleine ?)'); return 'échec'; }
+  fillStop = true;
+  books = c.books.map(norm); goal = entier(c.goal) || 0;
+  await Store.persist();
+  prefs.migrationRemise = new Date().toISOString(); savePrefs();
+  render(); toast('Bibliothèque d\'avant la mise à jour remise ✓', {label: 'Annuler', fn: annulerRetourMigration});
+  return 'remise';
+}
+// Annuler ce retour : la bibliothèque mise de côté revient, et le bouton « Revenir… » redevient disponible
+async function annulerRetourMigration() {
+  let c = null;
+  try { c = await Store.get('avant-retour-migration'); } catch (e) {}
+  if (!prefs.migrationRemise || !c || !Array.isArray(c.books)) { toast('Rien à annuler'); return 'rien'; }
+  fillStop = true;
+  books = c.books.map(norm); goal = entier(c.goal) || 0;
+  await Store.persist();
+  try { await Store.set('avant-retour-migration', null); } catch (e) {}
+  delete prefs.migrationRemise; savePrefs();
+  render(); toast('Retour annulé : ta bibliothèque est revenue ✓');
+  return 'annulé';
+}
+
 /* ---------- Enregistrer / supprimer ---------- */
 function save(b, msg, action) {
   if (!b.id) b.id = newId();
@@ -1964,6 +2376,18 @@ function remove(b) {
   const i = books.findIndex(x => x.id === b.id); if (i < 0) return;
   books.splice(i, 1); render(); Store.persist();
   toast('Livre supprimé', {label: 'Annuler', fn: () => { books.splice(Math.min(i, books.length), 0, b); render(); Store.persist(); toast('Livre remis ✓'); }});
+}
+// Supprimer un livre (depuis sa fiche ou le formulaire) : une vraie question, qui compte ce qui part avec lui
+async function supprimerLivre(id) {
+  const b = books.find(x => x.id === id); if (!b) return false;
+  const n = (b.notes || []).length, c = (b.citations || []).length;
+  const aussi = n + c === 0 ? '' : n + c === 1 ? (n ? ' Sa note sera supprimée aussi.' : ' Sa citation sera supprimée aussi.')
+    : ` Ses ${[n ? plural(n, 'note') : '', c ? plural(c, 'citation') : ''].filter(Boolean).join(' et ')} seront supprimées aussi.`;
+  if (!(await demander(`Supprimer « ${b.titre} » ?${aussi}`, 'Supprimer', 'Garder'))) return false;
+  if ($('#ov').classList.contains('show')) { modalModifie = false; closeM(); }
+  if (fiche.id === id) { fiche.id = ''; fiche.edition = null; $('#livreOv').classList.remove('show'); }
+  remove(books.find(x => x.id === id) || b);
+  return true;
 }
 function blankBook(statut) {
   return {titre: '', auteur: '', genre: '', note: 0, couverture: '', statut, citations: [], journal: [], historique: [], sessions: [],
@@ -2093,7 +2517,7 @@ function openQuote(b) {
   $('#c_ok').onclick = () => {
     const texte = $('#c_txt').value.trim(); if (!texte) return toast('Écris la citation');
     closeM();
-    save({...b, citations: [...(b.citations || []), {texte, page: $('#c_page').value, date: today()}]}, 'Citation ajoutée ✍️');
+    save({...b, citations: [...(b.citations || []), {id: 'c-' + newId(), texte, page: $('#c_page').value, date: today(), commentaire: ''}]}, 'Citation ajoutée ✍️');
   };
 }
 
@@ -2215,10 +2639,10 @@ function openForm(b, opts) {
   };
   $('#f_qadd').onclick = () => {
     const texte = $('#f_qt').value.trim(); if (!texte) return toast('Écris la citation');
-    form.citations.push({texte, page: $('#f_qp').value, date: today()});
+    form.citations.push({id: 'c-' + newId(), texte, page: $('#f_qp').value, date: today(), commentaire: ''});
     $('#f_qt').value = ''; $('#f_qp').value = ''; paintQuotes();
   };
-  $('#f_quotes').onclick = e => { const x = e.target.closest('[data-qdel]'); if (x) { form.citations.splice(+x.dataset.qdel, 1); paintQuotes(); } };
+  $('#f_quotes').onclick = e => { const x = e.target.closest('[data-qdel]'); if (x) { form.citations = form.citations.filter(q => q.id !== x.dataset.qdel); paintQuotes(); } };
   $('#f_save').onclick = async () => {
     collect();
     if (!form.titre) return erreurChamp('f_titre', 'Il faut au moins un titre');
@@ -2245,10 +2669,7 @@ function openForm(b, opts) {
     if (f.statut === 'lu' && orig.statut !== 'lu') afterFinish(f);
   };
   const del = $('#f_del');
-  if (del) del.onclick = () => {
-    if (!del.classList.contains('sure')) { del.classList.add('sure'); del.textContent = 'Sûr ? Supprimer'; return; }
-    const id = form.id; closeM(); remove(books.find(x => x.id === id) || {id});
-  };
+  if (del) del.onclick = () => supprimerLivre(form.id);
   const rr = $('#f_reread');
   if (rr) rr.onclick = () => {
     const o = books.find(x => x.id === form.id); if (!o) return;
@@ -2299,7 +2720,7 @@ function collect() {
   const pending = $('#f_qt').value.trim();
   // (citation tapée sans « Ajouter » : elle rejoint la liste et le champ se vide, sinon un 2e « Enregistrer »
   // — après « il manque le titre » ou « Annuler » sur un doublon — l'ajouterait encore)
-  if (pending) { form.citations.push({texte: pending, page: $('#f_qp').value, date: today()}); $('#f_qt').value = ''; $('#f_qp').value = ''; paintQuotes(); }
+  if (pending) { form.citations.push({id: 'c-' + newId(), texte: pending, page: $('#f_qp').value, date: today(), commentaire: ''}); $('#f_qt').value = ''; $('#f_qp').value = ''; paintQuotes(); }
   if (form.statut !== 'lu' && form.statut !== 'abandon') form.dateFin = '';
   if (form.statut !== 'a_lire') form.epingle = false;
   if (!['prete', 'emprunte'].includes(form.possession)) { form.pretNom = ''; form.pretRetour = ''; }
@@ -2319,8 +2740,8 @@ function syncLoan() {
 }
 function paintStars() { document.querySelectorAll('#f_note button').forEach(b => b.classList.toggle('on', +b.dataset.n <= (form.note || 0))); }
 function paintQuotes() {
-  $('#f_quotes').innerHTML = form.citations.map((q, i) =>
-    `<div class="q"><p>« ${esc(q.texte)} »${q.page ? ` <span class="a">p. ${esc(q.page)}</span>` : ''}</p><button type="button" data-qdel="${i}" title="Retirer" aria-label="Retirer la citation"><span class="ico i-fermer" aria-hidden="true">✕</span></button></div>`).join('');
+  $('#f_quotes').innerHTML = form.citations.map(q =>
+    `<div class="q"><p>« ${esc(q.texte)} »${q.page ? ` <span class="a">p. ${esc(q.page)}</span>` : ''}</p><button type="button" data-qdel="${esc(q.id)}" title="Retirer" aria-label="Retirer la citation"><span class="ico i-fermer" aria-hidden="true">✕</span></button></div>`).join('');
 }
 function paintPrev() {
   const has = coverList(form).length > 0;
@@ -2961,6 +3382,8 @@ document.addEventListener('click', e => {
   const ct = e.target.closest('[data-cat]'); if (ct) { catView.sous = ''; return openCategorie(ct.dataset.cat); }
   if (e.target.closest('#catfill')) return fillCategories();
   if (e.target.closest('[data-undorestore]')) return annulerRestauration();
+  if (e.target.closest('[data-undomigration]')) return revenirAvantMigration();
+  if (e.target.closest('[data-undoretour]')) return annulerRetourMigration();
   if (e.target.closest('[data-resave]')) return Store.persist().then(() => { if (!Store.erreur) toast('Enregistré ✓'); });
   if (e.target.closest('[data-more], [data-sug]')) return onSuggestion(e);
   const day = e.target.closest('[data-day]'); if (day) return dayInfo(day.dataset.day);
@@ -2976,14 +3399,14 @@ document.addEventListener('click', e => {
   const sr = e.target.closest('[data-serie]');
   if (sr) { ui.tab = 'a_lire'; ui.q = sr.dataset.serie; ui.sort = 'serie'; const c = counts(); if (!books.some(b => b.statut === 'a_lire' && Recherche.norm(b.serie) === Recherche.norm(sr.dataset.serie))) ui.tab = 'lu'; render(); return; }
   const op = e.target.closest('[data-open]');
-  if (op) { const b = books.find(x => x.id === op.dataset.open); if (b) openForm(b); return; }
+  if (op) { if (e.target.closest('#modal')) { modalModifie = false; closeM(); } ouvrirFiche(op.dataset.open); return; }
   const qt = e.target.closest('[data-book]');
-  if (qt) { const b = books.find(x => x.id === qt.dataset.book); if (b) openForm(b); return; }
+  if (qt) { ouvrirFiche(qt.dataset.book, 'citations'); return; }
   const c = e.target.closest('.card, .gcard');
   if (c && !e.target.closest('.modal')) {
     const b = books.find(x => x.id === c.dataset.id); if (!b) return;
     const act = e.target.closest('[data-act]');
-    return act ? quick(act.dataset.act, b) : openForm(b);
+    return act ? quick(act.dataset.act, b) : ouvrirFiche(b.id);
   }
 });
 document.addEventListener('input', e => {
@@ -3000,6 +3423,10 @@ document.addEventListener('change', e => {
   if (e.target.id === 'year') { ui.year = +e.target.value; renderStats(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerDessus(); });
+// Carte de livre au clavier : Entrée ou Espace ouvrent sa fiche
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.card, .gcard') && !fenetreOuverte()) { e.preventDefault(); ouvrirFiche(e.target.dataset.id); }
+});
 // Touche Tab : le focus fait le tour de la fenêtre ouverte sans en sortir
 document.addEventListener('keydown', e => {
   if (e.key !== 'Tab') return;
@@ -3015,7 +3442,7 @@ document.addEventListener('keydown', e => {
 
 /* ---------- Touche « retour » d'Android : ferme la fenêtre ouverte (et non toute l'appli) ---------- */
 // Quand une fenêtre s'ouvre, on ajoute une étape dans l'historique : « retour » la consomme et ferme la fenêtre.
-const FENETRES = ['#askOv', '#scanOv', '#bulkOv', '#timerOv', '#ov'];
+const FENETRES = ['#askOv', '#scanOv', '#bulkOv', '#timerOv', '#ov', '#livreOv'];
 let modalModifie = false, retourPose = false, retourIgnore = 0;
 const fenetreOuverte = () => FENETRES.find(sel => $(sel).classList.contains('show'));
 function syncRetour() {
@@ -3047,6 +3474,7 @@ function fermerDessus() {
   else if (o === '#scanOv') closeScanner();
   else if (o === '#bulkOv') closeBulk();
   else if (o === '#timerOv') { $('#timerOv').classList.remove('show'); paintTimerPill(); }
+  else if (o === '#livreOv') fermerFiche();
   else fermerFenetre();
   return true;
 }
@@ -3094,7 +3522,7 @@ function goTab(dir) {
   const zoneLibre = el => el.closest('.cal, .sugs, .tabs, .chips, input, textarea, select, .modal, .notice');
   document.addEventListener('touchstart', e => {
     const t = e.touches[0];
-    ok = e.touches.length === 1 && !zoneLibre(e.target) && !document.querySelector('.ov.show');
+    ok = e.touches.length === 1 && !zoneLibre(e.target) && !document.querySelector('.ov.show, #livreOv.show');
     sx = t.clientX; sy = t.clientY; st = Date.now();
   }, {passive: true});
   document.addEventListener('touchend', e => {
@@ -3109,6 +3537,7 @@ function goTab(dir) {
 (async function init() {
   try {
     const d = await Store.load();
+    await preparerMigration(d);
     books = (d.books || []).map(norm);
     goal = +d.goal || 0;
     Store.retenir({...d, books, goal});
@@ -3116,9 +3545,11 @@ function goTab(dir) {
     if (!c.en_cours && books.length) ui.tab = c.a_lire ? 'a_lire' : 'lu';
     render();
     checkBadges(true);
+    // (première ouverture après le passage au format v3 : on propose d'exporter une sauvegarde)
+    if (prefs.inviterSauvegarde && books.length && !ESSAI) { prefs.inviterSauvegarde = false; savePrefs(); toastLater('Ton appli a été mise à jour. Pense à faire une sauvegarde (Réglages → 💾 Sauvegarder).', 4000); }
     // Mise en ligne incomplète (un fichier envoyé sans l'autre) : on le dit au lieu de laisser l'appli se comporter bizarrement
-    if (Recherche.VERSION !== VERSION) {
-      console.warn('Versions différentes : index.html ' + VERSION + ', recherche.js ' + Recherche.VERSION);
+    if (Recherche.VERSION !== VERSION || typeof Taxonomie === 'undefined' || Taxonomie.VERSION !== VERSION) {
+      console.warn('Versions différentes : index.html ' + VERSION + ', recherche.js ' + Recherche.VERSION + ', taxonomie.js ' + (typeof Taxonomie === 'undefined' ? 'absent' : Taxonomie.VERSION));
       toastLater('⚠️ Mise à jour incomplète : ferme l\'appli et rouvre-la avec internet.', 1500);
     }
     if (!prefs.astuceGlisser && ('ontouchstart' in window)) { prefs.astuceGlisser = true; savePrefs(); toastLater('👆 Astuce : glisse à gauche ou à droite pour changer d\'onglet', 2500); }

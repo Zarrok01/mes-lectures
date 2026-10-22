@@ -1,11 +1,11 @@
 // Permet à l'appli de s'ouvrir même sans internet, et garde les couvertures en mémoire.
 // Change ce numéro à chaque mise à jour de l'appli pour forcer le rafraîchissement.
-const CACHE = 'mes-lectures-v21';   // appli 2026.10.21-2
+const CACHE = 'mes-lectures-v23';   // appli 2026.10.22-2
 // Couvertures : deux réserves. Chrome compte une image « opaque » (site qui n'autorise pas la lecture) pour
 // 10 à 14 Mo de place (mesuré), contre sa vraie taille (20 à 60 Ko) quand le site l'autorise (« CORS »).
 // (l'ancienne réserve « mes-lectures-couvertures », pleine d'images opaques, est supprimée à l'activation)
 const COVERS = 'mes-lectures-couv-cors', OPAQUES = 'mes-lectures-couv-opaques';
-const FILES = ['./', 'index.html', 'recherche.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+const FILES = ['./', 'index.html', 'recherche.js', 'taxonomie.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 const COVER_HOSTS = ['covers.openlibrary.org', 'archive.org', 'catalogue.bnf.fr', 'images-na.ssl-images-amazon.com',
   'books.google.com', 'books.googleusercontent.com', 'mzstatic.com', 'di-static.com', 'epagine.fr'];
 // Couvertures gardées : 300 lisibles (quelques Mo en tout), et seulement 30 opaques (pour ne pas manger la place de tes livres)

@@ -29,7 +29,7 @@
   --n1:#c0392b;--n2:#b4530b;--n3:#8a6100;--n4:#2e7d32;--n5:#0b7f45;--sur-note:#ffffff;--voile:rgba(12,12,12,.55)}
 /* Formes de chaque style */
 :root,[data-style=android]{--r-s:8px;--r-m:16px;--r-l:28px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface-2);--couv-s:30%;--couv-l:34%}
-[data-style=actuel]{--r-s:6px;--r-m:12px;--r-l:18px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.2);--bordure-carte:1px;--carte:var(--surface);--couv-s:28%;--couv-l:34%;--police-titres:var(--police-texte)}
+[data-style=actuel]{--r-s:6px;--r-m:12px;--r-l:18px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.2);--bordure-carte:1px;--carte:var(--surface);--couv-s:28%;--couv-l:34%}
 [data-style=carnet]{--r-s:4px;--r-m:10px;--r-l:14px;--r-pilule:10px;--ombre-1:0 1px 3px rgba(60,40,20,.10),0 4px 14px rgba(60,40,20,.08);--ombre-2:0 6px 20px rgba(60,40,20,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:32%;--couv-l:32%;--police-titres:Georgia,"Times New Roman",serif}
 /* Palettes (contrastes vérifiés ≥ 4,5:1, voir le design §3) */
 :root,[data-style=android][data-theme=light]{--fond:#f5faf4;--surface:#ffffff;--surface-2:#e6f2e8;--texte:#191c19;--texte-doux:#414941;--trait:#c1c9be;--accent:#1b6c3d;--sur-accent:#ffffff;--accent-doux:#b6f1c4;--sur-accent-doux:#00210e;--barre:#f5faf4;--texte-barre:#191c19;--texte-barre-doux:#414941;--barre-2:#e6f2e8;--danger:#ba1a1a;--alerte:#7a5900;color-scheme:light}
@@ -397,7 +397,7 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .rq-tax-note{margin:var(--e-2) 0 0;padding-top:var(--e-2);border-top:1px solid var(--trait);font-size:var(--t-xs);color:var(--texte-doux)}
 @media(min-width:600px){.rq-tax-dims{grid-template-columns:repeat(4,minmax(0,1fr))}.rq-tax-explorer{padding:var(--e-4)}}
 /* ---------- Finition transversale : cohérence, lisibilité et confort tactile ---------- */
-html{scroll-padding-top:calc(112px + env(safe-area-inset-top));scroll-behavior:smooth}
+html{scroll-padding-top:calc(112px + env(safe-area-inset-top))}
 body{min-height:100vh;min-height:100dvh}
 main.wrap{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
 h1,h2,h3,h4,.t,.tile b,.clock,.quote-texte{font-family:var(--police-titres)}
@@ -410,7 +410,8 @@ button{-webkit-touch-callout:none}
 .panel>h3:first-child{font-family:var(--police-titres);font-size:var(--t-m);font-weight:700;letter-spacing:0;text-transform:none}
 .tile{min-width:0}.tile b{font-variant-numeric:tabular-nums lining-nums;line-height:1.15;overflow-wrap:anywhere}
 .chart{min-width:0}.chart>div{font-variant-numeric:tabular-nums}
-.modal,.livre{padding-bottom:calc(var(--e-4) + env(safe-area-inset-bottom))}
+.modal{padding-bottom:calc(var(--e-4) + env(safe-area-inset-bottom))}
+.livre{padding-bottom:calc(var(--e-6) + env(safe-area-inset-bottom))}
 .fab{right:max(var(--e-5),env(safe-area-inset-right));bottom:max(var(--e-5),env(safe-area-inset-bottom))}
 .pill{left:max(var(--e-4),env(safe-area-inset-left));bottom:max(var(--e-5),env(safe-area-inset-bottom))}
 .toast{bottom:calc(96px + env(safe-area-inset-bottom))}
@@ -605,7 +606,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.23-7';
+const VERSION = '2026.10.23-8';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -4415,7 +4416,7 @@ document.addEventListener('click', e => {
   // (« Annuler » : comme la touche retour, on demande avant de perdre une fiche modifiée)
   if (e.target.closest('[data-close]')) return fermerFenetre();
   if (e.target.closest('[data-ajouter]')) return openAjout();
-  if (e.target.closest('[data-effacer]')) { Object.assign(ui, {q: '', genre: '', genreConfirme: '', cat: '', own: '', sousGenre: '', theme: '', ambiance: '', etiquette: ''}); return render(); }
+  if (e.target.closest('[data-effacer]')) { Object.assign(ui, {q: '', genre: '', genreConfirme: '', cat: '', own: '', sort: 'recent', sousGenre: '', theme: '', ambiance: '', etiquette: '', filtres: false}); return render(); }
   if (e.target.closest('[data-effacer-citations]')) { ui.cq = ''; return renderQuotesTab(); }
   if (e.target.closest('[data-effacer-notes]')) { ui.nq = ''; return renderNotesTab(); }
   const repriseAct = e.target.closest('#resumeLecture [data-act]');
@@ -4453,6 +4454,13 @@ document.addEventListener('click', e => {
     const act = e.target.closest('[data-act]');
     return act ? quick(act.dataset.act, b) : ouvrirFiche(b.id);
   }
+});
+// Les cartes ont déjà un focus visible : Entrée et Espace ouvrent aussi leur fiche au clavier.
+document.addEventListener('keydown', e => {
+  const c = e.target.closest && e.target.closest('.card[tabindex="0"], .gcard[tabindex="0"]');
+  if (!c || e.target !== c || !['Enter', ' '].includes(e.key)) return;
+  e.preventDefault();
+  if (books.some(b => b.id === c.dataset.id)) ouvrirFiche(c.dataset.id);
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'q') { ui.q = e.target.value; renderCards(); }

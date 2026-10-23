@@ -116,11 +116,18 @@ h1{font-size:var(--t-xl);font-weight:800;margin:0;flex:1;letter-spacing:-.01em}
 .flame{background:var(--barre-2);color:var(--texte-barre);border-radius:var(--r-pilule);padding:var(--e-1) var(--e-3);font-weight:700;font-size:var(--t-s)}
 .icon{flex:none;width:var(--toucher);height:var(--toucher);border-radius:var(--r-pilule);border:0;background:var(--barre-2);color:var(--texte-barre);font-size:var(--t-l);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .tools .icon{background:var(--surface);color:var(--texte);border:1px solid var(--trait)}
-.tabs{display:flex;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
-.tab{flex:1 0 auto;min-height:var(--toucher);border:0;border-bottom:3px solid transparent;background:none;padding:0 var(--e-3);font:inherit;font-size:var(--t-s);font-weight:600;color:var(--texte-barre-doux);white-space:nowrap;cursor:pointer}
-.tab.on{color:var(--texte-barre);border-bottom-color:var(--accent)}
-.tab .n{display:inline-block;min-width:1.6em;padding:0 var(--e-1);margin-left:var(--e-1);border-radius:var(--r-pilule);background:var(--barre-2);color:var(--texte-barre);font-size:var(--t-xs);font-weight:700}
-.tab.on .n,.tab .n.neuf{background:var(--accent);color:var(--sur-accent)}
+/* ---------- Barre de navigation en bas : les 4 espaces (icône au-dessus du nom ; chaque espace prend la place de son nom) ---------- */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-around;background:var(--barre);border-top:1px solid var(--trait);
+  padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.tab{position:relative;flex:1 1 auto;min-width:0;min-height:var(--barre-bas);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-top:3px solid transparent;background:none;padding:var(--e-1) var(--e-1);font:inherit;font-size:var(--t-xs);font-weight:600;color:var(--texte-barre-doux);white-space:nowrap;cursor:pointer}
+.tab .ico{font-size:var(--t-xl)}
+.tab.on{color:var(--texte-barre);border-top-color:var(--accent)}
+/* (nouvelle sélection du mois dans Découvrir : une pastille, et le nombre dit aux lecteurs d'écran) */
+.tab .n.neuf{position:absolute;top:6px;left:calc(50% + 8px);min-width:10px;height:10px;padding:0;border-radius:50%;background:var(--accent);font-size:0;overflow:hidden}
+:root{--barre-bas:60px}
+body{padding-bottom:calc(var(--barre-bas) + 1px + env(safe-area-inset-bottom))}
+/* (statuts de la bibliothèque : sur deux lignes de deux quand l'écran est étroit, plutôt que coupés) */
+@media(max-width:440px){.subtabs.library-nav{display:grid;grid-template-columns:1fr 1fr;overflow:visible}.library-nav .subtab{text-align:center}}
 .subtabs{display:flex;gap:var(--e-2);overflow-x:auto;padding:var(--e-2) 0;scrollbar-width:none}.subtabs::-webkit-scrollbar{display:none}
 .subtab{flex:none;min-height:var(--toucher);padding:0 var(--e-3);border:1px solid var(--trait);border-radius:var(--r-pilule);background:var(--surface);color:var(--texte);font:inherit;font-size:var(--t-s);font-weight:600;white-space:nowrap;cursor:pointer}
 .subtab.on{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
@@ -368,7 +375,7 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .resume-lecture .meta{margin:var(--e-1) 0}
 .resume-lecture .acts{margin-top:var(--e-2)}
 .resume-titre{font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--e-1)}
-.resultat-compte{font-size:var(--t-s);color:var(--texte-doux);margin:var(--e-2) 0}
+.resultat-compte{font-size:var(--t-s);color:var(--texte-doux);margin:var(--e-2) 0;grid-column:1/-1}
 .ailleurs{padding:var(--e-2) 0 var(--e-3);border-bottom:1px solid var(--trait);margin-bottom:var(--e-2)}
 .ailleurs-titre{flex-basis:100%;font-size:var(--t-xs);font-weight:700;color:var(--texte-doux);margin:0 0 var(--e-2)}
 .stats-explications{margin:var(--e-3) 0}
@@ -412,9 +419,10 @@ button{-webkit-touch-callout:none}
 .chart{min-width:0}.chart>div{font-variant-numeric:tabular-nums}
 .modal{padding-bottom:calc(var(--e-4) + env(safe-area-inset-bottom))}
 .livre{padding-bottom:calc(var(--e-6) + env(safe-area-inset-bottom))}
-.fab{right:max(var(--e-5),env(safe-area-inset-right));bottom:max(var(--e-5),env(safe-area-inset-bottom))}
-.pill{left:max(var(--e-4),env(safe-area-inset-left));bottom:max(var(--e-5),env(safe-area-inset-bottom))}
-.toast{bottom:calc(96px + env(safe-area-inset-bottom))}
+/* (le bouton ＋, le chrono en cours et les messages passent au-dessus de la barre du bas) */
+.fab{right:max(var(--e-5),env(safe-area-inset-right));bottom:calc(var(--barre-bas) + var(--e-4) + env(safe-area-inset-bottom))}
+.pill{left:max(var(--e-4),env(safe-area-inset-left));bottom:calc(var(--barre-bas) + var(--e-4) + env(safe-area-inset-bottom))}
+.toast{bottom:calc(var(--barre-bas) + 96px + env(safe-area-inset-bottom))}
 @media(hover:hover){.btn:not(:disabled):hover,.chipb:hover,.subtab:hover{border-color:var(--accent)}.card:hover{box-shadow:var(--ombre-2)}}
 @media(max-width:420px){
   .wrap{padding-left:var(--e-3);padding-right:var(--e-3)}
@@ -450,7 +458,7 @@ button{-webkit-touch-callout:none}
 .livre-infos dt{color:var(--texte-doux)}.livre-infos dd{margin:0;min-width:0;overflow-wrap:anywhere}
 /* ---------- Le livre feuilletable (direction A) ---------- */
 #livreOv.mode-livre{overflow:hidden}
-#livreOv.mode-livre .livre{height:100%;padding:0 var(--e-2);display:flex;flex-direction:column}
+#livreOv.mode-livre .livre{height:100%;padding:0 var(--e-2) env(safe-area-inset-bottom);display:flex;flex-direction:column}
 .lv-cadre{display:flex;flex-direction:column;flex:1;min-height:0}
 .lv-cadre .livre-tete{position:static}
 .lv{position:relative;flex:1;min-height:0;margin:var(--e-2) 34px var(--e-1) 18px;isolation:isolate;touch-action:pan-y}
@@ -463,6 +471,14 @@ button{-webkit-touch-callout:none}
 .lv-page{position:absolute;inset:0;display:flex;flex-direction:column;padding:18px 24px 10px 26px;background:var(--livre-papier);color:var(--livre-encre);font:var(--t-m)/1.55 var(--livre-police);border-radius:0 3px 3px 0;box-shadow:inset 16px 0 16px -14px var(--livre-ombre);overflow:hidden}
 .lv-grain .lv-page{background-image:var(--livre-grain)}
 .lv-grain .lv-feuille .lv-page{background-image:none}
+/* (palettes des apparences de page Ivoire et Nuit : ce sont des palettes, rangées comme telles) */
+:root .lv-style-ivoire{--livre-papier:#FBF4E6;--livre-encre:#29251F;--livre-doux:#62594B;--livre-or:#B79B65;--livre-or-texte:#6B4A20;--livre-vert:#773640;--livre-bordeaux:#773640;--livre-tranche:#E4D8C4;--livre-tranche-2:#FFF9ED}
+:root .lv-style-nuit{--livre-papier:#20211F;--livre-encre:#F5F0E7;--livre-doux:#C5BFB3;--livre-or:#C5A775;--livre-or-texte:#D8BD8A;--livre-vert:#E2B6BD;--livre-bordeaux:#E2B6BD;--livre-tranche:#393A36;--livre-tranche-2:#292A27;--livre-ombre:rgba(0,0,0,.58)}
+.lv-p-couverture .lv-contenu{display:flex;align-items:stretch;justify-content:center}
+.lv-p-couverture .lv-bloc{flex:1;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;margin:0;container-type:size}
+/* (la couverture tient toujours dans sa page : la plus grande taille 2:3 qui entre en largeur ET en hauteur) */
+.lv-couverture-art{width:min(100cqw,66.667cqh);height:auto;aspect-ratio:2/3;box-shadow:0 8px 22px var(--livre-ombre);border-radius:3px}
+.lv-style-nuit .lv-page,.lv-style-ivoire .lv-page{background-color:var(--livre-papier)}
 .lv-entete{font:italic var(--t-xs)/1.4 var(--livre-police);color:var(--livre-doux);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lv-h{margin:14px 0 0;font:400 var(--t-xs)/1.4 var(--livre-police);letter-spacing:.14em;text-transform:uppercase;color:var(--livre-or-texte);outline:none}
 .lv-filet{width:22px;height:1px;background:var(--livre-or);margin:8px 0 14px}
@@ -504,6 +520,19 @@ button{-webkit-touch-callout:none}
 .lv-notice dt{color:var(--livre-doux);flex:none}
 .lv-notice div::after{content:"";order:1;flex:1;min-width:12px;border-bottom:1px dotted var(--livre-doux);margin:0 4px}
 .lv-notice dd{order:2;margin:0;text-align:right;overflow-wrap:anywhere;max-width:65%}
+.page-styles{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:var(--e-2)}
+.page-style-choice{min-width:0;min-height:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--e-1);padding:var(--e-2);border:1px solid var(--trait);border-radius:var(--r-m);background:var(--surface);color:var(--texte);font:inherit;cursor:pointer}
+.page-style-choice strong{font-size:var(--t-xs)}
+.page-style-choice.on{border:2px solid var(--accent);background:var(--accent-doux);color:var(--sur-accent-doux)}
+/* (aperçus des apparences de page dans les Réglages : leurs couleurs sont des palettes ; le dessin, lui, n'utilise que des variables) */
+:root .page-style-preview{--ap-fond:#F6F1E8;--ap-bord:#bdb4a5;--ap-ombre:#d8d0c4;--ap-ligne:#8a7960;--ap-trait:#b7aa94}
+:root .page-style-preview.ivoire{--ap-fond:#FBF4E6;--ap-bord:#c8b794;--ap-ligne:#773640;--ap-trait:#B79B65}
+:root .page-style-preview.nuit{--ap-fond:#20211F;--ap-bord:#51483b;--ap-ligne:#E2B6BD;--ap-trait:#C5A775}
+.page-style-preview{position:relative;display:block;width:38px;height:48px;border:1px solid var(--ap-bord);background:var(--ap-fond);box-shadow:2px 2px 0 var(--ap-ombre);border-radius:1px}
+.page-style-preview::before,.page-style-preview::after{content:"";position:absolute;left:7px;right:6px;height:1px;background:var(--ap-ligne)}
+.page-style-preview::before{top:14px}.page-style-preview::after{top:19px}
+.page-style-preview i{position:absolute;left:7px;right:9px;top:26px;height:12px;border-top:1px solid var(--ap-trait);border-bottom:1px solid var(--ap-trait)}
+.page-style-preview b{position:absolute;left:7px;right:13px;top:31px;height:1px;background:var(--ap-trait)}
 .lv-sommaire{list-style:none;margin:0;padding:0}
 .lv-sommaire button{display:flex;align-items:baseline;gap:var(--e-1);width:100%;min-height:var(--toucher);background:none;border:0;padding:0;color:var(--livre-encre);font:var(--t-m) var(--livre-police);text-align:left}
 .lv-points{flex:1;border-bottom:1px dotted var(--livre-doux);transform:translateY(-4px)}
@@ -606,7 +635,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.23-8';
+const VERSION = '2026.10.23-10';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -638,7 +667,10 @@ const ETATS = {
 // Bibliothèque complètement vide (premier lancement, réinstallation, nouveau téléphone) : récupérer une sauvegarde en un geste
 const accueil = () => etat({icone: 'livre', emoji: '👋', titre: 'Ta bibliothèque est vide',
   texte: 'Ajoute un livre ou scanne son code-barres pour commencer ta bibliothèque.',
-  actions: `${boutonAjouter('Ajouter ou scanner un livre')}<button class="btn" type="button" data-export="restore">${ico('restaurer', '📂')} Restaurer une sauvegarde</button>`});
+  actions: `${boutonAjouter('Ajouter ou scanner un livre')}<button class="btn" type="button" data-export="restore">${ico('restaurer', '📂')} Restaurer une sauvegarde</button>`})
+  // (protection : une bibliothèque qui paraît vide vient souvent d'un autre navigateur que Chrome — chacun garde sa propre liste)
+  + `<p class="etat-texte petit centre">Tes livres ont disparu d'un coup ? Avant d'en ajouter, vérifie que l'appli s'ouvre bien avec <b>Chrome</b>
+  (Paramètres du téléphone → Applis → Navigateur par défaut) : chaque navigateur garde sa propre liste.</p>`;
 const squelettes = n => '<p class="sr">Chargement…</p>' + Array.from({length: n}, () =>
   '<div class="card squelette" aria-hidden="true"><div class="cover sq"></div><div class="info"><div class="sq l1"></div><div class="sq l2"></div><div class="sq l3"></div></div></div>').join('');
 const etatChargement = (texte, id) => `<div class="etat chargement" role="status"><div class="tourne" aria-hidden="true"></div><p class="etat-titre"${id ? ` id="${id}"` : ''}>${esc(texte)}</p></div>`;
@@ -650,7 +682,7 @@ const scrollEspaces = {};
 // Page de tests (index.html?tests) : elle travaille dans une mémoire à part, jamais sur les vrais livres
 const ESSAI = new URLSearchParams(location.search).has('tests');
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
-const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'android', animation: 'complete', consultation: 'livre', googleKey: '', bulkDest: 'a_lire'},
+const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'android', animation: 'complete', consultation: 'livre', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
 Recherche.setGoogleKey(prefs.googleKey);
@@ -771,7 +803,7 @@ function coverHtml(b, cls) {
   const list = coverList(b), g = couvGeneree(b);
   // (la couverture générée est dessous : visible sans image, pendant le chargement, ou si toutes les images échouent)
   return `<div class="${cls || 'cover'} ph ${g.classes}">${g.html}${list.length ?
-    `<img src="${esc(list[0])}" data-alt="${esc(list.slice(1).join('|'))}"${b.id ? ` data-bid="${esc(b.id)}"` : ''} alt="" loading="lazy" referrerpolicy="no-referrer" onload="coverOk(this)" onerror="coverNext(this)">` : ''}</div>`;
+    `<img src="${esc(list[0])}" data-alt="${esc(list.slice(1).join('|'))}"${b.id ? ` data-bid="${esc(b.id)}"` : ''} alt="" loading="${cls === 'lv-couverture-art' ? 'eager' : 'lazy'}" referrerpolicy="no-referrer" onload="coverOk(this)" onerror="coverNext(this)">` : ''}</div>`;
 }
 // Couverture choisie + jusqu'à 4 de secours, à partir d'une liste de candidates
 function setCovers(b, url, list) { b.couverture = url || ''; b.coversAlt = (list || []).filter(u => u && u !== url && !/^data:/.test(u)).slice(0, 4); }
@@ -1199,13 +1231,15 @@ function renderTout() {
   const c = counts(), nq = allQuotes().length, nn = allNotes().length;
   const sel = prefs.selection, neuf = sel && sel.items && sel.items.length && !sel.vu;
   const espaceActif = STATUTS[ui.tab] ? 'bibliotheque' : ['notes', 'citations'].includes(ui.tab) ? 'carnet' : ui.tab;
+  // (barre du bas : une icône et un nom par espace, sans compteur — les nombres sont dans chaque espace — ; le nombre total
+  // de livres et d'entrées du carnet reste dit aux lecteurs d'écran)
+  const total = Object.values(c).reduce((a, b) => a + b, 0), lu = n => `<span class="sr">, ${n}</span>`;
   $('#tabs').innerHTML = [
-    ['bibliotheque', 'Bibliothèque', Object.values(c).reduce((a, b) => a + b, 0)],
-    ['decouvrir', '✨ Découvrir' + (neuf ? `<span class="n neuf">${sel.items.length}</span>` : ''), 0],
-    ['carnet', `Carnet<span class="n">${nn + nq}</span>`, 0],
-    ['stats', 'Stats', 0]
+    ['bibliotheque', ico('livre', '📚') + '<span>Bibliothèque</span>' + lu(plural(total, 'livre')), 0],
+    ['decouvrir', ico('etincelle', '✨') + '<span>Découvrir</span>' + (neuf ? `<span class="n neuf">${sel.items.length} nouveaux livres</span>` : ''), 0],
+    ['carnet', ico('texte', '✍️') + '<span>Carnet</span>' + lu(plural(nn + nq, 'entrée')), 0],
+    ['stats', ico('tableau', '📊') + '<span>Stats</span>', 0]
   ].map(([space, label, count]) => `<button class="tab ${espaceActif === space ? 'on' : ''}" aria-current="${espaceActif === space ? 'page' : 'false'}" data-space="${space}">${label}${count ? `<span class="n">${count}</span>` : ''}</button>`).join('');
-  const on = $('#tabs .on'); if (on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
   const s = streaks(activity()).cur;
   $('#flame').hidden = !s; $('#flame').textContent = '🔥 ' + s;
   paintNotice(); paintTimerPill();
@@ -1470,7 +1504,7 @@ function mesurerImages(jeton, actuel) {
   return {arreter: () => { actif = false; document.removeEventListener('visibilitychange', cache); return l; }};
 }
 const anim = (duration, easing) => ({duration, easing: easing || 'ease-in-out', fill: 'both'});
-// Couverture d'un livre fabriquée à la demande (le livre feuilletable n'en affiche pas dans ses pages)
+// Couverture d'un livre fabriquée à la demande (également utilisée comme première page du feuilletage)
 function creerCouverture(id) {
   const b = books.find(x => x.id === id) || fiche.dernier; if (!b) return null;
   const t = document.createElement('template'); t.innerHTML = coverHtml(b, 'big'); return t.content.firstElementChild;
@@ -1567,7 +1601,7 @@ function evenementsLivre(b) {
 /* ---------- 📖 Le livre feuilletable : plan des pages ---------- */
 // Un livre = des sections (dans l'ordre), faites de blocs (une note, une citation, un paragraphe…) ; une section sans
 // contenu n'a pas de page, sauf Notes et Citations, qu'on peut toujours remplir. Les blocs sont désignés par identifiant.
-const TITRES_LIVRE = {garde: 'Page de garde', resume: 'Résumé', sommaire: 'Sommaire', progression: 'Progression', avis: 'Mon avis', notes: 'Mes notes',
+const TITRES_LIVRE = {couverture: 'Couverture', garde: 'Page de garde', resume: 'Résumé', sommaire: 'Sommaire', progression: 'Progression', avis: 'Mon avis', notes: 'Mes notes',
   citations: 'Citations', historique: 'Historique', infos: 'Infos', colophon: 'Fin'};
 const SIGNETS = ['progression', 'notes', 'citations', 'historique', 'infos'];
 // Informations bibliographiques (partagées avec la vue continue)
@@ -1637,6 +1671,7 @@ function planLivre(b) {
     if (!l.length && !enCours.length) return [{id: 'vide-' + type, html: `<p class="lv-invite">${invite}</p>${ajout}`}];
     return [{id: 'ajout-' + type, html: ajout}, ...enCours, ...l.map(x => ({id: x.id, html: entreeHtml(x, type)}))];
   };
+  S('couverture', [{id: 'couverture', html: coverHtml(b, 'lv-couverture-art')}]);
   S('garde', [{id: 'garde', html: gardeHtml(b)}]);
   S('resume', String(b.resume || '').split(/\n+/).map(t => t.trim()).filter(Boolean).map((t, i) => ({id: 'r-' + i, html: `<p class="lv-texte${i ? '' : ' lv-lettrine'}">${esc(t)}</p>`})));
   S('sommaire', [{id: 'sommaire', html: ''}]);
@@ -1676,12 +1711,16 @@ function remplirSommaire(pages, b) {
   const d = debutsSections(pages), p = pages[d.sommaire]; if (!p) return;
   const nb = {notes: (b.notes || []).length, citations: (b.citations || []).length};
   const ligne = (n, t) => `<li><button type="button" data-fiche="aller-page" data-page="${n}"><span>${t}</span><span class="lv-points" aria-hidden="true"></span><span>${n + 1}</span></button></li>`;
-  p.blocs = [{id: 'sommaire', html: `<ol class="lv-sommaire">${ligne(0, TITRES_LIVRE.garde)}${Object.keys(d).filter(s => !['garde', 'sommaire', 'colophon'].includes(s))
+  // (le livre s'ouvre sur la page de garde, juste après l'animation qui montre la couverture : le sommaire renvoie à la couverture, pas à la garde)
+  const debut = 'couverture' in d ? ligne(d.couverture, TITRES_LIVRE.couverture) : ligne(d.garde, TITRES_LIVRE.garde);
+  p.blocs = [{id: 'sommaire', html: `<ol class="lv-sommaire">${debut}${Object.keys(d).filter(s => !['couverture', 'garde', 'sommaire', 'colophon'].includes(s))
     .map(s => ligne(d[s], TITRES_LIVRE[s] + (nb[s] ? ` (${nb[s]})` : ''))).join('')}</ol>`}];
 }
 
 /* ---------- 📖 Le livre feuilletable : affichage ---------- */
 const CONSULTATIONS = {livre: 'Feuilleter', continue: 'Vue continue'};
+const PAGE_STYLES = {classique: 'Classique', ivoire: 'Ivoire', nuit: 'Nuit'};
+const stylePageLivre = () => Object.hasOwn(PAGE_STYLES, prefs.pageStyle) ? prefs.pageStyle : 'classique';
 const consultationLivre = () => prefs.consultation !== 'continue';
 // Livre affiché, pages, page courante, position stable (section + premier bloc visible), tour de page en cours
 const Feuille = {livre: '', pages: [], page: 0, position: {section: 'garde', bloc: 'garde'}, jeton: 0, animations: [], calques: [], glisse: null, forcerDouble: null};
@@ -1694,10 +1733,11 @@ const GRAIN_PAPIER = true;
 function pageHtml(pg, total, b) {
   const s = pg.section, premiere = !pg.suite;
   return `<section class="lv-page lv-p-${s}${pg.defile ? ' defile' : ''}" data-n="${pg.n}" data-section="${s}" aria-label="Page ${pg.n + 1} sur ${total}, ${TITRES_LIVRE[s]}">
-    ${s === 'garde' ? '' : `<div class="lv-entete" aria-hidden="true">${esc(b.titre)}</div>`}
-    ${premiere && !['garde', 'colophon'].includes(s) ? `<h3 class="lv-h" tabindex="-1">${TITRES_LIVRE[s]}</h3><div class="lv-filet"></div>` : ''}
+    ${s === 'couverture' ? `<h2 id="livreTitre" class="sr">Couverture de ${esc(b.titre)}</h2>` : ''}
+    ${['garde', 'couverture'].includes(s) ? '' : `<div class="lv-entete" aria-hidden="true">${esc(b.titre)}</div>`}
+    ${premiere && !['couverture', 'garde', 'colophon'].includes(s) ? `<h3 class="lv-h" tabindex="-1">${TITRES_LIVRE[s]}</h3><div class="lv-filet"></div>` : ''}
     <div class="lv-contenu">${pg.blocs.map(bl => `<div class="lv-bloc" data-bloc="${esc(bl.id)}">${bl.html}</div>`).join('')}</div>
-    ${s === 'garde' ? '' : `<div class="lv-num" aria-hidden="true">— ${pg.n + 1} —</div>`}</section>`;
+    ${['garde', 'couverture'].includes(s) ? '' : `<div class="lv-num" aria-hidden="true">— ${pg.n + 1} —</div>`}</section>`;
 }
 // Taille utile d'une page : mesurée sur une page vide (avec titre de section : la plus petite)
 function mesureCadre(b) {
@@ -1718,7 +1758,7 @@ function peindreLivre(b, box) {
   box.innerHTML = `<div class="lv-cadre"><div class="livre-tete"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button>
       <span class="etire">${esc(STATUTS[b.statut] || '')}</span><button class="btn" type="button" data-fiche="sommaire">Sommaire</button>
       <button class="btn" type="button" data-fiche="modifier-livre">${ico('modifier', '✍️')} Modifier</button></div>
-    <div class="lv${doublePage() ? ' lv-double' : ''}${GRAIN_PAPIER && modeAnimation() === 'complete' ? ' lv-grain' : ''}" id="lv" role="region" aria-label="Livre : ${esc(b.titre)}"><div class="lv-gauche" aria-hidden="true"></div><div class="lv-tranche" aria-hidden="true"></div>
+    <div class="lv lv-style-${stylePageLivre()}${doublePage() ? ' lv-double' : ''}${stylePageLivre() === 'classique' && GRAIN_PAPIER && modeAnimation() === 'complete' ? ' lv-grain' : ''}" id="lv" role="region" aria-label="Livre : ${esc(b.titre)}"><div class="lv-gauche" aria-hidden="true"></div><div class="lv-tranche" aria-hidden="true"></div>
       <div id="lvPages"></div><nav class="lv-signets" aria-label="Signets"></nav><div class="lv-mesure" aria-hidden="true"></div></div>
     <div class="lv-pied"><button class="icon" type="button" data-fiche="page-prec" aria-label="Page précédente">‹</button><span id="lvNum" class="doux"></span>
       <button class="icon" type="button" data-fiche="page-suiv" aria-label="Page suivante">›</button></div><p id="lvAnnonce" class="lv-annonce" aria-live="polite"></p></div>`;
@@ -2740,7 +2780,7 @@ function renderDecouvrir() {
 const sousCherchable = id => Recherche.SOUS_RAYONS.some(z => z.id === id && z.rech);
 const rechDepuisMemo = v => { const c = Recherche.convertirAncienId(v || ''); return {cat: c.split('/')[0], sous: c.includes('/') && sousCherchable(c) ? c : ''}; };
 const rech = {...rechDepuisMemo(prefs.rechCat), texte: '', max: +prefs.rechMax || 0, etat: '', res: [], inconnus: [], trop: 0, examines: 0, enCours: 0,
-  fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastClassif: null, classif: null, lastMax: 0,
+  fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastClassif: [], classif: [], lastMax: 0,
   par: prefs.rechPar || 'theme', lastPar: 'theme', lastSous: '', dimensionClassement: 'themes'};
 // Chercher par : thème (ou sujet), auteur, titre
 const RECH_PAR = {
@@ -2780,18 +2820,22 @@ function explorateurClassementHtml() {
     ['themes', 'Thèmes', '🏷️', 'Sujets et idées', Taxonomie.THEMES],
     ['ambiances', 'Ambiances', '🌙', 'Tonalité et ressenti', Taxonomie.AMBIANCES]
   ];
-  const [dim, nom, , aide, valeurs] = dims.find(x => x[0] === rech.dimensionClassement) || dims[2];
+  // (par défaut, la première famille : les genres)
+  const [dim, nom, , aide, valeurs] = dims.find(x => x[0] === rech.dimensionClassement) || dims[0];
+  const choisis = rech.classif || [];
+  const libelleDim = {genre: 'Genre', sousGenres: 'Sous-genre', themes: 'Thème', ambiances: 'Ambiance'};
   return `<section class="rq-tax-explorer" aria-labelledby="rq-tax-title">
     <h4 class="rq-tax-head" id="rq-tax-title">Explorer par classement</h4>
-    <p class="rq-tax-intro">Choisis une famille, puis une valeur pour lancer la recherche dans les catalogues.</p>
+    <p class="rq-tax-intro">Combine un genre, un sous-genre, un thème et une ambiance, puis lance la recherche.</p>
     <div class="rq-tax-dims" id="rq_tax_dims" role="group" aria-label="Famille de classement">${dims.map(([id, titre, icone, description, items]) => `<button type="button" class="rq-tax-dim ${dim === id ? 'on' : ''}" data-rqdim="${id}" aria-pressed="${dim === id}"><span class="rq-tax-icone" aria-hidden="true">${icone}</span><span><strong>${titre}</strong><small>${description} · ${items.length} choix</small></span></button>`).join('')}</div>
+    ${choisis.length ? `<div class="lbl mb-1">Critères sélectionnés</div><div class="chips rq-tax-selected" id="rq_tax_selected" aria-label="Critères sélectionnés">${choisis.map(x => `<button type="button" class="chipb on" data-rqremove="${esc(x.dim)}|${esc(x.id)}" aria-label="Retirer ${esc(Taxonomie.nom(x.dim, x.id))}">${libelleDim[x.dim]} : ${esc(Taxonomie.nom(x.dim, x.id))} ×</button>`).join('')}</div>` : ''}
     <div class="lbl mb-1" id="rq_tax_label">${aide}</div>
-    <div class="rq-tax-values" id="rq_tax_values" role="group" aria-label="${nom}" tabindex="0">${valeurs.map(x => `<button type="button" class="chipb rq-tax-option ${rech.classif && rech.classif.dim === dim && rech.classif.id === x.id ? 'on' : ''}" data-rqclassif="${dim}|${esc(x.id)}" aria-pressed="${!!(rech.classif && rech.classif.dim === dim && rech.classif.id === x.id)}">${esc(x.nom)}</button>`).join('')}</div>
-    <p class="rq-tax-note">${dim === 'ambiances' ? 'Les ambiances sont des mots-clés de recherche : les catalogues ne permettent pas de confirmer le ressenti.' : 'La recherche porte sur le libellé choisi ; le résultat ne sera pas classé automatiquement dans tes livres.'}</p>
+    <div class="rq-tax-values" id="rq_tax_values" role="group" aria-label="${nom}" tabindex="0">${valeurs.map(x => { const actif = choisis.some(c => c.dim === dim && c.id === x.id); return `<button type="button" class="chipb rq-tax-option ${actif ? 'on' : ''}" data-rqclassif="${dim}|${esc(x.id)}" aria-pressed="${actif}">${esc(x.nom)}</button>`; }).join('')}</div>
+    <p class="rq-tax-note">Ces critères sont recherchés ensemble dans les sujets indexés par les catalogues. Leur classement (genre, sous-genre ou ambiance) n’est pas toujours vérifiable ; les résultats peuvent donc varier selon les notices.</p>
   </section>`;
 }
 function rechPanel() {
-  const filtres = rech.cat || rech.texte || rech.max, m = RECH_PAR[rech.par] || RECH_PAR.theme, classes = rech.par === 'theme' ? rechClassementsPerso() : [];
+  const filtres = rech.cat || rech.sous || rech.texte || rech.max || rech.classif.length, m = RECH_PAR[rech.par] || RECH_PAR.theme, classes = rech.par === 'theme' ? rechClassementsPerso() : [];
   return `<div class="panel" id="rechPanel"><h3>🔎 Chercher des livres</h3>
     <div class="lbl mb-1">Chercher par</div>
     <div class="seg" id="rq_par">${Object.entries(RECH_PAR).map(([k, v]) => `<button type="button" data-v="${k}" class="${rech.par === k ? 'on' : ''}">${v.nom}</button>`).join('')}</div>
@@ -2827,16 +2871,14 @@ function rechCard(x, ctx, i) {
 }
 function rechResultats() {
   if (!rech.etat) return '';
-  const quoi = rech.lastClassif ? `sur ${rech.lastClassif.dim === 'ambiances' ? 'l’ambiance' : rech.lastClassif.dim === 'themes' ? 'le thème' : rech.lastClassif.dim === 'sousGenres' ? 'le sous-genre' : 'le genre'} « ${esc(Taxonomie.nom(rech.lastClassif.dim, rech.lastClassif.id))} »`
+  const quoi = rech.lastClassif && rech.lastClassif.length ? `avec ${rech.lastClassif.map(x => `${esc(({genre:'le genre',sousGenres:'le sous-genre',themes:'le thème',ambiances:'l’ambiance'})[x.dim] || 'le critère')} « ${esc(Taxonomie.nom(x.dim, x.id))} »`).join(', ')}`
     : rech.lastPar === 'auteur' ? `de « ${esc(rech.lastTexte)} »` : rech.lastPar === 'titre' ? `intitulé « ${esc(rech.lastTexte)} »`
     : rech.lastCat ? `« ${catNom(rech.lastCat)}${rech.lastSous ? ' › ' + esc((Recherche.SOUS_RAYONS.find(z => z.id === rech.lastSous) || {}).nom || '') : ''} »` : `sur « ${esc(rech.lastTexte)} »`;
   const lim = rech.lastMax ? ` de ${rech.lastMax} pages ou moins` : '';
   const vus = rech.examines + rech.enCours;
   let h = '';
-  if (rech.lastClassif) h += `<div class="a petit mb-2">${rech.lastClassif.dim === 'ambiances'
-    ? 'L’ambiance est cherchée comme un mot dans les notices ; le catalogue ne confirme pas le ressenti.'
-    : 'Recherche du libellé dans les notices du catalogue ; le résultat n’est pas automatiquement classé dans ta bibliothèque.'}</div>`;
-  if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a petit mb-2">Pour les romans, le sujet écrit n\'est pas pris en compte (les catalogues ne classent pas les romans par sujet).</div>';
+  if (rech.lastClassif && rech.lastClassif.length) h += '<div class="a petit mb-2">Les libellés sélectionnés ont été transmis ensemble comme sujets à rechercher. Les catalogues ne confirment pas toujours le genre, le sous-genre ni l’ambiance.</div>';
+  if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a petit mb-2">Le type de fiction est recherché avec les mots choisis dans les sujets des notices ; le catalogue ne confirme pas toujours ce classement.</div>';
   if (rech.note === 'bnf' && rech.etat !== 'busy') h += '<div class="hint">⏸️ La BnF ne répond pas pour l’instant : voici les livres trouvés sur Apple Books (sans nombre de pages). Réessaie plus tard pour avoir aussi ceux de la BnF.</div>';
   h += rech.res.map((x, i) => rechCard(x, 'rech', i)).join('');
   if (rech.etat === 'busy') {
@@ -2871,7 +2913,7 @@ function paintRech() {
   on('#rq_stop', () => { rech.stop = true; });
   on('#rq_retry', () => lancerRech(rech.res.length > 0 || rech.inconnus.length > 0));
   on('#rq_more', () => lancerRech(true));
-  box.querySelectorAll('[data-rqeffacer]').forEach(b => b.onclick = () => { rech.tok++; Object.assign(rech, {cat: '', sous: '', texte: '', classif: null, lastClassif: null, max: 0, etat: '', res: [], inconnus: [], erreur: ''}); prefs.rechCat = ''; prefs.rechMax = 0; savePrefs(); renderDecouvrir(); });
+  box.querySelectorAll('[data-rqeffacer]').forEach(b => b.onclick = () => { rech.tok++; Object.assign(rech, {cat: '', sous: '', texte: '', classif: [], lastClassif: [], max: 0, etat: '', res: [], inconnus: [], erreur: ''}); prefs.rechCat = ''; prefs.rechMax = 0; savePrefs(); renderDecouvrir(); });
   box.querySelectorAll('[data-rqmax]').forEach(b => b.onclick = () => { rech.max = +b.dataset.rqmax; renderDecouvrir(); lancerRech(); });
 }
 async function lancerRech(suite) {
@@ -2880,16 +2922,21 @@ async function lancerRech(suite) {
     let cat = par === 'theme' ? rech.cat : '', texte = rech.texte.trim();
     if (par !== 'theme' && !texte) return toast(par === 'auteur' ? 'Écris le nom d\'un auteur' : 'Écris un titre');
     // « philo », « polar », « manga »… écrits à la main → le thème correspondant
-    if (!rech.classif && par === 'theme' && !cat && texte) {
+    if (!rech.classif.length && par === 'theme' && !cat && texte) {
       const t = Recherche.rayonPourTexte(texte);
       if (t && Recherche.THEMES_RECHERCHE.includes(t.rayon)) {
         cat = rech.cat = t.rayon.id; rech.sous = t.sous && Recherche.SOUS_RAYONS.some(z => z.id === t.sous && z.rech) ? t.sous : '';
         texte = rech.texte = ''; renderDecouvrir();
       }
     }
-    if (!cat && !texte) return toast('Choisis un thème ou écris un sujet');
+    const classifs = par === 'theme' ? rech.classif.map(x => Taxonomie.nom(x.dim, x.id)).filter(Boolean) : [];
+    const rayon = cat && Recherche.RAYONS.find(x => x.id === cat);
+    // Les catégories de fiction ne sont pas des rayons BnF vérifiables ; transmettre aussi leur libellé comme sujet.
+    const libelleRayon = rayon && rayon.nature === 'fiction' ? rayon.nom : '';
+    const texteCatalogue = [texte, libelleRayon, ...classifs].filter(Boolean).join(' ').trim();
+    if (!cat && !texteCatalogue) return toast('Choisis un thème ou écris un sujet');
     const sousOk = par === 'theme' && rech.sous && Recherche.SOUS_RAYONS.some(z => z.id === rech.sous && z.rayon === cat && z.rech) ? rech.sous : '';
-    Object.assign(rech, {lastPar: par, lastSous: sousOk, lastCat: cat, lastTexte: texte, lastClassif: rech.classif ? {...rech.classif} : null, lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
+    Object.assign(rech, {lastPar: par, lastSous: sousOk, lastCat: cat, lastTexte: texteCatalogue, lastClassif: rech.classif.map(x => ({...x})), lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
     prefs.rechCat = sousOk || cat; prefs.rechMax = rech.max; savePrefs();
   }
   const tok = ++rech.tok;
@@ -2920,28 +2967,36 @@ function chercherClassement(value) {
   const [dim, id] = String(value || '').split('|');
   const item = Taxonomie.element(dim, id);
   if (!item) return;
-  rech.par = 'theme'; rech.cat = ''; rech.sous = ''; rech.classif = {dim, id}; rech.dimensionClassement = dim; rech.texte = item.nom;
-  prefs.rechPar = 'theme'; savePrefs(); renderDecouvrir(); lancerRech();
+  rech.par = 'theme'; rech.dimensionClassement = dim;
+  const selections = rech.classif || [], index = selections.findIndex(x => x.dim === dim && x.id === id);
+  if (index >= 0) selections.splice(index, 1);
+  else {
+    const memeDim = selections.findIndex(x => x.dim === dim);
+    if (memeDim >= 0) selections.splice(memeDim, 1);
+    selections.push({dim, id});
+  }
+  rech.classif = selections; prefs.rechPar = 'theme'; savePrefs(); renderDecouvrir();
 }
 function wireRechPanel() {
   const q = $('#rq'); if (!q) return;
   const dimensions = $('#rq_tax_dims');
   if (dimensions) dimensions.onclick = e => {
     const b = e.target.closest('[data-rqdim]'); if (!b || b.dataset.rqdim === rech.dimensionClassement) return;
-    rech.dimensionClassement = b.dataset.rqdim; rech.classif = null; renderDecouvrir();
+    rech.dimensionClassement = b.dataset.rqdim; renderDecouvrir();
   };
   const valeursClassement = $('#rq_tax_values');
   if (valeursClassement) valeursClassement.onclick = e => { const b = e.target.closest('[data-rqclassif]'); if (b) chercherClassement(b.dataset.rqclassif); };
+  const selectionnes = $('#rq_tax_selected');
+  if (selectionnes) selectionnes.onclick = e => { const b = e.target.closest('[data-rqremove]'); if (b) chercherClassement(b.dataset.rqremove); };
   const rapides = $('#rq_classif_rapide');
   if (rapides) rapides.onclick = e => { const b = e.target.closest('[data-rqclassif]'); if (b) chercherClassement(b.dataset.rqclassif); };
   q.oninput = () => {
-    rech.texte = q.value; rech.classif = null;
-    document.querySelectorAll('#rq_tax_values .rq-tax-option.on').forEach(b => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
+    rech.texte = q.value;
     if ($('#rq_cats')) $('#rq_cats').innerHTML = rechChips();
   };
   $('#rq_par').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b || b.dataset.v === rech.par) return;
-    rech.par = b.dataset.v; rech.classif = null; prefs.rechPar = rech.par; savePrefs(); rech.texte = '';
+    rech.par = b.dataset.v; if (rech.par !== 'theme') rech.classif = []; prefs.rechPar = rech.par; savePrefs(); rech.texte = '';
     if (rech.par !== 'theme') { rech.max = 0; prefs.rechMax = 0; }
     renderDecouvrir();
     const champ = $('#rq'); if (champ) champ.focus();
@@ -2950,13 +3005,13 @@ function wireRechPanel() {
   // Changer de thème ou de limite relance la recherche (sans avoir à tout recommencer)
   if ($('#rq_cats')) $('#rq_cats').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
-    rech.cat = rech.cat === b.dataset.v ? '' : b.dataset.v; rech.sous = ''; rech.classif = null;
+    rech.cat = rech.cat === b.dataset.v ? '' : b.dataset.v; rech.sous = '';
     if (rech.cat && Recherche.rayonPourTexte(rech.texte)) rech.texte = '';
     renderDecouvrir();
     if (rech.etat && rech.cat) lancerRech();
   };
   const rs = $('#rq_sous');
-  if (rs) rs.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; rech.sous = b.dataset.v; rech.classif = null; renderDecouvrir(); if (rech.etat) lancerRech(); };
+  if (rs) rs.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; rech.sous = b.dataset.v; renderDecouvrir(); if (rech.etat) lancerRech(); };
   $('#rq_max').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
     rech.max = +b.dataset.v; renderDecouvrir();
@@ -2965,7 +3020,7 @@ function wireRechPanel() {
   $('#rq_go').onclick = () => lancerRech();
   const choisi = $('#rq_cats .on'); if (choisi) $('#rq_cats').scrollLeft = choisi.offsetLeft - 40;
   const clr = $('#rq_clear');
-  if (clr) clr.onclick = () => { rech.tok++; Object.assign(rech, {cat: '', texte: '', classif: null, lastClassif: null, max: 0, etat: '', res: [], inconnus: [], erreur: ''}); prefs.rechCat = ''; prefs.rechMax = 0; savePrefs(); renderDecouvrir(); };
+  if (clr) clr.onclick = () => { rech.tok++; Object.assign(rech, {cat: '', sous: '', texte: '', classif: [], lastClassif: [], max: 0, etat: '', res: [], inconnus: [], erreur: ''}); prefs.rechCat = ''; prefs.rechMax = 0; savePrefs(); renderDecouvrir(); };
   paintRech();
 }
 // Ouvrir la fiche d'un livre trouvé (pré-remplie) : on vérifie, puis on enregistre
@@ -4192,6 +4247,8 @@ function openSettings() {
       <p class="a petit" id="st_anim_note">${esc(noteAnim())}</p></div>
     <div class="f"><label>Consulter un livre</label><div class="seg" id="st_consult">${Object.entries(CONSULTATIONS).map(([k, v]) => `<button data-co="${k}" class="${(prefs.consultation === 'continue' ? 'continue' : 'livre') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="a petit">« Vue continue » : la fiche qui défile, avec les mêmes informations et actions.</p></div>
+    <div class="f"><label>Apparence des pages · mode « Feuilleter »</label><div class="page-styles" id="st_pages" role="group" aria-label="Apparence des pages du livre">${Object.entries(PAGE_STYLES).map(([k, v]) => `<button type="button" class="page-style-choice ${stylePageLivre() === k ? 'on' : ''}" data-page-style="${k}" aria-pressed="${stylePageLivre() === k}"><span class="page-style-preview ${k}" aria-hidden="true"><i></i><b></b></span><strong>${v}</strong></button>`).join('')}</div>
+      <p class="a petit">Classique suit le thème clair ou sombre de l’appli ; Ivoire garde un papier crème aux détails bordeaux ; Nuit propose un papier anthracite et une encre claire. La couverture reste celle du livre. « Vue continue » garde le thème de l’application.</p></div>
     <div class="panel encadre"><h3>🔎 Recherche de livres</h3>
       <div class="a moyen">L'appli fouille en même temps la <b>BnF</b>, le <b>Sudoc</b> (bibliothèques universitaires), <b>Open Library</b>, <b>Apple Books</b> et <b>Google Books</b>.
       Google Books est souvent saturé quand on l'utilise sans clé. Avec ta propre clé (gratuite), il répond toujours et ajoute encore plus de livres.</div>
@@ -4227,6 +4284,12 @@ function openSettings() {
     const b = e.target.closest('[data-co]'); if (!b) return;
     prefs.consultation = b.dataset.co; savePrefs(); document.querySelectorAll('#st_consult button').forEach(x => x.classList.toggle('on', x === b));
     if (fiche.id) peindreFiche();
+  };
+  $('#st_pages').onclick = e => {
+    const b = e.target.closest('[data-page-style]'); if (!b) return;
+    prefs.pageStyle = b.dataset.pageStyle; savePrefs();
+    document.querySelectorAll('#st_pages [data-page-style]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+    if (fiche.id && consultationLivre()) peindreFiche();
   };
   $('#st_anim').onclick = e => {
     const b = e.target.closest('[data-an]'); if (!b) return;

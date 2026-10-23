@@ -6,9 +6,11 @@
    ===================================================================== */
 (async () => {
   const resultats = [];
+  const filtreTest = new URLSearchParams(location.search).get('only');
   const pause = ms => new Promise(r => setTimeout(r, ms));
   const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   async function test(nom, attendu, fn) {
+    if (filtreTest && !nom.includes(filtreTest)) return;
     let obtenu, ok; window.testEnCours = nom;
     try { obtenu = await fn(); ok = egal(obtenu, attendu); }
     catch (e) { obtenu = 'ERREUR : ' + (e && e.message || e); ok = false; }
@@ -324,9 +326,11 @@
   });
   await test('Carnet : notes et citations partagent un espace avec recherche séparée', 'notes|2|recherche|citations|1', () => {
     books = [fiche('Carnet A', {notes: [{id: 'n-1', texte: 'Lire la forêt', date: today(), page: '8'}, {id: 'n-2', texte: 'À retenir', date: today()}], citations: [{id: 'c-1', texte: 'Dans la forêt', page: '9'}]})];
-    ui.tab = 'notes'; ui.nq = ''; render(); const a = $('#tabs [data-space="carnet"]').textContent.includes('3') && $('#nlist .carnet-entry').length === 2 ? 'notes|2' : '?';
-    ui.nq = 'forêt'; renderNotes(); const n = $('#nlist .carnet-entry').length;
-    ui.tab = 'citations'; render(); const b = $('#qlist .quote').length === 1 && $('#main .carnet-nav [data-tab="citations"]').classList.contains('on') ? 'citations|1' : '?';
+    // (« $ » ne renvoie qu'un élément : on compte avec querySelectorAll)
+    const nb = sel => document.querySelectorAll(sel).length;
+    ui.tab = 'notes'; ui.nq = ''; render(); const a = $('#tabs [data-space="carnet"]').textContent.includes('3') && nb('#nlist .carnet-entry') === 2 ? 'notes|2' : '?';
+    ui.nq = 'forêt'; renderNotes(); const n = nb('#nlist .carnet-entry');
+    ui.tab = 'citations'; render(); const b = nb('#qlist .quote') === 1 && $('#main .carnet-nav [data-tab="citations"]').classList.contains('on') ? 'citations|1' : '?';
     ui.nq = ''; ui.tab = 'a_lire'; render(); return a + '|' + (n === 1 ? 'recherche' : '?') + '|' + b;
   });
   await test('Filtre par catégorie et tri « les plus courts »', ['Court', 'Long'], () => {
@@ -503,6 +507,23 @@
     Recherche.parTheme = async o => { recu = {titre: o.titre}; return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
     rech.par = 'titre'; rech.texte = 'Dune'; await lancerRech();
     Recherche.parTheme = vrai; rech.par = 'theme'; rech.texte = ''; rech.max = 0; rech.etat = ''; return JSON.stringify(recu);
+  });
+  await test('Découvrir : genre, sous-genre, thème et ambiance restent sélectionnés et partent ensemble au catalogue', 'genre|sous-genre|thème|ambiance|Roman Historique Deuil Sombre', async () => {
+    const vrai = Recherche.parTheme; let termes = '';
+    rech.par = 'theme'; rech.cat = ''; rech.sous = ''; rech.texte = ''; rech.classif = []; rech.lastClassif = []; rech.dimensionClassement = ''; rech.max = 0; rech.etat = ''; ui.tab = 'decouvrir'; render();
+    const clic = sel => { const el = document.querySelector(sel); if (!el) throw Error('introuvable: ' + sel + ' ; panel=' + !!$('#rq_tax_values')); el.click(); };
+    clic('#rq_tax_values [data-rqclassif="genre|roman"]');
+    clic('#rq_tax_dims [data-rqdim="sousGenres"]');
+    clic('#rq_tax_values [data-rqclassif="sousGenres|roman/historique"]');
+    clic('#rq_tax_dims [data-rqdim="themes"]');
+    clic('#rq_tax_values [data-rqclassif="themes|deuil"]');
+    clic('#rq_tax_dims [data-rqdim="ambiances"]');
+    clic('#rq_tax_values [data-rqclassif="ambiances|sombre"]');
+    const selection = rech.classif.map(x => ({genre: 'genre', sousGenres: 'sous-genre', themes: 'thème', ambiances: 'ambiance'}[x.dim])).join('|');
+    Recherche.parTheme = async o => { termes = o.texte; return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+    try { await lancerRech(); } finally { Recherche.parTheme = vrai; }
+    rech.classif = []; rech.lastClassif = []; rech.etat = ''; rech.texte = ''; render();
+    return selection + '|' + termes;
   });
 
   /* ---------- 8 octies. Sous-catégories et « d'après mes lectures » (5 livres) ---------- */
@@ -686,7 +707,8 @@
     return !!m && /connect-src 'self' https:\/\/catalogue\.bnf\.fr/.test(m.content) && /object-src 'none'/.test(m.content);
   });
   await test('Confidentialité : le texte « d\'après mes lectures » dit ce qui part vers les catalogues', true, () => {
-    prefs.tirage = 'perso'; ui.tab = 'decouvrir'; render(); return $('#main').textContent.includes('seules des recherches partent vers les catalogues');
+    // (formulation du 23/10/2026 : « seules des recherches liées à un auteur, un sujet, un classement confirmé ou une série partent vers les catalogues »)
+    prefs.tirage = 'perso'; ui.tab = 'decouvrir'; render(); const t = $('#main').textContent; return t.includes('tes goûts restent sur ton téléphone') && /seules des recherches[^.]*partent vers les catalogues/.test(t);
   });
   await test('Code-barres : le lecteur de secours est rangé avec l\'appli (aucun site tiers)', true, async () => {
     await loadZXing(); return !!window.ZXing && !document.querySelector('script[src*="unpkg"]') && !!document.querySelector('script[src="zxing.min.js"]');
@@ -703,6 +725,10 @@
     try { await fn(); } finally { window.fetch = vrai; Recherche._oublierBnf(); }
     return requetes;
   };
+  await test('Recherche fiction avec plusieurs critères : le libellé complet arrive à la BnF', true, async () => {
+    const q = await fauxBnf(() => Recherche.parTheme({cat: 'polar', texte: 'Policier Thriller Roman Deuil Sombre', max: 0}, {}));
+    return q.length > 0 && q[0].includes('bib.subject all "Policier Thriller Roman Deuil Sombre"');
+  });
   await test('Recherche par thème : tous les rayons sauf « Dictionnaires & Scolaire »', 'reference absent|romance,ya,voyages,pratique,shs présents', () => {
     const ids = Recherche.THEMES_RECHERCHE.map(r => r.id);
     return (ids.includes('reference') ? 'reference présent' : 'reference absent') + '|' +
@@ -843,7 +869,8 @@
   const PALETTE_ATTENDUE = {
     'android/light': '#f5faf4 #191c19 #1b6c3d #ffffff', 'android/dark': '#101410 #e0e4dc #9bd5a8 #00391a',
     'actuel/light': '#f2f2f0 #141414 #0b7f45 #ffffff', 'actuel/dark': '#0d0d0d #f1f1f1 #2ecc71 #04210f',
-    'carnet/light': '#f7f3ec #2b2622 #a0461f #ffffff', 'carnet/dark': '#1b1815 #efe7dd #e08a5e #1b1815'
+    // (palette Carnet revue le 23/10/2026, accent bordeaux de la direction A ; contrastes vérifiés : texte 13,4 / 15,5, accent 6,7 / 7,5)
+    'carnet/light': '#F6F1E8 #252723 #843F4B #ffffff', 'carnet/dark': '#191A18 #F6F1E8 #D69AA4 #191A18'
   };
   const lirePalette = el => ['--fond', '--texte', '--accent', '--sur-accent'].map(v => getComputedStyle(el).getPropertyValue(v).trim()).join(' ');
   await test('Style : Android moderne par défaut (préférence absente ou inconnue)', 'android|android', () => {
@@ -856,7 +883,7 @@
     for (const [s, t] of COMBOS) await avecStyle(s, t, () => { const v = lirePalette(document.documentElement); if (v !== PALETTE_ATTENDUE[s + '/' + t]) fautes.push(s + '/' + t + ' : ' + v); });
     return fautes;
   });
-  await test('Style : un aperçu garde sa palette même si la page est dans un autre style', '#f7f3ec #2b2622 #a0461f #ffffff', async () =>
+  await test('Style : un aperçu garde sa palette même si la page est dans un autre style', '#F6F1E8 #252723 #843F4B #ffffff', async () =>
     avecStyle('android', 'dark', () => { const s = document.createElement('span'); s.dataset.style = 'carnet'; s.dataset.theme = 'light'; document.body.appendChild(s); const v = lirePalette(s); s.remove(); return v; }));
   await test('Style : choix dans les Réglages, immédiat et gardé', 'carnet|carnet|3 aperçus', async () => {
     const s0 = prefs.style; openSettings(); await pause(50);
@@ -940,14 +967,17 @@
     const b = document.querySelector('#cat option .ico, #cat option span') ? 'options avec icône' : 'options propres';
     ui.tab = 'en_cours'; render(); return a + '|' + b;
   });
-  await test('Icônes : sur la même ligne que leur libellé (onglet, résumé, bouton)', [], async () => {
+  // (barre du bas, 23/10 : l'icône d'un espace est AU-DESSUS de son nom, centrée sur lui ; ailleurs, sur la même ligne)
+  await test('Icônes : alignées sur leur libellé (même ligne ; centrées au-dessus dans la barre du bas)', [], async () => {
     books = [fiche('Un roman', {genre: 'Roman'})]; ui.tab = 'a_lire'; render();
     const fautes = [];
     for (const s of ['android', 'carnet']) await avecStyle(s, 'light', () => {
       for (const el of ['.tab[data-space=decouvrir]', '#filtres summary']) {
-        const box = document.querySelector(el), i = box.querySelector('.ico'), t = document.createRange(); t.selectNodeContents(box.lastChild.nodeType === 3 ? box.lastChild : box);
+        const box = document.querySelector(el), i = box.querySelector('.ico'), barre = el.startsWith('.tab'), t = document.createRange();
+        t.selectNodeContents(barre ? box.querySelector('.ico + span') : box.lastChild.nodeType === 3 ? box.lastChild : box);
         const a = i.getBoundingClientRect(), b = [...t.getClientRects()].pop();
-        if (Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) > 6) fautes.push(s + ' ' + el + ' décalée de ' + Math.round((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) + ' px');
+        const ecart = barre ? (a.left + a.right) / 2 - (b.left + b.right) / 2 : (a.top + a.bottom) / 2 - (b.top + b.bottom) / 2;
+        if (Math.abs(ecart) > 6 || (barre && a.bottom > b.top + 2)) fautes.push(s + ' ' + el + ' décalée de ' + Math.round(ecart) + ' px');
       }
     });
     ui.tab = 'en_cours'; render(); return fautes;
@@ -1773,12 +1803,18 @@
     const r = [$('#list .card .ph img') ? 'image' : '?'];
     window.coverNext($('#list .card .ph img')); r.push(!$('#list .card .ph img') && $('#list .card .ph .cg-ini') ? 'générée' : '?'); return r.join('|');
   });
+  await test('Page Couverture : couverture réelle visible avant les pages, chargée immédiatement, sans titre imprimé dessus', 'image|chargement immédiat|sans titre visible', () => {
+    const b = fiche('Ma couverture', {couverture: 'https://exemple.invalid/couverture.jpg'});
+    const html = pageHtml({section: 'couverture', blocs: [{id: 'couverture', html: coverHtml(b, 'lv-couverture-art')}], suite: false, n: 0}, 4, b);
+    return [html.includes('https://exemple.invalid/couverture.jpg') && html.includes('lv-couverture-art') ? 'image' : '?',
+      html.includes('loading="eager"') ? 'chargement immédiat' : '?', !html.includes('<h3 class="lv-h"') && html.includes('id="livreTitre"') ? 'sans titre visible' : '?'].join('|');
+  });
   const sectionsDe = plan => plan.map(s => s.id).join(',');
-  await test('Plan du livre : un livre presque vide n\'a pas de pages vides (Notes et Citations gardent leur invitation)', 'garde,sommaire,progression,notes,citations,infos,colophon|vide-note|vide-citation', () => {
+  await test('Plan du livre : couverture avant les pages, pas de page vide (Notes et Citations gardent leur invitation)', 'couverture,garde,sommaire,progression,notes,citations,infos,colophon|vide-note|vide-citation', () => {
     const p = planLivre(fiche('Vide', {statut: 'a_lire'}));
     return sectionsDe(p) + '|' + p.find(s => s.id === 'notes').blocs[0].id + '|' + p.find(s => s.id === 'citations').blocs[0].id;
   });
-  await test('Plan du livre : un livre documenté a toutes ses sections, dans l\'ordre ; notes récentes d\'abord, citations par page', 'garde,resume,sommaire,progression,avis,notes,citations,historique,infos,colophon|ajout-note,n-2,n-1|ajout-citation,c-b,c-a', () => {
+  await test('Plan du livre : couverture et toutes les sections dans l\'ordre ; notes récentes d\'abord, citations par page', 'couverture,garde,resume,sommaire,progression,avis,notes,citations,historique,infos,colophon|ajout-note,n-2,n-1|ajout-citation,c-b,c-a', () => {
     const b = fiche('Plein', {statut: 'en_cours', resume: 'Premier.\n\nSecond.', avis: 'Beau', pagesTotal: 300, pageActuelle: 40, dateDebut: '2026-09-01',
       journal: [{date: '2026-09-01', page: 0}, {date: '2026-09-10', page: 40}], notes: [{id: 'n-1', date: '2026-09-02', texte: 'a'}, {id: 'n-2', date: '2026-09-09', texte: 'b'}],
       citations: [{id: 'c-a', texte: 'x', page: '90', date: '2026-09-03'}, {id: 'c-b', texte: 'y', page: '12', date: '2026-09-04'}]});
@@ -1803,11 +1839,11 @@
     const pages = paginer([{id: 'garde', blocs: [{id: 'garde'}]}, {id: 'notes', blocs: [{id: 'a'}, {id: 'b'}]}], 100, () => 60);
     return [pageDe(pages, {section: 'notes', bloc: 'b'}), pageDe(pages, {section: 'notes', bloc: 'zz'}), pageDe(pages, {section: 'avis', bloc: 'avis'})].join('|');
   });
-  await test('Sommaire : chaque section y figure avec son numéro de page', 'Résumé 2|Progression 4|Mes notes 5|Infos 6', () => {
-    const plan = [{id: 'garde', blocs: [{id: 'garde'}]}, {id: 'resume', blocs: [{id: 'r'}]}, {id: 'sommaire', blocs: [{id: 'sommaire', html: ''}]}, {id: 'progression', blocs: [{id: 'p'}]},
+  await test('Sommaire : chaque section y figure avec son numéro de page, après la couverture', 'Résumé 3|Progression 5|Mes notes 6|Infos 7', () => {
+    const plan = [{id: 'couverture', blocs: [{id: 'couverture'}]}, {id: 'garde', blocs: [{id: 'garde'}]}, {id: 'resume', blocs: [{id: 'r'}]}, {id: 'sommaire', blocs: [{id: 'sommaire', html: ''}]}, {id: 'progression', blocs: [{id: 'p'}]},
       {id: 'notes', blocs: [{id: 'vide-note'}]}, {id: 'infos', blocs: [{id: 'infos'}]}, {id: 'colophon', blocs: [{id: 'colophon'}]}];
     const pages = paginer(plan, 100, () => 10); remplirSommaire(pages, fiche('S'));
-    const d = document.createElement('div'); d.innerHTML = pages[2].blocs[0].html;
+    const d = document.createElement('div'); d.innerHTML = pages[3].blocs[0].html;
     return [...d.querySelectorAll('button')].filter(x => +x.dataset.page > 0).map(x => x.firstChild.textContent + ' ' + x.lastChild.textContent).join('|');
   });
   const avecLivre = async (fn, mode) => {
@@ -1822,6 +1858,8 @@
   };
   // (le livre ouvert, sans attendre l'animation d'ouverture : les tests de tour de page partent d'un livre immobile)
   const ouvrirLivre = b => { books = [b]; ui.tab = b.statut; prefs.view = 'liste'; render(); ouvrirFiche(b.id); interrompreAnimation(); return Feuille; };
+  // (les tests de feuilletage comptent les pages depuis la première, la couverture)
+  const ouvrirAuDebut = b => { ouvrirLivre(b); montrerPage(0); return Feuille; };
   const LIVRE_PLEIN = () => fiche('Plein', {statut: 'en_cours', resume: 'Premier paragraphe.\n\nSecond.', avis: 'Beau livre', pagesTotal: 300, pageActuelle: 40, dateDebut: '2026-09-01',
     journal: [{date: '2026-09-01', page: 0}, {date: '2026-09-10', page: 40}], notes: [{id: 'n-1', date: '2026-09-02', texte: 'Première note'}],
     citations: [{id: 'c-1', texte: 'Une phrase', page: '12', date: '2026-09-03', commentaire: 'relue'}]});
@@ -1831,11 +1869,14 @@
     $('#st_consult [data-co="continue"]').click(); r.push(JSON.parse(localStorage.getItem(CLE + '-prefs')).consultation); closeM(); await pause(250);
     prefs.consultation = c0; savePrefs(); return r.join('|');
   });
-  await test('Livre : s\'ouvre sur la page de garde (titre, auteur), papier du livre, page 1 sur N', 'garde|Plein|Auteur Test|papier|Page 1 sur', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); const pg = $('#lvPages .lv-page'), sonde = document.createElement('div'); sonde.className = 'lv-sonde-test'; document.body.appendChild(sonde);
+  // (l'animation d'ouverture montre déjà la couverture : le livre s'ouvre sur la page de garde ; la couverture est la page 1, une page en arrière)
+  await test('Livre : s\'ouvre sur la page de garde (page 2), la couverture est juste avant (page 1, visible), papier du livre', 'garde|Page 2 sur|couverture|Plein|visible|papier', () => avecLivre(async () => {
+    ouvrirLivre(LIVRE_PLEIN()); const r = [Feuille.pages[Feuille.page].section, $('#lvNum').textContent.replace(/\d+$/, '').trim()];
+    tournerPage(-1); const pg = $('#lvPages .lv-page'), sonde = document.createElement('div'); sonde.className = 'lv-sonde-test'; document.body.appendChild(sonde);
     sonde.style.background = 'var(--livre-papier)'; const papier = getComputedStyle(sonde).backgroundColor; sonde.remove();
-    return [pg.dataset.section, $('#livreTitre').textContent, $('.lv-garde-auteur').textContent, getComputedStyle(pg).backgroundColor === papier ? 'papier' : getComputedStyle(pg).backgroundColor,
-      $('#lvNum').textContent.replace(/\d+$/, '').trim()].join('|');
+    const art = $('.lv-couverture-art'), rect = art.getBoundingClientRect();
+    r.push(pg.dataset.section, $('.lv-couverture-art .cg-titre').textContent.trim(), art.checkVisibility() && rect.width > 80 && rect.height > 100 ? 'visible' : `taille ${Math.round(rect.width)}×${Math.round(rect.height)}`, getComputedStyle(pg).backgroundColor === papier ? 'papier' : getComputedStyle(pg).backgroundColor);
+    return r.join('|');
   }));
   await test('Livre : vue continue toujours disponible (même fiche qu\'avant, sections #fs_)', 'continue|fs_progression', () => avecLivre(async () => {
     prefs.consultation = 'continue'; ouvrirLivre(LIVRE_PLEIN());
@@ -1861,7 +1902,7 @@
     return (ids.length - new Set(ids).size) + '|' + document.querySelectorAll('#lvPages .lv-page').length;
   }));
   await test('Feuilleter : ›, ‹, signets, sommaire et page précise ; rien au-delà des bords', '2|1|notes|citations|0|0|dernière', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); const r = [], sec = () => Feuille.pages[Feuille.page].section;
+    ouvrirAuDebut(LIVRE_PLEIN()); const r = [], sec = () => Feuille.pages[Feuille.page].section;
     $('#livre [data-fiche="page-suiv"]').click(); $('#livre [data-fiche="page-suiv"]').click(); r.push(Feuille.page);
     $('#livre [data-fiche="page-prec"]').click(); r.push(Feuille.page);
     $('#lv [data-fiche="signet"][data-section="notes"]').click(); r.push(sec());
@@ -1871,7 +1912,7 @@
     return r.join('|');
   }));
   await test('Feuilleter au clavier : flèches, Page suivante/précédente, Début/Fin ; pas dans un champ', '1|0|fin|0|resté', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); const k = (key, cible) => (cible || $('#lv')).dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true})); const r = [];
+    ouvrirAuDebut(LIVRE_PLEIN()); const k = (key, cible) => (cible || $('#lv')).dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true})); const r = [];
     k('ArrowRight'); r.push(Feuille.page); k('PageUp'); r.push(Feuille.page); k('End'); r.push(Feuille.page === Feuille.pages.length - 1 ? 'fin' : '?'); k('Home'); r.push(Feuille.page);
     montrerPage(debutsSections(Feuille.pages).notes); $('#lvPages [data-fiche="ajouter"]').click(); const p = Feuille.page; k('ArrowRight', $('#fe_texte')); r.push(Feuille.page === p ? 'resté' : '?');
     return r.join('|');
@@ -1893,14 +1934,14 @@
   }));
   const effetsTour = () => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.lv-feuille,.lv-ombre,.lv-dessus'));
   await test('Tour de page complet : la vraie page d\'arrivée tout de suite, une feuille inerte qui pivote, puis plus rien', 'arrivée|inerte|pivot 3D|fini|durée ok', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); const t0 = performance.now(); tournerPage(1);
+    ouvrirAuDebut(LIVRE_PLEIN()); const t0 = performance.now(); tournerPage(1);
     const f = $('#lv .lv-feuille'), r = [Feuille.page === 1 && $('#lvPages .lv-page').dataset.n === '1' ? 'arrivée' : '?', f && f.inert && f.getAttribute('aria-hidden') === 'true' && !f.querySelector('[id]') ? 'inerte' : '?'];
     r.push(effetsTour().some(a => JSON.stringify(a.effect.getKeyframes()).includes('rotateY')) ? 'pivot 3D' : '?');
     while ($('#lv .lv-feuille') && performance.now() - t0 < 2000) await pause(15);
     const d = performance.now() - t0; r.push($('#lv .lv-feuille,#lv .lv-ombre,#lv .lv-dessus') ? '?' : 'fini', d >= 350 && d <= 700 ? 'durée ok' : 'durée ' + Math.round(d)); return r.join('|');
   }, 'complete'));
   await test('Tour en Simple : glissement sans 3D ; en Aucune : changement immédiat sans calque', 'glisse|pas de 3D|immédiat', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); tournerPage(1); const k = effetsTour().map(a => JSON.stringify(a.effect.getKeyframes())).join();
+    ouvrirAuDebut(LIVRE_PLEIN()); tournerPage(1); const k = effetsTour().map(a => JSON.stringify(a.effect.getKeyframes())).join();
     const r = [k.includes('translateX') ? 'glisse' : '?', k.includes('rotateY') ? '3D !' : 'pas de 3D']; finirFeuille();
     prefs.animation = 'aucune'; tournerPage(1); r.push(!$('#lv .lv-feuille') && Feuille.page === 2 ? 'immédiat' : '?'); return r.join('|');
   }, 'simple'));
@@ -1910,7 +1951,7 @@
     const r = [$('#lv .lv-feuille') ? '?' : 'fini', $('#ov').classList.contains('show') ? 'déclenché !' : 'pas déclenché']; closeM(); return r.join('|');
   }, 'complete'));
   await test('Tourner au doigt : la feuille suit le doigt ; relâchée tôt elle revient, au-delà de 35 % la page tourne', 'suit|revenue|tournée', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); const lv = $('#lv'), r0 = lv.getBoundingClientRect(), y = r0.top + r0.height / 2, x0 = r0.right - 20;
+    ouvrirAuDebut(LIVRE_PLEIN()); const lv = $('#lv'), r0 = lv.getBoundingClientRect(), y = r0.top + r0.height / 2, x0 = r0.right - 20;
     const ev = (type, x) => (type === 'pointerdown' ? lv.querySelector('.lv-contenu') || lv : document).dispatchEvent(new PointerEvent(type, {bubbles: true, clientX: x, clientY: y, pointerId: 1}));
     ev('pointerdown', x0); ev('pointermove', x0 - 30); ev('pointermove', x0 - 60);
     const a = effetsTour().find(z => JSON.stringify(z.effect.getKeyframes()).includes('rotateY')), r = [a && a.playState === 'paused' && a.currentTime > 0 ? 'suit' : '?'];
@@ -1919,7 +1960,7 @@
     while ($('#lv .lv-feuille')) await pause(15); r.push(Feuille.page === 1 ? 'tournée' : '?'); return r.join('|');
   }, 'complete'));
   await test('Toucher le bord : bord droit → page suivante, bord gauche → précédente, milieu → rien', '1|0|0', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); const lv = $('#lv'), r0 = lv.getBoundingClientRect(), y = r0.top + r0.height / 2, cible = () => lv.querySelector('.lv-num') || lv;
+    ouvrirAuDebut(LIVRE_PLEIN()); const lv = $('#lv'), r0 = lv.getBoundingClientRect(), y = r0.top + r0.height / 2, cible = () => lv.querySelector('.lv-num') || lv;
     const tape = x => { cible().dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, clientX: x, clientY: y})); document.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, clientX: x, clientY: y})); };
     const r = []; tape(r0.right - 5); r.push(Feuille.page); tape(r0.left + 5); r.push(Feuille.page); tape(r0.left + r0.width / 2); r.push(Feuille.page); return r.join('|');
   }));
@@ -1929,7 +1970,7 @@
     tournerPage(1); return (Feuille.page === p ? 'resté' : '?') + '|' + (ficheEtat.edition && ficheEtat.edition.texte === 'Brouillon' ? 'gardé' : '?');
   }));
   await test('Tours rapides : jamais deux feuilles à la fois', '1|3', () => avecLivre(async () => {
-    ouvrirLivre(LIVRE_PLEIN()); let max = 0; tournerPage(1); max = Math.max(max, document.querySelectorAll('#lv .lv-feuille').length);
+    ouvrirAuDebut(LIVRE_PLEIN()); let max = 0; tournerPage(1); max = Math.max(max, document.querySelectorAll('#lv .lv-feuille').length);
     tournerPage(1); max = Math.max(max, document.querySelectorAll('#lv .lv-feuille').length); tournerPage(1); max = Math.max(max, document.querySelectorAll('#lv .lv-feuille').length);
     return max + '|' + Feuille.page;
   }, 'complete'));
@@ -2021,7 +2062,37 @@
     }));
     return [...new Set(fautes)].slice(0, 12);
   });
+  await test('Page Couverture : la couverture tient dans sa page (rien de coupé), proportions 2:3 ; le sommaire y renvoie', 'dans la page|2:3|Couverture 1', () => avecLivre(async () => {
+    ouvrirLivre(LIVRE_PLEIN()); montrerPage(debutsSections(Feuille.pages).couverture);
+    const p = $('#lvPages .lv-page').getBoundingClientRect(), c = $('#lvPages .lv-couverture-art').getBoundingClientRect();
+    const r = [c.left >= p.left - 1 && c.right <= p.right + 1 && c.top >= p.top - 1 && c.bottom <= p.bottom + 1 ? 'dans la page' : `déborde ${Math.round(c.left - p.left)}/${Math.round(p.right - c.right)}`,
+      Math.abs(c.width / c.height - 2 / 3) < .02 ? '2:3' : (c.width / c.height).toFixed(2)];
+    const d = document.createElement('div'); d.innerHTML = Feuille.pages[debutsSections(Feuille.pages).sommaire].blocs[0].html;
+    const b = d.querySelector('button[data-page="0"]'); r.push(b ? b.firstChild.textContent + ' ' + b.lastChild.textContent : '?'); return r.join('|');
+  }));
   // (fin de la section 14)
+
+  /* ---------- 15. Corrections du 23/10 : barre de navigation en bas ---------- */
+  await test('Navigation : barre en bas de l\'écran, 4 espaces (icône et nom), rien ne déborde, contenu et bouton ＋ dégagés', 'en bas|4 icônes|sans débordement|contenu dégagé|＋ au-dessus', () => {
+    books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; render();
+    const bar = $('#tabs'), r = bar.getBoundingClientRect(), tabs = [...bar.querySelectorAll('[data-space]')], fab = $('#fab').getBoundingClientRect();
+    return [Math.abs(r.bottom - innerHeight) <= 1 && getComputedStyle(bar).position === 'fixed' ? 'en bas' : 'bas ' + Math.round(r.bottom) + '/' + innerHeight,
+      tabs.length === 4 && tabs.every(t => t.querySelector('.ico') && t.textContent.trim()) ? '4 icônes' : '?',
+      bar.scrollWidth <= bar.clientWidth + 1 && tabs.every(t => t.scrollWidth <= t.clientWidth + 1 && t.getBoundingClientRect().right <= innerWidth + 1) ? 'sans débordement' : 'déborde',
+      parseFloat(getComputedStyle(document.body).paddingBottom) >= r.height ? 'contenu dégagé' : 'contenu caché',
+      fab.bottom <= r.top + 1 ? '＋ au-dessus' : '＋ caché'].join('|');
+  });
+  await test('Statuts de la bibliothèque : les 4 tiennent dans la largeur (sur deux lignes si l\'écran est étroit)', 'tiennent', () => {
+    books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; render();
+    const nav = $('#main .library-nav'), bs = [...nav.querySelectorAll('[data-tab]')];
+    return bs.length === 4 && bs.every(b => b.getBoundingClientRect().right <= innerWidth + 1 && b.scrollWidth <= b.clientWidth + 1) && nav.scrollWidth <= nav.clientWidth + 1 ? 'tiennent' : bs.map(b => Math.round(b.getBoundingClientRect().right)).join(',');
+  });
+  await test('Grille : le compte des livres occupe toute la largeur, au-dessus des couvertures (pas dans une case)', 'toute la largeur', () => {
+    books = Array.from({length: 4}, (_, k) => fiche('G' + k, {statut: 'a_lire'})); ui.tab = 'a_lire'; prefs.view = 'grille'; render();
+    const c = $('#list .resultat-compte'), l = $('#list').getBoundingClientRect(), r = c ? c.getBoundingClientRect() : null, g = $('#list .gcard').getBoundingClientRect();
+    prefs.view = 'liste'; const ok = r && Math.abs(r.width - l.width) <= 2 && r.bottom <= g.top + 1; render(); return ok ? 'toute la largeur' : r ? Math.round(r.width) + '/' + Math.round(l.width) : 'absent';
+  });
+  // (fin de la section 15)
 
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {

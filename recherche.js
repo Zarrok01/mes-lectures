@@ -1278,7 +1278,7 @@ const Recherche = (() => {
       (max && (!r.pagesTotal || r.pagesEnviron) ? out.inconnus : out.res).push(versResultat(r, extra));
     };
     try {
-      if (cat && RECH_FICTION[cat.id] && !auteur && !titre) {
+      if (cat && RECH_FICTION[cat.id] && !texte && !auteur && !titre) {
         if (!cur.cands) {
           const ts = RECH_FICTION[cat.id].map(id => THEMES.find(t => t.id === id)).filter(Boolean);
           const listes = await Promise.all(ts.flatMap(t => [t.apple.length ? candApple(t) : null, (t.wd.length || t.classiques) ? candGenre(t) : null,
@@ -1317,7 +1317,9 @@ const Recherche = (() => {
         const requete = g => {
           const parts = [...fixes];
           if (g) parts.push('(' + g.join(' or ') + ')');
-          if (texte) parts.push(parts.length ? 'bib.subject all "' + texte + '"' : 'bib.subject adj "' + texte + '"');
+          // (texte seul : l'expression exacte ; avec un rayon de fiction, ce sont plusieurs critères combinés — genre, thème… — :
+          // tous les mots, dans n'importe quel ordre, sinon la BnF ne trouve presque jamais l'enchaînement exact)
+          if (texte) parts.push(parts.length || (cat && RECH_FICTION[cat.id]) ? 'bib.subject all "' + texte + '"' : 'bib.subject adj "' + texte + '"');
           // Les plus récents d'abord (livres qu'on trouve encore en librairie), sans les annonces de livres pas encore parus
           return parts.join(' and ') + BASE + ' and bib.publicationdate <= "' + new Date().getFullYear() + '" sortBy Dat/sort.descending';
         };
@@ -1377,7 +1379,7 @@ const Recherche = (() => {
   }
 
   const api = {
-    VERSION: '2026.10.23-8',   // (le même numéro que dans index.html)
+    VERSION: '2026.10.23-10',   // (le même numéro que dans index.html)
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
     RAYONS, SOUS_RAYONS, classer, rayons, sousRayons, rayonPourTexte, convertirAncienId, deweyCibles,
     THEMES_RECHERCHE, requetesDuRayon, parTheme, classement, unirClassements,

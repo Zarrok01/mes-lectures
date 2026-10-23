@@ -635,7 +635,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.23-10';
+const VERSION = '2026.10.23-11';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -970,6 +970,11 @@ const unirJournal = (m, a, b) => {
   }
   return out.sort((x, y) => x.date.localeCompare(y.date)).slice(-400);
 };
+// Ensemble à trois voies (mien, autre fenêtre, ancêtre) : ce qu'un côté ajoute est gardé ; ce qu'un côté retire est retiré
+const fusionEnsemble = (mien, autre, base) => {
+  const B = new Set(base || []), M = new Set(mien || []), A = new Set(autre || []);
+  return [...new Set([...(autre || []), ...(mien || [])])].filter(x => B.has(x) ? M.has(x) && A.has(x) : true);
+};
 const unirSansDoublon = (m, a) => { const vus = new Set(a.map(jsonDe)); return [...a, ...m.filter(x => !vus.has(jsonDe(x)))]; };
 function fusionLivre(m, a, b, conflits) {
   const out = {...a}, champs = [];
@@ -977,6 +982,15 @@ function fusionLivre(m, a, b, conflits) {
     if (k === 'notes' || k === 'citations') { const r = fusionListe(m[k] || [], a[k] || [], b[k] || [], k === 'notes' ? 'n' : 'c'); out[k] = r.liste; if (r.conflit) champs.push(k); continue; }
     if (k === 'journal') { out[k] = fusionTriple(m[k] || [], a[k] || [], b[k] || [], unirJournal); continue; }
     if (k === 'sessions' || k === 'historique') { out[k] = fusionTriple(m[k] || [], a[k] || [], b[k] || [], unirSansDoublon); continue; }
+    // Classement et étiquettes : valeur par valeur (un thème confirmé ici et une ambiance confirmée ailleurs sont gardés tous les deux) ;
+    // le genre confirmé reste un champ simple (changé des deux côtés, différemment : ma valeur, et on le dit)
+    if (k === 'etiquettes') { out[k] = fusionEnsemble(m[k], a[k], b[k]); continue; }
+    if (k === 'classif') {
+      const cm = m[k] || {}, ca = a[k] || {}, cb = b[k] || {}, r = {...ca, ...cm};
+      for (const f of ['sousGenres', 'themes', 'ambiances', 'refus']) r[f] = fusionEnsemble(cm[f], ca[f], cb[f]);
+      r.genre = cm.genre === cb.genre ? ca.genre : cm.genre === ca.genre || ca.genre === cb.genre ? cm.genre : (champs.push(k), cm.genre);
+      out[k] = r; continue;
+    }
     if (jsonDe(m[k]) === jsonDe(a[k]) || jsonDe(m[k]) === jsonDe(b[k])) continue;   // (pas changé ici, ou pareil des deux côtés)
     if (jsonDe(a[k]) !== jsonDe(b[k])) champs.push(k);                          // (changé des deux côtés, différemment : ma valeur, et on le dit)
     if (m[k] === undefined) delete out[k]; else out[k] = m[k];
@@ -1320,9 +1334,10 @@ function renderCards() {
   const ailleurs = q ? Object.keys(STATUTS).filter(k => k !== ui.tab).map(k => [k, books.filter(b => b.statut === k && trouve(b)).length]).filter(x => x[1]) : [];
   if (ui.genre) l = l.filter(b => b.genre === ui.genre);
   if (ui.genreConfirme) l = l.filter(b => (b.classif || {}).genre === ui.genreConfirme);
-  if (ui.sousGenre) l = l.filter(b => (b.classif.sousGenres || []).includes(ui.sousGenre));
-  if (ui.theme) l = l.filter(b => (b.classif.themes || []).includes(ui.theme));
-  if (ui.ambiance) l = l.filter(b => (b.classif.ambiances || []).includes(ui.ambiance));
+  // (un livre tout juste ajouté depuis Découvrir ou le scan n'a pas encore de classement : « b.classif » peut manquer)
+  if (ui.sousGenre) l = l.filter(b => ((b.classif || {}).sousGenres || []).includes(ui.sousGenre));
+  if (ui.theme) l = l.filter(b => ((b.classif || {}).themes || []).includes(ui.theme));
+  if (ui.ambiance) l = l.filter(b => ((b.classif || {}).ambiances || []).includes(ui.ambiance));
   if (ui.etiquette) l = l.filter(b => (b.etiquettes || []).includes(ui.etiquette));
   if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : ui.cat.startsWith('sous:') ? sousDe(b).some(z => z.id === ui.cat.slice(5)) : catsDe(b).some(c => c.id === ui.cat));
   if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
@@ -1779,7 +1794,9 @@ function montrerPage(n, opts) {
   const d = debutsSections(pages);
   lv.querySelector('.lv-signets').innerHTML = SIGNETS.filter(s => s in d).map(s => `<button type="button" data-fiche="signet" data-section="${s}" aria-label="${TITRES_LIVRE[s]}, page ${d[s] + 1}"${pages[n].section === s ? ' class="on" aria-current="true"' : ''}></button>`).join('');
   const m = Marques.de(b.id), ruban = lv.querySelector('.lv-ruban'); if (ruban) ruban.remove();
-  if (m && n > 0 && pageDe(pages, m) === n) lv.insertAdjacentHTML('beforeend', '<div class="lv-ruban" aria-hidden="true"></div>');
+  // (ni sur la couverture ni sur la page de garde : le livre s'y ouvre de lui-même ; en double-page, sur l'une des deux pages)
+  const avecRuban = i => i < pages.length && !['couverture', 'garde'].includes(pages[i].section) && pageDe(pages, m) === i;
+  if (m && (avecRuban(n) || (doublePage() && avecRuban(n + 1)))) lv.insertAdjacentHTML('beforeend', '<div class="lv-ruban" aria-hidden="true"></div>');
   $('#lvNum').textContent = `Page ${n + 1} sur ${pages.length}`;
   if (o.focus) {
     const t = $('#lvPages .lv-h') || $('#livreTitre') || $('#lvPages .lv-page'); if (t) { t.tabIndex = -1; t.focus({preventScroll: true}); }
@@ -1894,6 +1911,8 @@ function ouvrirFiche(id, section) {
   $('#livreOv').classList.add('show'); $('#livreOv').scrollTop = 0; peindreFiche();
   const h = $('#livreTitre'); if (h) { h.tabIndex = -1; h.focus({preventScroll: true}); }
   const s = section && $('#fs_' + section); if (s) s.scrollIntoView({block: 'start'});
+  // (livre feuilletable : depuis le Carnet, on ouvre directement la page de la section — Citations, Notes…)
+  if (section && consultationLivre() && Feuille.pages.length) { const d = debutsSections(Feuille.pages); if (section in d) montrerPage(d[section], {focus: true}); }
   // (second toucher rapide sur le même livre : pas de seconde animation)
   if (!dejaOuverte) animerOuverture(id);
   return true;
@@ -1906,7 +1925,8 @@ async function fermerFiche() {
   const coupee = interrompreAnimation() || Ouverture.gesteCoupe || performance.now() - Ouverture.coupeeA < 80, modele = $('#livre .ph') || creerCouverture(fiche.id);
   Ouverture.gesteCoupe = false;
   const id = fiche.id; fiche.id = ''; fiche.edition = null;
-  if (consultationLivre() && Feuille.livre === id && Feuille.pages.length && Feuille.page > 0) Marques.noter(id, Feuille.position);
+  // (refermé sur la couverture ou la page de garde, là où le livre s'ouvre de lui-même : le marque-page ne bouge pas)
+  if (consultationLivre() && Feuille.livre === id && Feuille.pages.length && !['couverture', 'garde'].includes((Feuille.pages[Feuille.page] || {}).section)) Marques.noter(id, Feuille.position);
   Feuille.livre = '';   // (à la prochaine ouverture, le livre repart de la page de garde)
   $('#livreOv').classList.remove('show');
   if (Store.aRafraichir && !fenetreOuverte()) { Store.aRafraichir = false; render(); }
@@ -2781,7 +2801,7 @@ const sousCherchable = id => Recherche.SOUS_RAYONS.some(z => z.id === id && z.re
 const rechDepuisMemo = v => { const c = Recherche.convertirAncienId(v || ''); return {cat: c.split('/')[0], sous: c.includes('/') && sousCherchable(c) ? c : ''}; };
 const rech = {...rechDepuisMemo(prefs.rechCat), texte: '', max: +prefs.rechMax || 0, etat: '', res: [], inconnus: [], trop: 0, examines: 0, enCours: 0,
   fin: false, erreur: '', cur: null, tok: 0, stop: false, lastCat: '', lastTexte: '', lastClassif: [], classif: [], lastMax: 0,
-  par: prefs.rechPar || 'theme', lastPar: 'theme', lastSous: '', dimensionClassement: 'themes'};
+  par: prefs.rechPar || 'theme', lastPar: 'theme', lastSous: '', dimensionClassement: 'genre'};
 // Chercher par : thème (ou sujet), auteur, titre
 const RECH_PAR = {
   theme: {nom: ico('etiquette', '🏷️') + ' Thème', aide: 'Choisis un thème ou écris un sujet (géopolitique, écologie, féminisme…).', place: 'Un sujet : géopolitique, écologie, féminisme…'},
@@ -2877,7 +2897,7 @@ function rechResultats() {
   const lim = rech.lastMax ? ` de ${rech.lastMax} pages ou moins` : '';
   const vus = rech.examines + rech.enCours;
   let h = '';
-  if (rech.lastClassif && rech.lastClassif.length) h += '<div class="a petit mb-2">Les libellés sélectionnés ont été transmis ensemble comme sujets à rechercher. Les catalogues ne confirment pas toujours le genre, le sous-genre ni l’ambiance.</div>';
+  if (rech.lastClassif && rech.lastClassif.length) h += '<div class="a petit mb-2">Chaque genre, sous-genre ou thème choisi est cherché dans les sujets des notices. Les ambiances ne figurent pas dans les catalogues : elles ne sont pas envoyées.</div>';
   if (rech.lastCat && rech.lastTexte && RECH_ROMANS.includes(rech.lastCat)) h += '<div class="a petit mb-2">Le type de fiction est recherché avec les mots choisis dans les sujets des notices ; le catalogue ne confirme pas toujours ce classement.</div>';
   if (rech.note === 'bnf' && rech.etat !== 'busy') h += '<div class="hint">⏸️ La BnF ne répond pas pour l’instant : voici les livres trouvés sur Apple Books (sans nombre de pages). Réessaie plus tard pour avoir aussi ceux de la BnF.</div>';
   h += rech.res.map((x, i) => rechCard(x, 'rech', i)).join('');
@@ -2929,14 +2949,13 @@ async function lancerRech(suite) {
         texte = rech.texte = ''; renderDecouvrir();
       }
     }
-    const classifs = par === 'theme' ? rech.classif.map(x => Taxonomie.nom(x.dim, x.id)).filter(Boolean) : [];
-    const rayon = cat && Recherche.RAYONS.find(x => x.id === cat);
-    // Les catégories de fiction ne sont pas des rayons BnF vérifiables ; transmettre aussi leur libellé comme sujet.
-    const libelleRayon = rayon && rayon.nature === 'fiction' ? rayon.nom : '';
-    const texteCatalogue = [texte, libelleRayon, ...classifs].filter(Boolean).join(' ').trim();
-    if (!cat && !texteCatalogue) return toast('Choisis un thème ou écris un sujet');
+    // Critères de l'explorateur : chacun part comme une condition à part. Les ambiances, elles, ne sont jamais dans les
+    // notices des catalogues : elles ne partent pas (et le nom du rayon n'est pas glissé dans les mots : un rayon de
+    // fiction seul garde sa recherche spécialisée)
+    const classifs = par === 'theme' ? rech.classif.filter(x => x.dim !== 'ambiances').map(x => Taxonomie.nom(x.dim, x.id)).filter(Boolean) : [];
+    if (!cat && !texte && !classifs.length) return toast(par === 'theme' && rech.classif.length ? 'Les ambiances ne sont pas dans les catalogues : ajoute un genre, un thème ou un sujet' : 'Choisis un thème ou écris un sujet');
     const sousOk = par === 'theme' && rech.sous && Recherche.SOUS_RAYONS.some(z => z.id === rech.sous && z.rayon === cat && z.rech) ? rech.sous : '';
-    Object.assign(rech, {lastPar: par, lastSous: sousOk, lastCat: cat, lastTexte: texteCatalogue, lastClassif: rech.classif.map(x => ({...x})), lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
+    Object.assign(rech, {lastPar: par, lastSous: sousOk, lastCat: cat, lastTexte: texte, lastCriteres: classifs, lastClassif: rech.classif.map(x => ({...x})), lastMax: rech.max, res: [], inconnus: [], trop: 0, examines: 0, fin: false, cur: {}});
     prefs.rechCat = sousOk || cat; prefs.rechMax = rech.max; savePrefs();
   }
   const tok = ++rech.tok;
@@ -2952,7 +2971,7 @@ async function lancerRech(suite) {
     rech.enCours = o.examines;
     return neufs;
   };
-  const crit = rech.lastPar === 'auteur' ? {auteur: rech.lastTexte} : rech.lastPar === 'titre' ? {titre: rech.lastTexte} : {cat: rech.lastCat, sous: rech.lastSous, texte: rech.lastTexte};
+  const crit = rech.lastPar === 'auteur' ? {auteur: rech.lastTexte} : rech.lastPar === 'titre' ? {titre: rech.lastTexte} : {cat: rech.lastCat, sous: rech.lastSous, texte: rech.lastTexte, criteres: rech.lastCriteres || []};
   const r = await Recherche.parTheme({...crit, max: rech.lastMax, stop: () => rech.stop || tok !== rech.tok}, rech.cur, o => {
     if (tok !== rech.tok) return;
     if (absorbe(o)) paintRech();
@@ -3015,7 +3034,7 @@ function wireRechPanel() {
   $('#rq_max').onclick = e => {
     const b = e.target.closest('[data-v]'); if (!b) return;
     rech.max = +b.dataset.v; renderDecouvrir();
-    if (rech.etat && (rech.lastCat || rech.lastTexte)) lancerRech();
+    if (rech.etat && (rech.lastCat || rech.lastTexte || (rech.lastCriteres || []).length)) lancerRech();
   };
   $('#rq_go').onclick = () => lancerRech();
   const choisi = $('#rq_cats .on'); if (choisi) $('#rq_cats').scrollLeft = choisi.offsetLeft - 40;
@@ -3588,7 +3607,7 @@ function openForm(b, opts) {
       ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button"><span class="ico i-relire" aria-hidden="true">🔁</span> Relire</button>' : ''}<span class="sp"></span>
       <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
   showM();
-  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan(); paintCats(); paintClassification(); paintPagesSrc();
+  syncShow(); paintStars(); paintPrev(); paintQuotes(); syncLoan(); paintCats(); paintClassification(); paintEtiquettes(); paintPagesSrc();
   $('#f_total').oninput = paintPagesSrc;
   $('#f_cats').onclick = e => {
     const x = e.target.closest('[data-catnon]'); if (!x) return;
@@ -3734,6 +3753,8 @@ function paintPagesSrc() {
 }
 function collect() {
   const num = v => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? '' : n; };
+  // (une étiquette tapée sans toucher « Ajouter » n'est pas perdue à l'enregistrement)
+  const etq = $('#f_etiquette'); if (etq && etq.value.trim()) { form.etiquettes = norm({...form, etiquettes: [...(form.etiquettes || []), etq.value.trim()]}).etiquettes; etq.value = ''; }
   Object.assign(form, {
     titre: $('#f_titre').value.trim(), auteur: $('#f_auteur').value.trim(), statut: $('#f_statut').value,
     serie: $('#f_serie').value.trim(), tome: num($('#f_tome').value),
@@ -3808,11 +3829,17 @@ function paintClassification() {
   const box = $('#f_classif'); if (!box || !form) return;
   form.classif = form.classif && typeof form.classif === 'object' ? form.classif : {genre: '', sousGenres: [], themes: [], ambiances: [], refus: []};
   const c = form.classif, suggest = suggestionGenre(form), suggerees = suggestionsClassif(form);
+  // Les valeurs choisies hors de la liste affichée restent visibles et décochables : un sous-genre d'un autre genre (avec
+  // son nom et celui de son genre), ou une valeur inconnue venue d'une sauvegarde (gardée telle quelle)
+  const NOMS_DIM = {sousGenres: 'Sous-genres', themes: 'Thèmes', ambiances: 'Ambiances'};
   const opts = (dim, choices, selected) => {
     const known = new Set(choices.map(x => x.id));
-    const extra = (selected || []).filter(id => !known.has(id));
-    return `<div class="classif-choices" role="group" aria-label="${dim}">${choices.map(x => `<label class="classif-choice"><input type="checkbox" data-classif-dimension="${dim}" value="${esc(x.id)}" ${selected.includes(x.id) ? 'checked' : ''}><span>${esc(x.nom)}</span></label>`).join('')}</div>` +
-      (extra.length ? `<div class="a petit mt-2">Valeurs conservées d’une sauvegarde : ${extra.map(esc).join(' · ')}</div>` : '');
+    const extra = (selected || []).filter(id => !known.has(id)).map(id => {
+      const x = Taxonomie.element(dim, id), g = x && x.genre ? Taxonomie.genre(x.genre) : null;
+      return {id, nom: x ? x.nom + (g ? ` (${g.nom})` : '') : `${id} (valeur conservée d’une sauvegarde)`};
+    });
+    const cases = l => l.map(x => `<label class="classif-choice"><input type="checkbox" data-classif-dimension="${dim}" value="${esc(x.id)}" ${selected.includes(x.id) ? 'checked' : ''}><span>${esc(x.nom)}</span></label>`).join('');
+    return `<div class="classif-choices" role="group" aria-label="${NOMS_DIM[dim] || dim}">${cases(extra)}${cases(choices)}</div>`;
   };
   const genre = Taxonomie.genre(c.genre), subs = Taxonomie.SOUS_GENRES.filter(x => !genre || x.genre === genre.id);
   const subLabel = genre ? `Sous-genres de ${genre.nom}` : 'Sous-genres (choisis d’abord un genre pour réduire la liste)';

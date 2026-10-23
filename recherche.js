@@ -1265,6 +1265,8 @@ const Recherche = (() => {
     const cat = RAYONS.find(c => c.id === o.cat && !c.horsRecherche) || null;
     const sous = SOUS_RAYONS.find(z => z.id === o.sous && z.rech && (!cat || z.rayon === cat.id)) || null;
     const texte = clean(String(o.texte || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
+    // Critères choisis dans l'explorateur (genre, sous-genre, thème) : une condition de sujet chacun, jamais collés en une phrase
+    const criteres = (o.criteres || []).map(c => clean(String(c).replace(/["*?()<>=]/g, ' ')).slice(0, 60)).filter(Boolean).slice(0, 6);
     // Recherche par auteur ou par titre (toutes les éditions françaises de la BnF ; une seule par livre)
     const auteur = clean(String(o.auteur || '').replace(/["*?()<>=]/g, ' ')).slice(0, 60);
     const titre = clean(String(o.titre || '').replace(/["*?()<>=]/g, ' ')).slice(0, 80);
@@ -1278,7 +1280,7 @@ const Recherche = (() => {
       (max && (!r.pagesTotal || r.pagesEnviron) ? out.inconnus : out.res).push(versResultat(r, extra));
     };
     try {
-      if (cat && RECH_FICTION[cat.id] && !texte && !auteur && !titre) {
+      if (cat && RECH_FICTION[cat.id] && !texte && !criteres.length && !auteur && !titre) {
         if (!cur.cands) {
           const ts = RECH_FICTION[cat.id].map(id => THEMES.find(t => t.id === id)).filter(Boolean);
           const listes = await Promise.all(ts.flatMap(t => [t.apple.length ? candApple(t) : null, (t.wd.length || t.classiques) ? candGenre(t) : null,
@@ -1306,7 +1308,7 @@ const Recherche = (() => {
         }
         out.fin = cur.ci >= cur.cands.length;
       } else {
-        if (!cat && !texte && !auteur && !titre) { out.fin = true; return out; }
+        if (!cat && !texte && !criteres.length && !auteur && !titre) { out.fin = true; return out; }
         // (Apple Books : demandé une seule fois par recherche, en même temps que la BnF)
         const apple = auteur && !cur.appleFait ? (cur.appleFait = true, appleAuteur(auteur).catch(() => [])) : null;
         const fixes = [];
@@ -1319,7 +1321,8 @@ const Recherche = (() => {
           if (g) parts.push('(' + g.join(' or ') + ')');
           // (texte seul : l'expression exacte ; avec un rayon de fiction, ce sont plusieurs critères combinés — genre, thème… — :
           // tous les mots, dans n'importe quel ordre, sinon la BnF ne trouve presque jamais l'enchaînement exact)
-          if (texte) parts.push(parts.length || (cat && RECH_FICTION[cat.id]) ? 'bib.subject all "' + texte + '"' : 'bib.subject adj "' + texte + '"');
+          if (texte) parts.push(parts.length || criteres.length || (cat && RECH_FICTION[cat.id]) ? 'bib.subject all "' + texte + '"' : 'bib.subject adj "' + texte + '"');
+          criteres.forEach(c => parts.push('bib.subject all "' + c + '"'));
           // Les plus récents d'abord (livres qu'on trouve encore en librairie), sans les annonces de livres pas encore parus
           return parts.join(' and ') + BASE + ' and bib.publicationdate <= "' + new Date().getFullYear() + '" sortBy Dat/sort.descending';
         };
@@ -1379,7 +1382,7 @@ const Recherche = (() => {
   }
 
   const api = {
-    VERSION: '2026.10.23-10',   // (le même numéro que dans index.html)
+    VERSION: '2026.10.23-11',   // (le même numéro que dans index.html)
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
     RAYONS, SOUS_RAYONS, classer, rayons, sousRayons, rayonPourTexte, convertirAncienId, deweyCibles,
     THEMES_RECHERCHE, requetesDuRayon, parTheme, classement, unirClassements,

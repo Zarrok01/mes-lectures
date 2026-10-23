@@ -508,7 +508,7 @@
     rech.par = 'titre'; rech.texte = 'Dune'; await lancerRech();
     Recherche.parTheme = vrai; rech.par = 'theme'; rech.texte = ''; rech.max = 0; rech.etat = ''; return JSON.stringify(recu);
   });
-  await test('Découvrir : genre, sous-genre, thème et ambiance restent sélectionnés et partent ensemble au catalogue', 'genre|sous-genre|thème|ambiance|Roman Historique Deuil Sombre', async () => {
+  await test('Découvrir : genre, sous-genre, thème et ambiance restent sélectionnés ; genre, sous-genre et thème partent au catalogue (pas les ambiances)', 'genre|sous-genre|thème|ambiance|Roman Historique Deuil', async () => {
     const vrai = Recherche.parTheme; let termes = '';
     rech.par = 'theme'; rech.cat = ''; rech.sous = ''; rech.texte = ''; rech.classif = []; rech.lastClassif = []; rech.dimensionClassement = ''; rech.max = 0; rech.etat = ''; ui.tab = 'decouvrir'; render();
     const clic = sel => { const el = document.querySelector(sel); if (!el) throw Error('introuvable: ' + sel + ' ; panel=' + !!$('#rq_tax_values')); el.click(); };
@@ -520,7 +520,7 @@
     clic('#rq_tax_dims [data-rqdim="ambiances"]');
     clic('#rq_tax_values [data-rqclassif="ambiances|sombre"]');
     const selection = rech.classif.map(x => ({genre: 'genre', sousGenres: 'sous-genre', themes: 'thème', ambiances: 'ambiance'}[x.dim])).join('|');
-    Recherche.parTheme = async o => { termes = o.texte; return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+    Recherche.parTheme = async o => { termes = [o.texte, ...(o.criteres || [])].filter(Boolean).join(' '); return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
     try { await lancerRech(); } finally { Recherche.parTheme = vrai; }
     rech.classif = []; rech.lastClassif = []; rech.etat = ''; rech.texte = ''; render();
     return selection + '|' + termes;
@@ -725,9 +725,22 @@
     try { await fn(); } finally { window.fetch = vrai; Recherche._oublierBnf(); }
     return requetes;
   };
-  await test('Recherche fiction avec plusieurs critères : le libellé complet arrive à la BnF', true, async () => {
-    const q = await fauxBnf(() => Recherche.parTheme({cat: 'polar', texte: 'Policier Thriller Roman Deuil Sombre', max: 0}, {}));
-    return q.length > 0 && q[0].includes('bib.subject all "Policier Thriller Roman Deuil Sombre"');
+  // (relecture du 23/10 : l'enchaînement exact « Policier Thriller Roman Deuil Sombre » ne correspond à presque aucune notice)
+  await test('Recherche par critères (genre, thème…) : une condition par critère ; un rayon de fiction seul ne demande aucun sujet', 'par critère|rayon seul sans sujet', async () => {
+    const q = await fauxBnf(() => Recherche.parTheme({cat: 'polar', criteres: ['Roman', 'Deuil'], max: 0}, {}));
+    const q2 = await fauxBnf(() => Recherche.parTheme({criteres: ['Roman historique', 'Deuil'], max: 0}, {}));
+    const q3 = await fauxBnf(() => Recherche.parTheme({cat: 'polar', max: 0}, {}));
+    const ok = q.length && q[0].includes('bib.subject all "Roman" and bib.subject all "Deuil"') && q2.length && q2[0].includes('bib.subject all "Roman historique" and bib.subject all "Deuil"');
+    return [ok ? 'par critère' : JSON.stringify([q[0], q2[0]]).slice(0, 240), q3.some(x => x.includes('bib.subject')) ? 'sujet envoyé !' : 'rayon seul sans sujet'].join('|');
+  });
+  await test('Découvrir : le nom du rayon n\'est pas glissé dans les mots cherchés ; les ambiances ne partent pas au catalogue', 'polar||Roman,Deuil|ambiance seule : message', async () => {
+    const vrai = Recherche.parTheme; let crit = null; Recherche.parTheme = async o => { crit = o; return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+    try {
+      Object.assign(rech, {par: 'theme', cat: 'polar', sous: '', texte: '', classif: [{dim: 'genre', id: 'roman'}, {dim: 'themes', id: 'deuil'}, {dim: 'ambiances', id: 'sombre'}]});
+      await lancerRech(); const r = [crit ? crit.cat : '?', crit ? crit.texte || '' : '?', crit ? (crit.criteres || []).join(',') : '?'];
+      crit = null; Object.assign(rech, {cat: '', texte: '', classif: [{dim: 'ambiances', id: 'sombre'}]}); await lancerRech();
+      r.push(!crit && /ambiances/i.test($('#toast').textContent) ? 'ambiance seule : message' : '?'); return r.join('|');
+    } finally { Recherche.parTheme = vrai; rech.tok++; Object.assign(rech, {cat: '', texte: '', classif: [], etat: '', res: [], inconnus: []}); }
   });
   await test('Recherche par thème : tous les rayons sauf « Dictionnaires & Scolaire »', 'reference absent|romance,ya,voyages,pratique,shs présents', () => {
     const ids = Recherche.THEMES_RECHERCHE.map(r => r.id);
@@ -2091,6 +2104,44 @@
     books = Array.from({length: 4}, (_, k) => fiche('G' + k, {statut: 'a_lire'})); ui.tab = 'a_lire'; prefs.view = 'grille'; render();
     const c = $('#list .resultat-compte'), l = $('#list').getBoundingClientRect(), r = c ? c.getBoundingClientRect() : null, g = $('#list .gcard').getBoundingClientRect();
     prefs.view = 'liste'; const ok = r && Math.abs(r.width - l.width) <= 2 && r.bottom <= g.top + 1; render(); return ok ? 'toute la largeur' : r ? Math.round(r.width) + '/' + Math.round(l.width) : 'absent';
+  });
+  await test('Ruban : rouvrir puis refermer sans tourner de page garde le marque-page (Citations)', 'citations|citations|pas de ruban sur la garde', () => avecLivre(async () => {
+    localStorage.removeItem(CLE + '-marques'); ouvrirLivre(LIVRE_PLEIN()); allerSection('citations'); await fermerFiche();
+    const r = [(Marques.de(books[0].id) || {}).section]; ouvrirFiche(books[0].id); interrompreAnimation(); await fermerFiche();
+    r.push((Marques.de(books[0].id) || {}).section); ouvrirFiche(books[0].id); interrompreAnimation(); montrerPage(debutsSections(Feuille.pages).garde);
+    r.push($('#lv .lv-ruban') ? 'ruban sur la garde !' : 'pas de ruban sur la garde'); localStorage.removeItem(CLE + '-marques'); return r.join('|');
+  }));
+  await test('Carnet → livre : toucher une citation ouvre le livre à la page Citations (mode Feuilleter)', 'citations', () => avecLivre(async () => {
+    books = [LIVRE_PLEIN()]; ui.tab = 'citations'; render(); ouvrirFiche(books[0].id, 'citations'); interrompreAnimation();
+    return Feuille.pages[Feuille.page].section;
+  }));
+  await test('Filtres de classement : un livre sans classement (ajouté depuis Découvrir ou le scan) ne fait pas planter la liste', 'liste affichée|1', () => {
+    const brut = {...blankBook('a_lire'), id: 't-brut', titre: 'Sans classement'}; delete brut.classif;
+    books = [brut, fiche('Classé', {classif: {themes: ['deuil']}})]; ui.tab = 'a_lire'; ui.theme = 'deuil';
+    try { render(); return ($('#list') ? 'liste affichée' : '?') + '|' + document.querySelectorAll('#list .card, #list .gcard').length; }
+    catch (e) { return 'plantage : ' + e.message; } finally { ui.theme = ''; render(); }
+  });
+  await test('Étiquettes : visibles dès l\'ouverture de « Modifier » ; une étiquette tapée sans « Ajouter » est gardée à l\'enregistrement', 'VAE visible|VAE,À relire', async () => {
+    books = [fiche('Etq', {statut: 'a_lire', etiquettes: ['VAE']})]; ui.tab = 'a_lire'; render(); openForm(books[0]); await pause(30);
+    const r = [($('#f_etiquettes') || {textContent: ''}).textContent.includes('VAE') ? 'VAE visible' : '?'];
+    $('#f_etiquette').value = 'À relire'; collect(); r.push((form.etiquettes || []).join(','));
+    modalModifie = false; closeM(); await pause(250); return r.join('|');
+  });
+  await test('Classement : un sous-genre d\'un autre genre reste visible avec son nom et peut être décoché', 'Policier coché|décoché', async () => {
+    books = [fiche('Sg', {statut: 'a_lire', classif: {genre: 'essai', sousGenres: ['roman/policier']}})]; ui.tab = 'a_lire'; render(); openForm(books[0]); await pause(30);
+    const c = $('#f_classif input[data-classif-dimension="sousGenres"][value="roman/policier"]');
+    const r = [c && c.checked && c.closest('label').textContent.includes('Policier') ? 'Policier coché' : '?'];
+    if (c) { c.click(); c.dispatchEvent(new Event('change', {bubbles: true})); }
+    r.push(!(form.classif.sousGenres || []).includes('roman/policier') ? 'décoché' : '?');
+    modalModifie = false; closeM(); await pause(250); return r.join('|');
+  });
+  await test('Deux fenêtres : le classement et les étiquettes se fusionnent valeur par valeur (rien d\'écrasé d\'un bloc)', 'deuil|sombre|famille|VAE,Hiver|aucun conflit', () => {
+    const base = norm({id: 'f1', titre: 'F', classif: {themes: ['amour']}, etiquettes: ['VAE']});
+    const mien = norm({...base, classif: {...base.classif, themes: ['deuil']}});                                    // (ici : Amour retiré, Deuil ajouté)
+    const autre = norm({...base, classif: {...base.classif, themes: ['amour', 'famille'], ambiances: ['sombre']}, etiquettes: ['VAE', 'Hiver']});   // (ailleurs)
+    const conflits = [], r = fusionLivre(mien, autre, base, conflits);
+    return [r.classif.themes.includes('deuil') && !r.classif.themes.includes('amour') ? 'deuil' : r.classif.themes.join(','), r.classif.ambiances.join(','),
+      r.classif.themes.includes('famille') ? 'famille' : '?', r.etiquettes.join(','), conflits.length ? 'conflit : ' + JSON.stringify(conflits) : 'aucun conflit'].join('|');
   });
   // (fin de la section 15)
 

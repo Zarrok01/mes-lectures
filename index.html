@@ -609,6 +609,40 @@ button{-webkit-touch-callout:none}
 [data-style=editorial] details:not(.pourquoi,.inconnus):not(.lv *) > summary{color:var(--texte)}
 [data-style=editorial] summary .ico{color:var(--texte-doux)}
 @media(hover:hover){[data-style=editorial] :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *):not(:disabled):hover{border-color:var(--accent)}}
+/* ---------- Direction premium : une hiérarchie calme, sans retirer aucune fonction ---------- */
+[data-style=editorial] header{box-shadow:none}
+[data-style=editorial] h1,.livre-titre,.resume-lecture h2{font-family:var(--police-titres);font-weight:600}
+[data-style=editorial] .library-intro{display:flex;align-items:baseline;justify-content:space-between;gap:var(--e-3);padding:var(--e-3) 0 var(--e-1)}
+[data-style=editorial] .library-intro h2{font:600 var(--t-xl)/1.1 var(--police-titres);margin:0;letter-spacing:-.01em}
+[data-style=editorial] .library-intro p{margin:0;color:var(--texte-doux);font-size:var(--t-s)}
+[data-style=editorial] .library-nav{margin-bottom:var(--e-2)}
+[data-style=editorial] .resume-lecture{background:linear-gradient(135deg,var(--surface),var(--accent-doux));padding:var(--e-4);margin:var(--e-2) 0 var(--e-4);gap:var(--e-3)}
+[data-style=editorial] .resume-lecture .ph{box-shadow:none}
+[data-style=editorial] .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
+[data-style=editorial] .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
+[data-style=editorial] .list:not(.grid) .card:last-child{border-bottom:0}
+[data-style=editorial] .list:not(.grid) .card .cover{width:62px;height:92px}
+[data-style=editorial] .list:not(.grid) .card .acts{padding-top:var(--e-1)}
+[data-style=editorial] .carnet-entry{border-color:transparent;background:var(--surface-2);margin-bottom:var(--e-3)}
+[data-style=editorial] .quote{border:0;background:var(--surface-2);box-shadow:none}
+.carnet-repere{display:block;width:100%;margin:var(--e-2) 0 var(--e-3);padding:var(--e-3) var(--e-4);border:0;border-left:3px solid var(--accent);background:var(--surface-2);color:var(--texte);font:inherit;text-align:left;cursor:pointer}
+.carnet-repere p{margin:var(--e-1) 0 0;font-family:var(--police-titres);font-size:var(--t-m)}
+.livre-trace{display:block;width:100%;margin:0 0 var(--e-3);padding:var(--e-3) var(--e-4);border:0;border-radius:var(--r-m);background:var(--accent-doux);color:var(--sur-accent-doux);font:inherit;text-align:left;cursor:pointer}
+.livre-trace b{display:block;font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;margin-bottom:var(--e-1)}
+.livre-trace span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--police-titres);font-size:var(--t-m)}
+.livre-approfondir{margin:0 0 var(--e-3);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)}
+.livre-approfondir summary{display:flex;justify-content:space-between;align-items:center;color:var(--texte-doux)}
+.livre-approfondir .livre-nav{padding:0 0 var(--e-3);margin:0}
+/* Densité : les fonctions sont identiques ; seule la quantité de chrome et d'espace change. */
+[data-density=compact]{--e-2:6px;--e-3:10px;--e-4:14px;--e-5:20px;--e-6:26px}
+[data-density=compact] .resume-lecture{padding:var(--e-3)}
+[data-density=compact] .card{padding:var(--e-2)}
+[data-density=compact] .list{gap:var(--e-2)}
+[data-density=concentration] #livreOv .livre-tete .etire{display:none}
+[data-density=concentration] #livreOv .livre-tete{background:color-mix(in srgb,var(--fond) 92%,transparent);border-bottom-color:transparent}
+[data-density=concentration] #livreOv .livre-nav{display:none}
+[data-density=concentration] #livreOv .livre-haut{margin-bottom:var(--e-2)}
+[data-density=concentration] #livreOv .livre-section:not(#fs_notes):not(#fs_citations):not(#fs_progression){opacity:.82}
 </style>
 </head>
 <body>
@@ -674,7 +708,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.25-2';
+const VERSION = '2026.10.25-3';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -725,7 +759,7 @@ const ESSAI = new URLSearchParams(location.search).has('tests');
 // Grande carte « Ta lecture en cours » : masquée pendant les tests (pour qu'ils comptent tous les livres), sauf ceux qui l'allument
 let REPRISE = !ESSAI;
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
-const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'editorial', animation: 'complete', consultation: 'livre', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'},
+const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'editorial', density: 'confort', animation: 'complete', consultation: 'livre', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
 // Passage unique au style Éditorial (plan maître, phase 1, option 10-A) : un appareil resté en Android moderne passe
@@ -983,11 +1017,13 @@ const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : 
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 /* ---------- Apparence : style (Éditorial, Android moderne, Actuel, Carnet de lecture) et thème (clair, sombre) ---------- */
 const STYLES = {editorial: 'Éditorial', android: 'Android moderne', actuel: 'Actuel', carnet: 'Carnet de lecture'};
+const DENSITES = {confort: 'Confortable', compact: 'Compact', concentration: 'Concentration'};
 function applyTheme() {
   const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches), r = document.documentElement;
   r.dataset.theme = dark ? 'dark' : 'light';
   // (style absent ou inconnu : Éditorial)
   r.dataset.style = Object.hasOwn(STYLES, prefs.style) ? prefs.style : 'editorial';
+  r.dataset.density = Object.hasOwn(DENSITES, prefs.density) ? prefs.density : 'confort';
   // Barre du navigateur : la couleur de l'en-tête du style choisi
   const barre = getComputedStyle(r).getPropertyValue('--barre').trim(), meta = document.querySelector('meta[name="theme-color"]');
   if (barre && meta) meta.content = barre;
@@ -1319,11 +1355,11 @@ function renderTout() {
   if (ui.tab === 'citations') return renderQuotesTab();
   if (ui.tab === 'notes') return renderNotesTab();
   if (ui.tab === 'decouvrir') return renderDecouvrir();
-  const libraryNav = `<nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
+  const libraryNav = `<div class="library-intro"><div><p>Ma bibliothèque</p><h2>${ui.tab === 'en_cours' ? 'Lire maintenant' : STATUTS[ui.tab]}</h2></div><p>${plural(total, 'livre')}</p></div><nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
   const reprendre = REPRISE && ui.tab === 'en_cours' ? books.filter(b => b.statut === 'en_cours').sort((a, b) => dateKey(b).localeCompare(dateKey(a)))[0] : null;
   const resumeLecture = reprendre ? `<section class="resume-lecture" id="resumeLecture" data-id="${esc(reprendre.id)}" aria-label="Lecture en cours">
-      ${coverHtml(reprendre, 'ph')}<div><p class="resume-titre">Ta lecture en cours</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
-      ${progress(reprendre).tot ? `<div class="meta">Page ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>` : '<div class="meta">Ta lecture t’attend.</div>'}
+      ${coverHtml(reprendre, 'ph')}<div><p class="resume-titre">En ce moment</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
+      ${progress(reprendre).tot ? `<div class="meta">Page ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>` : '<div class="meta">Une page suffit pour reprendre le fil.</div>'}
       </div><div class="acts"><button class="btn pri" type="button" data-open="${esc(reprendre.id)}" aria-label="Reprendre ma lecture">Reprendre</button>
       <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn" type="button" data-act="plus" aria-label="Autres actions : chrono, citation, j'ai fini">⋯</button></div></section>` : '';
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
@@ -2062,6 +2098,8 @@ function peindreFiche() {
     ...(b.etiquettes || []).map(x => 'Étiquette · ' + x)].filter(Boolean);
   const notes = [...(b.notes || [])].sort((x, y) => (y.date || '').localeCompare(x.date || ''));
   const cits = [...(b.citations || [])].sort((x, y) => (+x.page || 1e9) - (+y.page || 1e9) || (x.date || '').localeCompare(y.date || ''));
+  const trace = [...notes.map(x => ({...x, type: 'notes', libelle: 'Dernière note'})), ...cits.map(x => ({...x, type: 'citations', libelle: 'Dernière citation'}))]
+    .sort((x, y) => (y.modif || y.date || '').localeCompare(x.modif || x.date || ''))[0];
   const ev = evenementsLivre(b), evVus = fiche.toutHisto ? ev : ev.slice(0, 20);
   const derniere = (b.journal || []).length ? b.journal[b.journal.length - 1].date : '';
   const infos = infosLivre(b);
@@ -2091,8 +2129,10 @@ function peindreFiche() {
     </div></div>
     ${ligneSi(b.avis, `<div class="livre-avis"><p>${esc(b.avis)}</p><div class="a">Mon avis</div></div>`)}
     ${resume}
-    <nav class="livre-nav" aria-label="Sections du carnet">${[['progression', 'Progression'], ['notes', 'Notes' + (notes.length ? ' ' + notes.length : '')], ['citations', 'Citations' + (cits.length ? ' ' + cits.length : '')], ['historique', 'Historique'], ['infos', 'Infos']]
+    ${trace ? `<button class="livre-trace" type="button" data-fiche="aller" data-section="${trace.type}"><b>${trace.libelle}${trace.date ? ' · ' + fdate(trace.modif || trace.date) : ''}</b><span>${esc(trace.texte)}</span></button>` : ''}
+    <nav class="livre-nav" aria-label="Essentiel du carnet">${[['progression', 'Progression'], ['notes', 'Notes' + (notes.length ? ' ' + notes.length : '')], ['citations', 'Citations' + (cits.length ? ' ' + cits.length : '')]]
       .map(([k, t]) => `<button type="button" class="chipb" data-fiche="aller" data-section="${k}">${t}</button>`).join('')}</nav>
+    <details class="livre-approfondir"><summary>Approfondir ce livre</summary><nav class="livre-nav" aria-label="Informations complémentaires"><button type="button" class="chipb" data-fiche="aller" data-section="historique">Historique</button><button type="button" class="chipb" data-fiche="aller" data-section="infos">Informations et édition</button></nav></details>
     ${section('progression', 'Progression', (p.tot ? `<div class="bar"><i style="width:${p.pct}%"></i></div><p class="moyen">p. ${p.cur} sur ${b.pagesSource === 'estimation' ? 'environ ' : ''}${p.tot} · ${p.pct} %${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>`
       : p.cur ? `<p class="moyen">p. ${p.cur}${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>` : '<p class="a">Pas encore de progression</p>') + ligneSi(action, `<div class="acts">${action}</div>`))}
     ${section('notes', 'Mes notes', nouveau('note') + (notes.length ? notes.map(x => entreeHtml(x, 'note')).join('') : nouveau('note') ? '' : '<p class="a">Aucune note pour l\'instant</p>'), ajouter('note', 'Note'))}
@@ -2206,7 +2246,8 @@ function carnetNav(active) {
     `<button class="subtab ${active === 'citations' ? 'on' : ''}" type="button" data-tab="citations" aria-pressed="${active === 'citations'}">Citations <span class="n">${nq}</span></button></nav>`;
 }
 function renderNotesTab() {
-  $('#main').innerHTML = `${carnetNav('notes')}<div class="tools"><input id="nq" type="search" aria-label="Chercher dans mes notes" placeholder="Chercher dans mes notes…" value="${esc(ui.nq)}"></div><div class="list" id="nlist"></div>`;
+  const derniere = allNotes().slice().sort((a, b) => (b.n.modif || b.n.date || '').localeCompare(a.n.modif || a.n.date || ''))[0];
+  $('#main').innerHTML = `${carnetNav('notes')}${derniere ? `<button type="button" class="carnet-repere" data-book="${esc(derniere.b.id)}" data-section="notes"><span class="lbl">Dernière note · ${derniere.n.modif || derniere.n.date ? fdate(derniere.n.modif || derniere.n.date) : ''}</span><p>${esc(derniere.n.texte)}</p></button>` : ''}<div class="tools"><input id="nq" type="search" aria-label="Chercher dans mes notes" placeholder="Chercher dans mes notes…" value="${esc(ui.nq)}"></div><div class="list" id="nlist"></div>`;
   renderNotes();
 }
 function renderNotes() {
@@ -2219,7 +2260,8 @@ function renderNotes() {
       : etat({icone: 'livre', emoji: '📝', titre: 'Ton carnet est vide', texte: 'Ajoute une note depuis la fiche d’un livre pour la retrouver ici.'});
 }
 function renderQuotesTab() {
-  $('#main').innerHTML = `${carnetNav('citations')}<div class="tools"><input id="cq" type="search" aria-label="Chercher dans mes citations" placeholder="Chercher dans mes citations…" value="${esc(ui.cq)}"></div><div class="list" id="qlist"></div>`;
+  const derniere = allQuotes().slice().sort((a, b) => (b.q.date || '').localeCompare(a.q.date || ''))[0];
+  $('#main').innerHTML = `${carnetNav('citations')}${derniere ? `<button type="button" class="carnet-repere" data-book="${esc(derniere.b.id)}" data-section="citations"><span class="lbl">Dernière citation · ${derniere.q.date ? fdate(derniere.q.date) : ''}</span><p>« ${esc(derniere.q.texte)} »</p></button>` : ''}<div class="tools"><input id="cq" type="search" aria-label="Chercher dans mes citations" placeholder="Chercher dans mes citations…" value="${esc(ui.cq)}"></div><div class="list" id="qlist"></div>`;
   renderQuotes();
 }
 function renderQuotes() {
@@ -3639,12 +3681,13 @@ function openForm(b, opts) {
     <div class="search mb-3" id="linkbox" hidden><input id="f_link" placeholder="Coller le lien d'une image (https://…)"><button class="btn" id="f_linkok" type="button">OK</button></div>
     <div class="f"><label for="f_titre">Titre *</label><input id="f_titre" value="${esc(form.aCompleter ? '' : form.titre)}" placeholder="${form.aCompleter ? 'Titre du livre' : ''}"></div>
     <div class="f"><label for="f_auteur">Auteur</label><input id="f_auteur" value="${esc(form.auteur)}"></div>
+    <div class="f"><label for="f_statut">Je le range dans</label><select id="f_statut">${Object.keys(STATUT_UN).map(k => `<option value="${k}" ${k === form.statut ? 'selected' : ''}>${STATUT_UN[k]}</option>`).join('')}</select></div>
+    <details class="form-approfondir" ${isNew ? '' : 'open'}><summary>${isNew ? 'Ajouter des détails (facultatif)' : 'Détails du livre'}</summary><div class="mt-2">
     <div class="row">
       <div class="f"><label for="f_serie">Série</label><input id="f_serie" value="${esc(form.serie)}" placeholder="Si le livre fait partie d'une série"></div>
       <div class="f small"><label for="f_tome">Tome</label><input id="f_tome" type="number" min="0" inputmode="numeric" value="${esc(form.tome)}"></div>
     </div>
     <div class="row">
-      <div class="f"><label for="f_statut">Statut</label><select id="f_statut">${Object.keys(STATUT_UN).map(k => `<option value="${k}" ${k === form.statut ? 'selected' : ''}>${STATUT_UN[k]}</option>`).join('')}</select></div>
       <div class="f"><label for="f_genre">Genre reçu du catalogue / ancien champ</label><input id="f_genre" list="dl_genres" value="${esc(form.genre)}" placeholder="Information d’origine"><datalist id="dl_genres">${genres.map(g => `<option value="${esc(g)}">`).join('')}</datalist><span class="a petit">Conservé tel quel ; une suggestion reste à confirmer.</span></div>
     </div>
     <details id="classifBox" ${(form.classif.genre || form.classif.sousGenres.length || form.classif.themes.length || form.classif.ambiances.length || suggestionGenre(form) || suggestionsClassif(form).length) ? 'open' : ''}><summary>Mon classement personnel : genre, sous-genres, thèmes et ambiances</summary><div id="f_classif" class="mt-2"></div></details>
@@ -3683,7 +3726,7 @@ function openForm(b, opts) {
         <div class="f"><label for="f_edit">Éditeur</label><input id="f_edit" value="${esc(form.editeur)}"></div>
         <div class="f small"><label for="f_annee">Année</label><input id="f_annee" inputmode="numeric" value="${esc(form.annee)}"></div>
       </div>
-    </details>
+    </details></div></details>
     <div class="mfoot">${isNew ? '' : '<button class="btn del" id="f_del" type="button">Supprimer</button>'}
       ${!isNew && b.statut === 'lu' && !opts.finish ? '<button class="btn" id="f_reread" type="button"><span class="ico i-relire" aria-hidden="true">🔁</span> Relire</button>' : ''}<span class="sp"></span>
       <button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="f_save" type="button">Enregistrer</button></div>`;
@@ -4351,6 +4394,8 @@ function openSettings() {
     <div class="f"><label>Style</label><div class="seg styles" id="st_style">${Object.entries(STYLES).map(([k, v]) =>
       `<button type="button" data-st="${k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${v}</button>`).join('')}</div></div>
     <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', ico('soleil', '☀️') + ' Clair'], ['dark', ico('lune', '🌙') + ' Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
+    <div class="f"><label>Densité</label><div class="seg" id="st_density">${Object.entries(DENSITES).map(([k, v]) => `<button data-density="${k}" class="${prefs.density === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <p class="a petit">Confortable laisse respirer la bibliothèque. Compact montre plus de livres. Concentration simplifie le cadre pendant la consultation d’un livre, sans retirer ses actions.</p></div>
     <div class="f"><label>Animations</label><div class="seg" id="st_anim">${Object.entries(MODES_ANIM).map(([k, v]) => `<button data-an="${k}" class="${(Object.hasOwn(MODES_ANIM, prefs.animation) ? prefs.animation : 'complete') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="a petit" id="st_anim_note">${esc(noteAnim())}</p></div>
     <div class="f"><label>Consulter un livre</label><div class="seg" id="st_consult">${Object.entries(CONSULTATIONS).map(([k, v]) => `<button data-co="${k}" class="${(prefs.consultation === 'continue' ? 'continue' : 'livre') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
@@ -4387,6 +4432,12 @@ function openSettings() {
     const b = e.target.closest('[data-st]'); if (!b) return;
     prefs.style = b.dataset.st; savePrefs(); applyTheme();
     document.querySelectorAll('#st_style button').forEach(x => x.classList.toggle('on', x === b));
+  };
+  $('#st_density').onclick = e => {
+    const b = e.target.closest('[data-density]'); if (!b) return;
+    prefs.density = b.dataset.density; savePrefs(); applyTheme();
+    document.querySelectorAll('#st_density button').forEach(x => x.classList.toggle('on', x === b));
+    if (fiche.id) peindreFiche();
   };
   $('#st_consult').onclick = e => {
     const b = e.target.closest('[data-co]'); if (!b) return;
@@ -4729,11 +4780,11 @@ document.addEventListener('input', e => { if (e.target.closest && e.target.close
 document.addEventListener('change', e => { if (e.target.closest && e.target.closest('#modal')) modalModifie = true; }, true);
 // Bouton ＋ : un seul bouton pour ajouter (un livre, par son code-barres, ou plusieurs d'affilée)
 function openAjout() {
-  $('#modal').innerHTML = `<h2>Ajouter</h2>
+  $('#modal').innerHTML = `<h2>Ajouter à ma bibliothèque</h2><p class="a remonte">Commence simplement : tu pourras compléter les détails plus tard.</p>
     <div class="ajout">
-      <button type="button" data-ajout="livre"><b><span class="ico i-modifier" aria-hidden="true">✍️</span> Un livre</b><span>Chercher par titre, auteur ou ISBN, ou remplir la fiche à la main</span></button>
-      <button type="button" data-ajout="scan"><b><span class="ico i-photo" aria-hidden="true">📷</span> Scanner un code-barres</b><span>Celui au dos du livre</span></button>
-      <button type="button" data-ajout="rapide"><b><span class="ico i-colis" aria-hidden="true">📦</span> Scan rapide</b><span>Plusieurs livres d'affilée, ajoutés tout seuls</span></button>
+      <button type="button" data-ajout="livre"><b><span class="ico i-modifier" aria-hidden="true">✍️</span> Chercher un livre</b><span>Par titre, auteur ou ISBN. L’appli remplit la fiche quand elle le peut.</span></button>
+      <button type="button" data-ajout="scan"><b><span class="ico i-photo" aria-hidden="true">📷</span> Scanner un code-barres</b><span>Pour ajouter le livre que tu as sous la main.</span></button>
+      <button type="button" data-ajout="rapide"><b><span class="ico i-colis" aria-hidden="true">📦</span> Plusieurs livres d’affilée</b><span>Le mode rapide pour une pile entière ; tu complèteras ensuite si besoin.</span></button>
     </div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
   showM();

@@ -2431,6 +2431,26 @@
     const ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
     books = []; paintNotice(); return ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
   }));
+  /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
+  await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {
+    books = [enCours('Lecture')]; ui.tab = 'en_cours'; render();
+    return [($('#main .library-intro h2') || {textContent: '?'}).textContent.trim(), document.querySelectorAll('#main .library-nav [data-tab]').length].join('|');
+  });
+  await test('Premium : densité Confortable, Compact et Concentration est mémorisable', 'concentration|confort', () => {
+    const d = prefs.density; prefs.density = 'concentration'; applyTheme(); const a = document.documentElement.dataset.density;
+    prefs.density = 'confort'; applyTheme(); const b = document.documentElement.dataset.density;
+    prefs.density = d; applyTheme(); return a + '|' + b;
+  });
+  await test('Premium : fiche continue montre une dernière trace et cache les détails derrière « Approfondir »', 'trace|approfondir|essentiel', async () => {
+    const c0 = prefs.consultation, a0 = prefs.animation;
+    prefs.consultation = 'continue'; prefs.animation = 'aucune';
+    try {
+      const b = fiche('Trace', {statut: 'en_cours', notes: [{id: 'n-trace', texte: 'Une note à retrouver', date: today()}], citations: [{id: 'c-trace', texte: 'Une phrase à retenir', date: today()}]});
+      books = [b]; ui.tab = 'en_cours'; render(); ouvrirFiche(b.id); interrompreAnimation(); await pause(30);
+      return [$('#livre .livre-trace') ? 'trace' : '?', ($('#livre .livre-approfondir summary') || {textContent: '?'}).textContent.trim().includes('Approfondir') ? 'approfondir' : '?',
+        document.querySelectorAll('#livre > .livre-nav [data-section]').length === 3 ? 'essentiel' : '?'].join('|');
+    } finally { if (ficheEtat.id) await fermerFiche(); prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
+  });
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {

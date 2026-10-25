@@ -2451,6 +2451,20 @@
         document.querySelectorAll('#livre > .livre-nav [data-section]').length === 3 ? 'essentiel' : '?'].join('|');
     } finally { if (ficheEtat.id) await fermerFiche(); prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
   });
+  await test('Découvrir premium : une recommandation centrale, la recherche à la demande et le tirage restent accessibles', 'centrale|fermée|tirage', () => {
+    const ancien = prefs.selection, mois = moisCle();
+    prefs.selection = {mois, vu: true, items: [
+      {titre: 'Piste principale', auteur: 'Autrice', themeE: '✦', themeNom: 'Roman', sourceNom: 'Sélection', raison: 'Pour le test'},
+      {titre: 'Autre piste', auteur: 'Auteur', themeE: '✦', themeNom: 'Roman', sourceNom: 'Sélection', raison: 'Pour le test'}
+    ]};
+    try { renderDecouvrir(); return [document.querySelector('.discover-lead .sug') ? 'centrale' : '?', !$('.discover-search').open ? 'fermée' : '?', $('.discover-random #dc_go') ? 'tirage' : '?'].join('|'); }
+    finally { prefs.selection = ancien; }
+  });
+  await test('Onboarding : premier livre, exploration et restauration restent proposés sans compte', 'ajouter|découvrir|restaurer|local', () => {
+    const avant = books, tab = ui.tab; books = []; ui.tab = 'en_cours'; render();
+    try { const t = $('#list').textContent.toLowerCase(); return [$('#list [data-ajouter]') ? 'ajouter' : '?', $('#list [data-tab="decouvrir"]') ? 'découvrir' : '?', $('#list [data-export="restore"]') ? 'restaurer' : '?', /sur cet appareil/.test(t) ? 'local' : '?'].join('|'); }
+    finally { books = avant; ui.tab = tab; render(); }
+  });
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {

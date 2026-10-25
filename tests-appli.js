@@ -2380,6 +2380,48 @@
     const res = [r.width >= 39.5 && r.height >= 39.5 ? '40+' : Math.round(r.width) + '×' + Math.round(r.height), Math.round(r.height + 2 * Math.max(0, -parseFloat(apres.top) || 0)) >= 48 ? '48' : 'zone ' + apres.top];
     Object.assign(ui, filtresVides); render(); return res.join('|');
   });
+  await test('Bandeau de prêt : une seule ligne ; la date et « Voir » restent visibles même avec un très long titre', '1 ligne|date visible|Voir visible', () => {
+    books = [fiche('Un titre vraiment très très long qui ne pourra jamais tenir sur la ligne du bandeau', {possession: 'emprunte', pretRetour: addDays(2)})]; paintNotice();
+    const bar = $('#notice'), d = bar.querySelector('b').getBoundingClientRect(), v = bar.querySelector('[data-open]').getBoundingClientRect(), br = bar.getBoundingClientRect();
+    // (une ligne = le bandeau n'est pas plus haut que le bouton « Voir » et ses marges ; comparer la date et le bouton ne suffit pas :
+    //  sans le code, le titre prend une ligne entière et la date se retrouve à côté de « Voir », sur la ligne suivante)
+    const r = [br.height <= v.height + 20 ? '1 ligne' : 'plusieurs lignes',
+      d.right <= v.left + 1 && d.left >= br.left && bar.querySelector('b').scrollWidth <= Math.ceil(d.width) + 1 ? 'date visible' : 'date coupée',
+      v.right <= br.right + 1 ? 'Voir visible' : 'Voir caché'];
+    books = []; paintNotice(); return r.join('|');
+  });
+  await test('Éditorial : bandeau sans bande colorée ; le bandeau d\'erreur garde la sienne ; les autres styles aussi', 'editorial prêt 0px|editorial erreur 4px|android prêt 4px', async () => {
+    const r = [], mesurer = () => parseFloat(getComputedStyle($('#notice')).borderLeftWidth) + 'px';
+    books = [fiche('Prêt', {possession: 'emprunte', pretRetour: addDays(2)})];
+    await avecStyle('editorial', 'light', () => { paintNotice(); r.push('editorial prêt ' + mesurer()); Store.erreur = true; paintNotice(); r.push('editorial erreur ' + mesurer()); Store.erreur = false; });
+    await avecStyle('android', 'light', () => { paintNotice(); r.push('android prêt ' + mesurer()); });
+    books = []; paintNotice(); return r.join('|');
+  });
+  // (garde-fou : passe déjà avant le code ; il doit rester vert)
+  await test('Bandeau d\'erreur : le texte reste entier, jamais coupé', 'entier', () => {
+    Store.erreur = true; paintNotice(); const bar = $('#notice');
+    const ok = !bar.classList.contains('court') && bar.textContent.includes('pas enregistrées') && bar.scrollWidth <= bar.clientWidth + 1;
+    Store.erreur = false; paintNotice(); return ok ? 'entier' : 'coupé';
+  });
+  await test('Éditorial : titres repliables en texte normal (icône en texte doux) ; les autres styles gardent le rose', 'editorial texte|icône douce|android rose', async () => {
+    books = [fiche('F1', {genre: 'Fantasy'})]; ui.tab = 'a_lire'; const r = [];
+    const couleur = v => { const s = document.createElement('i'); s.style.color = v; document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; };
+    await avecStyle('editorial', 'light', () => { render(); const s = $('#filtres summary');
+      r.push(getComputedStyle(s).color === couleur('var(--texte)') ? 'editorial texte' : 'editorial ' + getComputedStyle(s).color,
+        getComputedStyle(s.querySelector('.ico')).backgroundColor === couleur('var(--texte-doux)') ? 'icône douce' : 'icône ' + getComputedStyle(s.querySelector('.ico')).backgroundColor); });
+    await avecStyle('android', 'light', () => { render(); r.push(getComputedStyle($('#filtres summary')).color === couleur('var(--accent)') ? 'android rose' : 'android autre'); });
+    return r.join('|');
+  });
+  await test('Cartes : la puce de format dit « Numérique » ou « Audio »', '📱 Numérique|🎧 Audio', () => {
+    books = [fiche('N', {format: 'numerique'}), fiche('Au', {format: 'audio'})]; ui.tab = 'a_lire'; ui.sort = 'titre'; render();
+    const r = ['t-N', 't-Au'].map(id => [...document.querySelectorAll(`#list .card[data-id="${id}"] .chip`)].map(c => c.textContent.trim()).find(t => /Numérique|Audio|📱|🎧/.test(t)) || 'aucune').join('|');
+    ui.sort = 'recent'; render(); return r;
+  });
+  await test('Cartes (liste) : titre coupé à 3 lignes au plus, le titre complet reste dans la page', '3 lignes au plus|titre complet', () => {
+    const long = 'Une très longue histoire avec un titre interminable qui continue encore et encore sans jamais vouloir se terminer vraiment';
+    books = [fiche(long)]; ui.tab = 'a_lire'; prefs.view = 'liste'; render(); const t = $('#list .card .t'), lh = parseFloat(getComputedStyle(t).lineHeight);
+    return (t.getBoundingClientRect().height <= 3 * lh + 2 ? '3 lignes au plus' : Math.round(t.getBoundingClientRect().height / lh) + ' lignes') + '|' + (t.textContent.includes(long) ? 'titre complet' : 'titre tronqué');
+  });
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {

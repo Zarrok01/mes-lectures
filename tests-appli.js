@@ -873,43 +873,202 @@
     [...document.styleSheets].some(s => { try { return [...s.cssRules].some(r => r.media && /prefers-reduced-motion:\s*reduce/.test(r.media.mediaText) && /slide-l/.test(r.cssText)); } catch (e) { return false; } }));
 
   /* ---------- 10. Phase 1 : styles et palettes ---------- */
-  const COMBOS = [['android', 'light'], ['android', 'dark'], ['actuel', 'light'], ['actuel', 'dark'], ['carnet', 'light'], ['carnet', 'dark']];
+  const COMBOS = [['editorial', 'light'], ['editorial', 'dark'], ['android', 'light'], ['android', 'dark'], ['actuel', 'light'], ['actuel', 'dark'], ['carnet', 'light'], ['carnet', 'dark']];
   const avecStyle = async (style, theme, fn) => {
     const s0 = prefs.style, t0 = prefs.theme; prefs.style = style; prefs.theme = theme; applyTheme();
     try { return await fn(); } finally { prefs.style = s0; prefs.theme = t0; applyTheme(); }
   };
   // (valeurs du §3 du design : fond, texte, accent, texte sur accent)
   const PALETTE_ATTENDUE = {
+    // (plan maître, phase 1 : style Éditorial, design 01-design-system.md §7)
+    'editorial/light': '#F7F5F0 #1E1D1F #9A3F55 #FFFFFF', 'editorial/dark': '#141416 #F2EFEC #E3A9B4 #1A1416',
     'android/light': '#f5faf4 #191c19 #1b6c3d #ffffff', 'android/dark': '#101410 #e0e4dc #9bd5a8 #00391a',
     'actuel/light': '#f2f2f0 #141414 #0b7f45 #ffffff', 'actuel/dark': '#0d0d0d #f1f1f1 #2ecc71 #04210f',
     // (palette Carnet revue le 23/10/2026, accent bordeaux de la direction A ; contrastes vérifiés : texte 13,4 / 15,5, accent 6,7 / 7,5)
     'carnet/light': '#F6F1E8 #252723 #843F4B #ffffff', 'carnet/dark': '#191A18 #F6F1E8 #D69AA4 #191A18'
   };
   const lirePalette = el => ['--fond', '--texte', '--accent', '--sur-accent'].map(v => getComputedStyle(el).getPropertyValue(v).trim()).join(' ');
-  await test('Style : Android moderne par défaut (préférence absente ou inconnue)', 'android|android', () => {
+  await test('Style : Éditorial par défaut (préférence absente ou inconnue)', 'editorial|editorial', () => {
     const s0 = prefs.style; delete prefs.style; applyTheme(); const a = document.documentElement.dataset.style;
     prefs.style = 'xyz'; applyTheme(); const b = document.documentElement.dataset.style;
     prefs.style = s0; applyTheme(); return a + '|' + b;
   });
-  await test('Style : les 6 palettes ont les valeurs du design', [], async () => {
+  await test('Style : les 8 palettes ont les valeurs du design', [], async () => {
     const fautes = [];
     for (const [s, t] of COMBOS) await avecStyle(s, t, () => { const v = lirePalette(document.documentElement); if (v !== PALETTE_ATTENDUE[s + '/' + t]) fautes.push(s + '/' + t + ' : ' + v); });
     return fautes;
   });
   await test('Style : un aperçu garde sa palette même si la page est dans un autre style', '#F6F1E8 #252723 #843F4B #ffffff', async () =>
     avecStyle('android', 'dark', () => { const s = document.createElement('span'); s.dataset.style = 'carnet'; s.dataset.theme = 'light'; document.body.appendChild(s); const v = lirePalette(s); s.remove(); return v; }));
-  await test('Style : choix dans les Réglages, immédiat et gardé', 'carnet|carnet|3 aperçus', async () => {
+  await test('Style : choix dans les Réglages, immédiat et gardé', 'carnet|carnet|4 aperçus|editorial', async () => {
     const s0 = prefs.style; openSettings(); await pause(50);
     document.querySelector('#st_style [data-st="carnet"]').click();
-    const r = document.documentElement.dataset.style + '|' + JSON.parse(localStorage.getItem(CLE + '-prefs')).style + '|' + document.querySelectorAll('#st_style .apercu').length + ' aperçus';
+    const r = document.documentElement.dataset.style + '|' + JSON.parse(localStorage.getItem(CLE + '-prefs')).style + '|' + document.querySelectorAll('#st_style .apercu').length + ' aperçus'
+      + '|' + document.querySelector('#st_style [data-st]').dataset.st;
     prefs.style = s0; savePrefs(); applyTheme(); closeM(); await pause(250);
     return r;
   });
-  await test('Style : la barre du navigateur prend la couleur de l\'en-tête', '#f5faf4|#141414', async () => {
+  await test('Style : la barre du navigateur prend la couleur de l\'en-tête', '#f5faf4|#141414|#FFFDF9|#141416', async () => {
     const lire = () => document.querySelector('meta[name="theme-color"]').content;
-    return (await avecStyle('android', 'light', lire)) + '|' + (await avecStyle('actuel', 'light', lire));
+    return (await avecStyle('android', 'light', lire)) + '|' + (await avecStyle('actuel', 'light', lire))
+      + '|' + (await avecStyle('editorial', 'light', lire)) + '|' + (await avecStyle('editorial', 'dark', lire));
+  });
+  /* ---------- 10 bis A. Plan maître, phase 1 : style Éditorial ---------- */
+  const VARS_PALETTE = ['--fond', '--surface', '--surface-2', '--texte', '--texte-doux', '--trait', '--accent', '--sur-accent', '--accent-doux', '--sur-accent-doux',
+    '--barre', '--texte-barre', '--texte-barre-doux', '--barre-2', '--danger', '--alerte'];
+  // (Éditorial : design §7 ; les 6 autres : instantané du 25/10/2026, ils ne doivent pas bouger)
+  const PALETTE_COMPLETE = {
+    'editorial/light': '#F7F5F0 #FFFDF9 #EEEAE3 #1E1D1F #5A5658 #E0DBD3 #9A3F55 #FFFFFF #F6E4E8 #6B2738 #FFFDF9 #1E1D1F #5A5658 #EEEAE3 #B3261E #7A5A00',
+    'editorial/dark': '#141416 #1C1C1F #26262A #F2EFEC #B9B3AF #36363C #E3A9B4 #1A1416 #3B2A30 #F4CDD4 #141416 #F2EFEC #B9B3AF #26262A #FF9B91 #E5C07B',
+    'android/light': '#f5faf4 #ffffff #e6f2e8 #191c19 #414941 #c1c9be #1b6c3d #ffffff #b6f1c4 #00210e #f5faf4 #191c19 #414941 #e6f2e8 #ba1a1a #7a5900',
+    'android/dark': '#101410 #181d18 #212a22 #e0e4dc #c0c9bc #414941 #9bd5a8 #00391a #1f5130 #b6f1c4 #101410 #e0e4dc #c0c9bc #212a22 #ffb4ab #f3c14c',
+    'actuel/light': '#f2f2f0 #ffffff #f6f6f4 #141414 #5f5f5f #e4e4e0 #0b7f45 #ffffff #e0f2e8 #0a5c33 #141414 #ffffff #a8a8a8 #262626 #c0392b #8a5a00',
+    'actuel/dark': '#0d0d0d #191919 #222222 #f1f1f1 #a3a3a3 #2b2b2b #2ecc71 #04210f #143022 #8fe3b0 #000000 #ffffff #a3a3a3 #1f1f1f #ff8a7a #f3c14c',
+    'carnet/light': '#F6F1E8 #FFFCF6 #EDE4D7 #252723 #5E574C #DED5C8 #843F4B #ffffff #F1E1E2 #642B36 #EDE4D7 #252723 #5E574C #DED5C8 #A52A2A #6E5A2E',
+    'carnet/dark': '#191A18 #252723 #302F2A #F6F1E8 #C4BFB5 #41413B #D69AA4 #191A18 #41272D #F1C4CC #191A18 #F6F1E8 #C4BFB5 #302F2A #FF9B91 #C5A775'
+  };
+  await test('Éditorial : les 16 couleurs des 8 palettes (Éditorial du design, 3 anciens styles inchangés)', [], async () => {
+    const fautes = [];
+    for (const [s, t] of COMBOS) await avecStyle(s, t, () => {
+      const v = VARS_PALETTE.map(x => getComputedStyle(document.documentElement).getPropertyValue(x).trim()).join(' ');
+      if (v !== PALETTE_COMPLETE[s + '/' + t]) fautes.push(s + '/' + t + ' : ' + v);
+    });
+    return fautes;
+  });
+  await test('Éditorial : formes du design (angles, ombre, bordure, couvertures)', '6px 12px 20px 999px none 0px 30% 34%', () =>
+    avecStyle('editorial', 'light', () => ['--r-s', '--r-m', '--r-l', '--r-pilule', '--ombre-1', '--bordure-carte', '--couv-s', '--couv-l']
+      .map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim()).join(' ')));
+  await test('Éditorial : un aperçu des Réglages garde sa palette dans un autre style', '#141416 #F2EFEC #E3A9B4 #1A1416', async () =>
+    avecStyle('carnet', 'light', () => { const s = document.createElement('span'); s.dataset.style = 'editorial'; s.dataset.theme = 'dark'; document.body.appendChild(s); const v = lirePalette(s); s.remove(); return v; }));
+  await test('Éditorial : le livre garde sa palette (mêmes couleurs qu\'en Android moderne, clair et sombre)', 'clair identique|sombre identique', async () => {
+    const VARS_LIVRE = ['--livre-papier', '--livre-encre', '--livre-doux', '--livre-or', '--livre-or-texte', '--livre-vert', '--livre-bordeaux', '--livre-tranche'];
+    const lire = () => VARS_LIVRE.map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim()).join(' '), r = [];
+    for (const [t, nom] of [['light', 'clair'], ['dark', 'sombre']]) r.push(nom + ((await avecStyle('editorial', t, lire)) === (await avecStyle('android', t, lire)) ? ' identique' : ' différent'));
+    return r.join('|');
+  });
+  await test('Réglages : les 4 styles tiennent sur 2 lignes de 2, sans débordement', 'sans débordement|2 lignes|2 colonnes', async () => {
+    openSettings(); await pause(50);
+    const box = $('#st_style'), bs = [...box.querySelectorAll('[data-st]')];
+    const r = (box.scrollWidth <= box.clientWidth + 1 ? 'sans débordement' : 'déborde de ' + (box.scrollWidth - box.clientWidth) + ' px')
+      + '|' + new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size + ' lignes'
+      + '|' + new Set(bs.map(b => Math.round(b.getBoundingClientRect().left))).size + ' colonnes';
+    closeM(); await pause(250); return r;
   });
 
+  // Pose des composants d'essai dans la page, mesure, puis les retire
+  const mesurerComposants = fn => {
+    const d = document.createElement('div');
+    d.innerHTML = '<div class="card">c</div><span class="chip">p</span><button type="button" class="btn">B</button>'
+      + '<span class="chip suggere">s</span><span class="chip warn">w</span><span class="chip late">l</span>'
+      + '<button type="button" class="subtab">a</button><button type="button" class="subtab on">b</button><button type="button" class="btn on">o</button>'
+      + '<i class="sonde-accent"></i>';
+    document.body.appendChild(d);
+    try { return fn(s => d.querySelector(s)); } finally { d.remove(); }
+  };
+  const transparent = c => /rgba\(0, 0, 0, 0\)|transparent/.test(c);
+  await test('Éditorial : cartes, puces et boutons sans contour ; puces à sens et choix actifs gardent le leur',
+    'carte 0px|puce sans contour|bouton sans contour, 48 px|suggéré en pointillés|à compléter : contour|en retard : contour|statut actif : contour rose|bouton actif : contour rose', () =>
+    avecStyle('editorial', 'light', () => mesurerComposants(q => {
+      const cs = s => getComputedStyle(q(s)), sonde = q('.sonde-accent'); sonde.style.color = 'var(--accent)'; const rose = getComputedStyle(sonde).color;
+      return [
+        'carte ' + cs('.card').borderTopWidth,
+        transparent(cs('.chip:not(.suggere):not(.warn):not(.late)').borderTopColor) ? 'puce sans contour' : 'puce avec contour',
+        (transparent(cs('.btn:not(.on)').borderTopColor) ? 'bouton sans contour' : 'bouton avec contour') + ', ' + (q('.btn:not(.on)').getBoundingClientRect().height >= 47.5 ? '48 px' : 'trop petit'),
+        cs('.chip.suggere').borderTopStyle === 'dashed' && !transparent(cs('.chip.suggere').borderTopColor) ? 'suggéré en pointillés' : 'suggéré sans pointillés',
+        transparent(cs('.chip.warn').borderTopColor) ? 'à compléter : sans contour' : 'à compléter : contour',
+        transparent(cs('.chip.late').borderTopColor) ? 'en retard : sans contour' : 'en retard : contour',
+        cs('.subtab.on').borderTopColor === rose ? 'statut actif : contour rose' : 'statut actif : ' + cs('.subtab.on').borderTopColor,
+        cs('.btn.on').borderTopColor === rose ? 'bouton actif : contour rose' : 'bouton actif : ' + cs('.btn.on').borderTopColor
+      ].join('|');
+    })));
+  await test('Éditorial : les autres styles gardent leurs contours de puces et de boutons', 'android|actuel|carnet', async () => {
+    const r = [];
+    for (const s of ['android', 'actuel', 'carnet']) await avecStyle(s, 'light', () => mesurerComposants(q => {
+      if (!transparent(getComputedStyle(q('.chip')).borderTopColor) && !transparent(getComputedStyle(q('.btn:not(.on)')).borderTopColor)) r.push(s);
+    }));
+    return r.join('|');
+  });
+  await test('Éditorial : carte « Reprendre la lecture » sans contour ni bande rose ; les autres styles gardent la bande',
+    'editorial/light 0px 0px|editorial/dark 0px 0px|android/light 4px|carnet/dark 4px', async () => {
+    const r = [], d = document.createElement('div'); d.className = 'resume-lecture';
+    const mesurer = () => { document.body.appendChild(d); const c = getComputedStyle(d), v = [c.borderTopWidth, c.borderLeftWidth]; d.remove(); return v; };
+    for (const t of ['light', 'dark']) await avecStyle('editorial', t, () => r.push('editorial/' + t + ' ' + mesurer().join(' ')));
+    for (const [s, t] of [['android', 'light'], ['carnet', 'dark']]) await avecStyle(s, t, () => r.push(s + '/' + t + ' ' + mesurer()[1]));
+    return r.join('|');
+  });
+  await test('Éditorial : un bouton secondaire se distingue toujours du cadre gris qui le contient', 'light ok|dark ok', async () => {
+    const r = [], cadres = [['panel encadre', 'btn'], ['rq-tax-explorer', 'chipb rq-tax-option'], ['entree', 'btn small'], ['editeur', 'btn']];
+    for (const t of ['light', 'dark']) await avecStyle('editorial', t, () => {
+      const fautes = cadres.filter(([c, b]) => {
+        const d = document.createElement('div'); d.className = c; d.innerHTML = `<button type="button" class="${b}">x</button>`; document.body.appendChild(d);
+        const meme = getComputedStyle(d.firstChild).backgroundColor === getComputedStyle(d).backgroundColor; d.remove(); return meme;
+      }).map(([c]) => c);
+      r.push(t + (fautes.length ? ' : ' + fautes.join(', ') : ' ok'));
+    });
+    return r.join('|');
+  });
+  await test('Éditorial : le livre garde ses propres boutons (éditeur de note : lien, sans fond)', 'light transparent|dark transparent', async () => {
+    const r = [];
+    for (const t of ['light', 'dark']) await avecStyle('editorial', t, () => {
+      const d = document.createElement('div'); d.className = 'lv'; d.innerHTML = '<div class="editeur"><button type="button" class="btn">Annuler</button></div>'; document.body.appendChild(d);
+      const fond = getComputedStyle(d.querySelector('.btn')).backgroundColor; d.remove();
+      r.push(t + (transparent(fond) ? ' transparent' : ' ' + fond));
+    });
+    return r.join('|');
+  });
+  await test('Champs : contour lisible (≥ 3) en Éditorial, inchangé dans les autres styles', 'editorial/light ≥ 3|editorial/dark ≥ 3|android/light inchangé|carnet/dark inchangé', async () => {
+    const r = [];
+    const mesurer = () => { const i = document.createElement('input'), t = document.createElement('i'); t.style.color = 'var(--trait)'; document.body.append(i, t);
+      const c = getComputedStyle(i), v = {bord: c.borderTopColor, fond: c.backgroundColor, trait: getComputedStyle(t).color}; i.remove(); t.remove(); return v; };
+    for (const t of ['light', 'dark']) await avecStyle('editorial', t, () => { const v = mesurer(); r.push('editorial/' + t + (contraste(v.bord, v.fond) >= 3 ? ' ≥ 3' : ' ' + contraste(v.bord, v.fond).toFixed(2))); });
+    for (const [s, t] of [['android', 'light'], ['carnet', 'dark']]) await avecStyle(s, t, () => { const v = mesurer(); r.push(s + '/' + t + (v.bord === v.trait ? ' inchangé' : ' modifié')); });
+    return r.join('|');
+  });
+  await test('Passage Éditorial : Android passe une seule fois ; Actuel, Carnet, Éditorial et préférences vides restent',
+    'true|editorial|false|false|actuel|false|carnet|false|android|false|editorial|false|1', () => {
+    const a = {style: 'android'}, r1 = passageEditorial(a), s1 = a.style, r2 = passageEditorial(a);
+    const b = {style: 'actuel'}, rb = passageEditorial(b), c = {style: 'carnet'}, rc = passageEditorial(c);
+    const d = {style: 'android', styleEditorial: 1}, rd = passageEditorial(d);
+    const e = {style: 'editorial'}, re = passageEditorial(e), f = {}, rf = passageEditorial(f);
+    return [r1, s1, r2, rb, b.style, rc, c.style, rd, d.style, re, e.style, rf, f.styleEditorial].join('|');
+  });
+  await test('Passage Éditorial : enregistré, message affiché une fois, choix d\'Android respecté ensuite', 'editorial|editorial|1|message|android|pas de message', async () => {
+    const p0 = JSON.stringify(prefs);
+    try {
+      prefs.style = 'android'; delete prefs.styleEditorial; $('#toast').textContent = '';
+      appliquerPassageEditorial(); await pause(1700);
+      const lu = JSON.parse(localStorage.getItem(CLE + '-prefs'));
+      const r = [prefs.style, lu.style, lu.styleEditorial, $('#toast').textContent.includes(MSG_EDITORIAL) ? 'message' : 'pas de message'];
+      $('#toast').textContent = ''; $('#toast').classList.remove('show');
+      prefs.style = 'android'; savePrefs(); appliquerPassageEditorial(); await pause(1700);
+      r.push(prefs.style, $('#toast').textContent.includes(MSG_EDITORIAL) ? 'message' : 'pas de message');
+      return r.join('|');
+    } finally { Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, JSON.parse(p0)); savePrefs(); applyTheme(); }
+  });
+  await test('Passage Éditorial : le bon style dès le premier affichage (script de tête)', 'editorial/light|android/light|actuel/light', () => {
+    const s = document.head.querySelector('script:not([src])'), r = document.documentElement, p0 = localStorage.getItem(CLE + '-prefs');
+    const lance = p => { localStorage.setItem(CLE + '-prefs', JSON.stringify(p)); delete r.dataset.style; delete r.dataset.theme;
+      const x = document.createElement('script'); x.textContent = s.textContent; document.body.appendChild(x); x.remove(); return r.dataset.style + '/' + r.dataset.theme; };
+    try { return [lance({style: 'android', theme: 'light'}), lance({style: 'android', theme: 'light', styleEditorial: 1}), lance({style: 'actuel', theme: 'light'})].join('|'); }
+    finally { if (p0 === null) localStorage.removeItem(CLE + '-prefs'); else localStorage.setItem(CLE + '-prefs', p0); applyTheme(); }
+  });
+  await test('M6 : aucun effet de survol hors des appareils à souris (pas de contour collant au toucher)', [], () => {
+    const feuille = [...document.styleSheets].find(s => s.ownerNode === document.head.querySelector('style')), fautes = [];
+    const parcourir = (regles, dansSurvol) => [...regles].forEach(r => {
+      if (r instanceof CSSMediaRule) return parcourir(r.cssRules, dansSurvol || /hover\s*:\s*hover/.test(r.conditionText));
+      if (r instanceof CSSStyleRule && r.selectorText.includes(':hover') && !dansSurvol) fautes.push(r.selectorText);
+    });
+    parcourir(feuille.cssRules, false); return fautes;
+  });
+  await test('M3 : bouton × d\'étiquette d\'au moins 40 px (zone de toucher de 48 px), et toujours efficace', '40+|40+|48|retirée', async () => {
+    books = [fiche('Étiquetée', {etiquettes: ['Club']})]; openForm(books[0]); await pause(50);
+    const b = $('#f_etiquettes [data-etiquette-retirer]'); b.closest('details') && (b.closest('details').open = true);
+    const r = b.getBoundingClientRect(), apres = getComputedStyle(b, '::after');
+    const res = [r.width >= 39.5 ? '40+' : Math.round(r.width) + ' px', r.height >= 39.5 ? '40+' : Math.round(r.height) + ' px',
+      Math.round(r.height + 2 * Math.max(0, -parseFloat(apres.top) || 0)) >= 48 ? '48' : 'zone ' + apres.top];
+    b.click(); await pause(50); res.push($('#f_etiquettes [data-etiquette-retirer]') ? 'encore là' : 'retirée');
+    modalModifie = false; closeM(); await pause(250); return res.join('|');
+  });
   /* ---------- 10 bis. Phase 1 : feuille de style ---------- */
   // Toutes les règles de la feuille principale (et celles des @media, sauf l'impression)
   const regles = () => { const out = []; const lire = (l, imp) => { for (const r of l) { if (r.cssRules && r.media) lire(r.cssRules, imp || /print/.test(r.media.mediaText)); else if (r.selectorText && !imp) out.push(r); } }; lire(document.styleSheets[0].cssRules, false); return out; };
@@ -947,7 +1106,7 @@
   await test('Écrans : plus de style en ligne (sauf largeurs, hauteurs, calendrier, couvertures de secours)', [], () =>
     auditEcrans(() => [...document.querySelectorAll('[style]')].flatMap(el => [...el.style].filter(p => !PERMIS.test(p) && !(/^background/.test(p) && el.classList.contains('ph')))
       .map(p => (el.id || el.className || el.tagName) + ' ' + p))));
-  await test('Couvertures de secours : initiale lisible (≥ 4,5:1) pour 36 titres, dans les 6 combinaisons', [], async () => {
+  await test('Couvertures de secours : initiale lisible (≥ 4,5:1) pour 36 titres, dans les 8 combinaisons', [], async () => {
     const fautes = [];
     for (const [s, t] of COMBOS) await avecStyle(s, t, () => {
       const d = document.createElement('div'); d.innerHTML = Array.from({length: 36}, (_, k) => coverHtml({titre: 'Titre ' + k * 7})).join(''); document.body.appendChild(d);
@@ -960,9 +1119,9 @@
   });
 
   /* ---------- 10 quater. Phase 1 : icônes ---------- */
-  await test('Icônes : dessinées en Android et Actuel, émojis en Carnet', 'android:dessin|actuel:dessin|carnet:émoji', async () => {
+  await test('Icônes : dessinées en Éditorial, Android et Actuel, émojis en Carnet', 'editorial:dessin|android:dessin|actuel:dessin|carnet:émoji', async () => {
     const r = [];
-    for (const s of ['android', 'actuel', 'carnet']) await avecStyle(s, 'light', () => {
+    for (const s of ['editorial', 'android', 'actuel', 'carnet']) await avecStyle(s, 'light', () => {
       const i = document.querySelector('#settingsBtn .ico'), st = getComputedStyle(i);
       r.push(s + ':' + (st.fontSize === '0px' && st.maskImage !== 'none' ? 'dessin' : st.fontSize !== '0px' && st.maskImage === 'none' ? 'émoji' : '?'));
     });
@@ -1070,7 +1229,7 @@
     $('#f_titre').value = 'D'; $('#f_titre').dispatchEvent(new Event('input', {bubbles: true}));
     const b = $('#f_titre_err') ? 'restée' : 'effacée'; modalModifie = false; closeM(); await pause(250); return a + '|' + b;
   });
-  /* ---------- 10 septies. Phase 1 : audit visuel (5 écrans × 6 combinaisons) ---------- */
+  /* ---------- 10 septies. Phase 1 : audit visuel (5 écrans × 8 combinaisons) ---------- */
   const rgba = c => { const m = (c.match(/[\d.]+/g) || []).map(Number); return m.length >= 3 ? [m[0], m[1], m[2], m.length > 3 ? m[3] : 1] : [0, 0, 0, 0]; };
   const lumi = c => { const v = c.slice(0, 3).map(x => x / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
   const sur = (haut, bas) => [0, 1, 2].map(i => haut[i] * haut[3] + bas[i] * (1 - haut[3])).concat(1);
@@ -1081,7 +1240,7 @@
   const textesVisibles = () => [...document.querySelectorAll('body *')].filter(el =>
     [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim() && !EMOJIS_SEULS.test(n.textContent.trim()))
     && el.checkVisibility({checkOpacity: true, checkVisibilityCSS: true}) && !el.closest('.ico,.be,option,[aria-hidden="true"],#print,.cam,:disabled') && parseFloat(getComputedStyle(el).fontSize) > 0);
-  await test('Audit : contrastes ≥ 4,5:1 (3:1 grand texte) sur 5 écrans × 6 combinaisons', [], () => auditEcrans(() => textesVisibles().map(el => {
+  await test('Audit : contrastes ≥ 4,5:1 (3:1 grand texte) sur 5 écrans × 8 combinaisons', [], () => auditEcrans(() => textesVisibles().map(el => {
     const st = getComputedStyle(el), fs = parseFloat(st.fontSize), fw = parseInt(st.fontWeight, 10);
     const fg = sur(rgba(st.color), fondReel(el)), bg = fondReel(el), r = (Math.max(lumi(fg), lumi(bg)) + .05) / (Math.min(lumi(fg), lumi(bg)) + .05);
     return r < (fs >= 24 || (fs >= 18.66 && fw >= 700) ? 3 : 4.5) ? `« ${el.textContent.trim().slice(0, 24)} » (${el.className || el.tagName}) ${r.toFixed(2)}` : null;
@@ -1091,7 +1250,7 @@
   await test('Audit : zones tactiles (48 px, puces 40 px) sur 5 écrans', [], () => auditEcrans(() =>
     [...document.querySelectorAll('button, a.btn, select, input:not([type=checkbox]):not([type=hidden]):not([type=file]), summary, [role=tab]')]
       .filter(el => el.checkVisibility({checkOpacity: true, checkVisibilityCSS: true}) && !el.closest('.cam'))
-      .filter(el => el.getBoundingClientRect().height < (el.matches('.chipb, .btn.small, .catchip button') ? 39.5 : 47.5))
+      .filter(el => el.getBoundingClientRect().height < (el.matches('.chipb, .btn.small, .catchip button, .classif-tags .chip button, .filtres-actifs .chip button') ? 39.5 : 47.5))
       .map(el => `${el.id || el.className || el.tagName} « ${el.textContent.trim().slice(0, 16)} » ${Math.round(el.getBoundingClientRect().height)} px`)));
   /* ---------- 10 octies. Phase 1 : relecture finale ---------- */
   await test('Accessibilité : Maj+Tab depuis le titre de la fenêtre reste dans la fenêtre', 'dernier', async () => {
@@ -1115,7 +1274,7 @@
     prefs.timer = null; $('#timerOv').classList.remove('show'); paintTimerPill(); ui.tab = 'en_cours'; render();
     return 'thème ' + th + '|chercher par ' + rp + '|chrono ' + c;
   });
-  await test('Style posé avant le premier affichage (script en tête), y compris préférence corrompue', 'carnet/dark|android/light|android', () => {
+  await test('Style posé avant le premier affichage (script en tête), y compris préférence corrompue', 'carnet/dark|editorial/light|editorial', () => {
     const s = document.head.querySelector('script:not([src])'); if (!s) return 'pas de script en tête';
     // (le vrai script est rejoué dans la page avec des préférences d'essai, puis tout est remis en place)
     const r = document.documentElement, lance = p => {
@@ -2060,7 +2219,7 @@
     }));
     prefs.view = 'liste'; window.scrollTo(0, 0); return r.join('|');
   });
-  await test('Livre lisible dans les 6 combinaisons (texte, titres, liens, numéros ≥ 4,5) et zones tactiles ≥ 48 px', [], async () => {
+  await test('Livre lisible dans les 8 combinaisons (texte, titres, liens, numéros ≥ 4,5) et zones tactiles ≥ 48 px', [], async () => {
     const fautes = [];
     for (const [s, t] of COMBOS) await avecStyle(s, t, () => avecLivre(async () => {
       ouvrirLivre(LIVRE_PLEIN()); const fond = getComputedStyle($('#lvPages .lv-page')).backgroundColor;
@@ -2101,9 +2260,9 @@
     return bs.length === 4 && bs.every(b => b.getBoundingClientRect().right <= innerWidth + 1 && b.scrollWidth <= b.clientWidth + 1) && nav.scrollWidth <= nav.clientWidth + 1 ? 'tiennent' : bs.map(b => Math.round(b.getBoundingClientRect().right)).join(',');
   });
   await test('Grille : le compte des livres occupe toute la largeur, au-dessus des couvertures (pas dans une case)', 'toute la largeur', () => {
-    books = Array.from({length: 4}, (_, k) => fiche('G' + k, {statut: 'a_lire'})); ui.tab = 'a_lire'; prefs.view = 'grille'; render();
+    books = Array.from({length: 4}, (_, k) => fiche('G' + k, {statut: 'a_lire'})); ui.tab = 'a_lire'; ui.q = 'G'; prefs.view = 'grille'; render();
     const c = $('#list .resultat-compte'), l = $('#list').getBoundingClientRect(), r = c ? c.getBoundingClientRect() : null, g = $('#list .gcard').getBoundingClientRect();
-    prefs.view = 'liste'; const ok = r && Math.abs(r.width - l.width) <= 2 && r.bottom <= g.top + 1; render(); return ok ? 'toute la largeur' : r ? Math.round(r.width) + '/' + Math.round(l.width) : 'absent';
+    prefs.view = 'liste'; ui.q = ''; const ok = r && Math.abs(r.width - l.width) <= 2 && r.bottom <= g.top + 1; render(); return ok ? 'toute la largeur' : r ? Math.round(r.width) + '/' + Math.round(l.width) : 'absent';
   });
   await test('Ruban : rouvrir puis refermer sans tourner de page garde le marque-page (Citations)', 'citations|citations|pas de ruban sur la garde', () => avecLivre(async () => {
     localStorage.removeItem(CLE + '-marques'); ouvrirLivre(LIVRE_PLEIN()); allerSection('citations'); await fermerFiche();
@@ -2145,6 +2304,82 @@
   });
   // (fin de la section 15)
 
+  /* ---------- 16. Phase 2 : Bibliothèque (docs/premium/02-bibliotheque.md) ---------- */
+  const enCours = (titre, extra) => fiche(titre, {statut: 'en_cours', pagesTotal: 256, pageActuelle: 112, dateDebut: today(), ...extra});
+  await test('Statuts : une seule ligne (texte normal), 48 px de haut au moins, sans débordement', '1 ligne|48+|sans débordement', () => {
+    books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; render();
+    const nav = $('#main .library-nav'), bs = [...nav.querySelectorAll('[data-tab]')], n = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size;
+    return [n + (n > 1 ? ' lignes' : ' ligne'), bs.every(b => b.getBoundingClientRect().height >= 47.5) ? '48+' : 'trop bas',
+      bs.every(b => b.scrollWidth <= b.clientWidth + 1) && nav.scrollWidth <= nav.clientWidth + 1 ? 'sans débordement' : 'déborde'].join('|');
+  });
+  // (garde-fou : passe déjà avant le code ; il doit rester vert)
+  await test('Statuts : texte agrandi de 30 %, rien n\'est coupé', 'rien de coupé', () => {
+    books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; document.documentElement.style.fontSize = '130%';
+    try { render(); const nav = $('#main .library-nav'), bs = [...nav.querySelectorAll('[data-tab]')];
+      return bs.every(b => b.scrollWidth <= b.clientWidth + 1 && b.getBoundingClientRect().right <= innerWidth + 1) && nav.scrollWidth <= nav.clientWidth + 1 ? 'rien de coupé' : 'coupé';
+    } finally { document.documentElement.style.fontSize = ''; render(); }
+  });
+  await test('Éditorial : compteur des statuts en texte doux, sans pastille ; sur le statut actif, couleur du statut', 'sans pastille|texte doux|actif : couleur du statut', () =>
+    avecStyle('editorial', 'light', () => {
+      books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; render();
+      const n = $('#main .library-nav .subtab:not(.on) .n'), on = $('#main .library-nav .subtab.on'), sonde = document.createElement('i');
+      sonde.style.color = 'var(--texte-doux)'; document.body.appendChild(sonde); const doux = getComputedStyle(sonde).color; sonde.remove();
+      return [transparent(getComputedStyle(n).backgroundColor) ? 'sans pastille' : 'pastille', getComputedStyle(n).color === doux ? 'texte doux' : getComputedStyle(n).color,
+        getComputedStyle(on.querySelector('.n')).color === getComputedStyle(on).color ? 'actif : couleur du statut' : 'actif : ' + getComputedStyle(on.querySelector('.n')).color].join('|');
+    }));
+  // (la grande carte est masquée pendant les tests, pour que les anciens tests comptent tous les livres ; on l'allume ici)
+  const avecReprise = async fn => { REPRISE = true; try { return await fn(); } finally { REPRISE = false; render(); } };
+  const ligneDeBoutons = acts => { const bs = [...acts.querySelectorAll('button')], n = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size;
+    return (n > 1 ? n + ' lignes' : '1 ligne') + '|' + (acts.scrollWidth <= acts.clientWidth + 1 && bs.every(b => b.scrollWidth <= b.clientWidth + 1) ? 'sans débordement' : 'déborde'); };
+  await test('Grande carte : 3 actions sur une ligne, sans débordement ; « Reprendre » nommé en entier', '1 ligne|sans débordement|Reprendre ma lecture', () => avecReprise(() => {
+    books = [enCours('Les Années', {auteur: 'Annie Ernaux'}), enCours('Autre', {dateDebut: addDays(-9)})]; ui.tab = 'en_cours'; render();
+    const acts = $('#resumeLecture .acts'), b = acts.querySelector('.btn.pri');
+    return ligneDeBoutons(acts) + '|' + (b.getAttribute('aria-label') || b.textContent.trim());
+  }));
+  await test('Grande carte : titre très long, sans auteur ni pages → actions sur une ligne, carte compacte', '1 ligne|sans débordement|compacte', () => avecReprise(() => {
+    books = [fiche('Une très longue histoire avec un titre interminable qui ne tient vraiment pas sur deux lignes', {statut: 'en_cours', auteur: '', dateDebut: today()})];
+    ui.tab = 'en_cours'; render(); const c = $('#resumeLecture');
+    return ligneDeBoutons(c.querySelector('.acts')) + '|' + (c.getBoundingClientRect().height <= 210 ? 'compacte' : Math.round(c.getBoundingClientRect().height) + ' px');
+  }));
+  await test('Un seul bouton rose par statut (le ＋ est à part)', 'en_cours 1|a_lire 0|lu 0|abandon 0', () => avecReprise(() => {
+    books = [enCours('A1'), enCours('A2', {dateDebut: addDays(-5)}), fiche('L1'), fiche('L2'), fiche('Lu', {statut: 'lu', note: 4}), fiche('Ab', {statut: 'abandon'})];
+    return Object.keys(STATUTS).map(k => { ui.tab = k; render(); return k + ' ' + document.querySelectorAll('#main .btn.pri').length; }).join('|');
+  }));
+  const filtresVides = {q: '', genre: '', genreConfirme: '', cat: '', own: '', sort: 'recent', sousGenre: '', theme: '', ambiance: '', etiquette: ''};
+  const puces = () => [...document.querySelectorAll('#filtresActifs [data-retirer-filtre]')].map(b => b.dataset.retirerFiltre).join(',') || 'aucune';
+  await test('Filtres actifs : une puce par critère, chacune retire son seul critère ; aucune puce sans filtre', 'aucune|genre,own,sort|genre,sort|aucune', () => {
+    books = [fiche('F1', {genre: 'Fantasy', possession: 'a_moi'}), fiche('F2', {genre: 'Polar'})]; ui.tab = 'a_lire'; Object.assign(ui, filtresVides); render();
+    const r = [puces()]; Object.assign(ui, {genre: 'Fantasy', own: 'a_moi', sort: 'titre'}); render(); r.push(puces());
+    $('#filtresActifs [data-retirer-filtre="own"]').click(); r.push(puces() + (ui.own === '' && ui.genre === 'Fantasy' ? '' : ' (mauvais critère retiré)'));
+    $('#filtresActifs [data-effacer]').click(); r.push(puces()); Object.assign(ui, filtresVides); render(); return r.join('|');
+  });
+  await test('Filtres actifs : « Tout effacer » remet tout à zéro, recherche comprise', 'tout à zéro', () => {
+    books = [fiche('F1', {genre: 'Fantasy'})]; ui.tab = 'a_lire'; Object.assign(ui, filtresVides, {q: 'F1', genre: 'Fantasy', sort: 'auteur'}); render();
+    $('#filtresActifs [data-effacer]').click(); const ok = Object.entries(filtresVides).every(([k, v]) => ui[k] === v);
+    Object.assign(ui, filtresVides); render(); return ok ? 'tout à zéro' : JSON.stringify(ui);
+  });
+  await test('Filtres actifs : après un ×, le focus va au critère suivant, puis au titre « Filtres et tri »', 'sort|filtres', () => {
+    books = [fiche('F1', {genre: 'Fantasy'})]; ui.tab = 'a_lire'; Object.assign(ui, filtresVides, {genre: 'Fantasy', sort: 'titre'}); render();
+    $('#filtresActifs [data-retirer-filtre="genre"]').click(); const a = document.activeElement.dataset.retirerFiltre;
+    $('#filtresActifs [data-retirer-filtre="sort"]').click(); const b = document.activeElement.closest('#filtres') ? 'filtres' : document.activeElement.tagName;
+    Object.assign(ui, filtresVides); render(); return a + '|' + b;
+  });
+  await test('Filtres actifs : un critère devenu sans objet ne laisse pas de puce', 'aucune', () => {
+    books = [fiche('F1')]; ui.tab = 'a_lire'; Object.assign(ui, filtresVides, {theme: 'theme-qui-n-existe-pas'}); render();
+    const r = puces(); Object.assign(ui, filtresVides); render(); return r;
+  });
+  await test('Compte des livres : absent sans recherche ni filtre, présent et annoncé avec un filtre', 'absent|présent annoncé', () => {
+    books = [fiche('F1', {genre: 'Fantasy'}), fiche('F2')]; ui.tab = 'a_lire'; Object.assign(ui, filtresVides); render();
+    const a = $('#list .resultat-compte') ? 'présent' : 'absent'; ui.genre = 'Fantasy'; render(); const c = $('#list .resultat-compte');
+    const b = c && c.getAttribute('role') === 'status' && c.textContent.includes('1 livre') ? 'présent annoncé' : c ? c.textContent : 'absent';
+    Object.assign(ui, filtresVides); render(); return a + '|' + b;
+  });
+  await test('Filtres actifs : bouton × de 40 px au moins, zone de toucher de 48 px', '40+|48', () => {
+    books = [fiche('F1', {genre: 'Fantasy'})]; ui.tab = 'a_lire'; Object.assign(ui, filtresVides, {genre: 'Fantasy'}); render();
+    const b = $('#filtresActifs [data-retirer-filtre]'), r = b.getBoundingClientRect(), apres = getComputedStyle(b, '::after');
+    const res = [r.width >= 39.5 && r.height >= 39.5 ? '40+' : Math.round(r.width) + '×' + Math.round(r.height), Math.round(r.height + 2 * Math.max(0, -parseFloat(apres.top) || 0)) >= 48 ? '48' : 'zone ' + apres.top];
+    Object.assign(ui, filtresVides); render(); return res.join('|');
+  });
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {

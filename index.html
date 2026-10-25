@@ -10,7 +10,9 @@
 // Style et thème posés avant le premier affichage (sinon l'appli apparaîtrait un instant en Android clair)
 (() => { try {
   const p = JSON.parse(localStorage.getItem((/[?&]tests\b/.test(location.search) ? 'test-' : '') + 'mes-lectures-prefs')) || {}, r = document.documentElement;
-  r.dataset.style = ['android', 'actuel', 'carnet'].includes(p.style) ? p.style : 'android';
+  // (passage unique à Éditorial, plan maître phase 1 : un appareil resté en Android moderne s'affiche déjà en Éditorial)
+  const st = !p.styleEditorial && p.style === 'android' ? 'editorial' : p.style;
+  r.dataset.style = ['editorial', 'android', 'actuel', 'carnet'].includes(st) ? st : 'editorial';
   r.dataset.theme = p.theme === 'dark' || (p.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
 } catch (e) {} })();
 </script>
@@ -26,14 +28,20 @@
 :root{--t-xs:.8125rem;--t-s:.875rem;--t-m:1rem;--t-l:1.125rem;--t-xl:1.375rem;--t-xxl:1.75rem;
   --e-1:4px;--e-2:8px;--e-3:12px;--e-4:16px;--e-5:24px;--e-6:32px;--toucher:48px;--toucher-puce:40px;
   --police-texte:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--police-titres:"Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
-  --n1:#c0392b;--n2:#b4530b;--n3:#8a6100;--n4:#2e7d32;--n5:#0b7f45;--sur-note:#ffffff;--voile:rgba(12,12,12,.55)}
+  --n1:#c0392b;--n2:#b4530b;--n3:#8a6100;--n4:#2e7d32;--n5:#0b7f45;--sur-note:#ffffff;--voile:rgba(12,12,12,.55);--trait-champ:var(--trait)}
 /* Formes de chaque style */
-:root,[data-style=android]{--r-s:8px;--r-m:16px;--r-l:28px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface-2);--couv-s:30%;--couv-l:34%}
+:root,[data-style=editorial]{--r-s:6px;--r-m:12px;--r-l:20px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 8px 24px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:30%;--couv-l:34%}
+[data-style=android]{--r-s:8px;--r-m:16px;--r-l:28px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface-2);--couv-s:30%;--couv-l:34%}
 [data-style=actuel]{--r-s:6px;--r-m:12px;--r-l:18px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.2);--bordure-carte:1px;--carte:var(--surface);--couv-s:28%;--couv-l:34%}
 [data-style=carnet]{--r-s:4px;--r-m:10px;--r-l:14px;--r-pilule:10px;--ombre-1:0 1px 3px rgba(60,40,20,.10),0 4px 14px rgba(60,40,20,.08);--ombre-2:0 6px 20px rgba(60,40,20,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:32%;--couv-l:32%;--police-titres:Georgia,"Times New Roman",serif}
 /* Palettes (contrastes vérifiés ≥ 4,5:1, voir le design §3) */
-:root,[data-style=android][data-theme=light]{--fond:#f5faf4;--surface:#ffffff;--surface-2:#e6f2e8;--texte:#191c19;--texte-doux:#414941;--trait:#c1c9be;--accent:#1b6c3d;--sur-accent:#ffffff;--accent-doux:#b6f1c4;--sur-accent-doux:#00210e;--barre:#f5faf4;--texte-barre:#191c19;--texte-barre-doux:#414941;--barre-2:#e6f2e8;--danger:#ba1a1a;--alerte:#7a5900;color-scheme:light}
-:root:not([data-style])[data-theme=dark],[data-style=android][data-theme=dark]{--fond:#101410;--surface:#181d18;--surface-2:#212a22;--texte:#e0e4dc;--texte-doux:#c0c9bc;--trait:#414941;--accent:#9bd5a8;--sur-accent:#00391a;--accent-doux:#1f5130;--sur-accent-doux:#b6f1c4;--barre:#101410;--texte-barre:#e0e4dc;--texte-barre-doux:#c0c9bc;--barre-2:#212a22;--danger:#ffb4ab;--alerte:#f3c14c;color-scheme:dark}
+/* (style Éditorial, plan maître phase 1 : anthracite et rose poudré ; contrastes du design 01-design-system.md §7, tous ≥ 5,3) */
+:root,[data-style=editorial][data-theme=light]{--fond:#F7F5F0;--surface:#FFFDF9;--surface-2:#EEEAE3;--texte:#1E1D1F;--texte-doux:#5A5658;--trait:#E0DBD3;--accent:#9A3F55;--sur-accent:#FFFFFF;--accent-doux:#F6E4E8;--sur-accent-doux:#6B2738;--barre:#FFFDF9;--texte-barre:#1E1D1F;--texte-barre-doux:#5A5658;--barre-2:#EEEAE3;--danger:#B3261E;--alerte:#7A5A00;color-scheme:light}
+:root:not([data-style])[data-theme=dark],[data-style=editorial][data-theme=dark]{--fond:#141416;--surface:#1C1C1F;--surface-2:#26262A;--texte:#F2EFEC;--texte-doux:#B9B3AF;--trait:#36363C;--accent:#E3A9B4;--sur-accent:#1A1416;--accent-doux:#3B2A30;--sur-accent-doux:#F4CDD4;--barre:#141416;--texte-barre:#F2EFEC;--texte-barre-doux:#B9B3AF;--barre-2:#26262A;--danger:#FF9B91;--alerte:#E5C07B;color-scheme:dark}
+[data-style=editorial][data-theme=light]{--trait-champ:#8C8688}
+[data-style=editorial][data-theme=dark]{--ombre-2:0 8px 24px rgba(0,0,0,.45);--trait-champ:#737078}
+[data-style=android][data-theme=light]{--fond:#f5faf4;--surface:#ffffff;--surface-2:#e6f2e8;--texte:#191c19;--texte-doux:#414941;--trait:#c1c9be;--accent:#1b6c3d;--sur-accent:#ffffff;--accent-doux:#b6f1c4;--sur-accent-doux:#00210e;--barre:#f5faf4;--texte-barre:#191c19;--texte-barre-doux:#414941;--barre-2:#e6f2e8;--danger:#ba1a1a;--alerte:#7a5900;color-scheme:light}
+[data-style=android][data-theme=dark]{--fond:#101410;--surface:#181d18;--surface-2:#212a22;--texte:#e0e4dc;--texte-doux:#c0c9bc;--trait:#414941;--accent:#9bd5a8;--sur-accent:#00391a;--accent-doux:#1f5130;--sur-accent-doux:#b6f1c4;--barre:#101410;--texte-barre:#e0e4dc;--texte-barre-doux:#c0c9bc;--barre-2:#212a22;--danger:#ffb4ab;--alerte:#f3c14c;color-scheme:dark}
 [data-style=actuel][data-theme=light]{--fond:#f2f2f0;--surface:#ffffff;--surface-2:#f6f6f4;--texte:#141414;--texte-doux:#5f5f5f;--trait:#e4e4e0;--accent:#0b7f45;--sur-accent:#ffffff;--accent-doux:#e0f2e8;--sur-accent-doux:#0a5c33;--barre:#141414;--texte-barre:#ffffff;--texte-barre-doux:#a8a8a8;--barre-2:#262626;--danger:#c0392b;--alerte:#8a5a00;color-scheme:light}
 [data-style=actuel][data-theme=dark]{--fond:#0d0d0d;--surface:#191919;--surface-2:#222222;--texte:#f1f1f1;--texte-doux:#a3a3a3;--trait:#2b2b2b;--accent:#2ecc71;--sur-accent:#04210f;--accent-doux:#143022;--sur-accent-doux:#8fe3b0;--barre:#000000;--texte-barre:#ffffff;--texte-barre-doux:#a3a3a3;--barre-2:#1f1f1f;--danger:#ff8a7a;--alerte:#f3c14c;color-scheme:dark}
 [data-style=carnet][data-theme=light]{--fond:#F6F1E8;--surface:#FFFCF6;--surface-2:#EDE4D7;--texte:#252723;--texte-doux:#5E574C;--trait:#DED5C8;--accent:#843F4B;--sur-accent:#ffffff;--accent-doux:#F1E1E2;--sur-accent-doux:#642B36;--barre:#EDE4D7;--texte-barre:#252723;--texte-barre-doux:#5E574C;--barre-2:#DED5C8;--danger:#A52A2A;--alerte:#6E5A2E;color-scheme:light}
@@ -81,6 +89,7 @@
 .cg-classique .cg-texte{align-items:center;justify-content:center;text-align:center;color:var(--cg-or);gap:5cqw}
 .cg-classique .cg-texte::before{content:"— ✦ —";font-size:clamp(8px,7cqw,12px)}
 .cg-classique .cg-auteur{margin:0}
+.seg.styles{display:grid;grid-template-columns:1fr 1fr;border-radius:var(--r-m)}
 .styles button{display:flex;flex-direction:column;align-items:center;gap:var(--e-1);padding:var(--e-2) var(--e-1)}
 .apercu{display:flex;width:52px;height:30px;border-radius:var(--r-s);background:var(--fond);border:1px solid var(--trait);overflow:hidden;padding:4px;gap:4px}
 .apercu i{flex:1;background:var(--accent);border-radius:var(--r-s)}
@@ -126,20 +135,23 @@ h1{font-size:var(--t-xl);font-weight:800;margin:0;flex:1;letter-spacing:-.01em}
 .tab .n.neuf{position:absolute;top:6px;left:calc(50% + 8px);min-width:10px;height:10px;padding:0;border-radius:50%;background:var(--accent);font-size:0;overflow:hidden}
 :root{--barre-bas:60px}
 body{padding-bottom:calc(var(--barre-bas) + 1px + env(safe-area-inset-bottom))}
-/* (statuts de la bibliothèque : sur deux lignes de deux quand l'écran est étroit, plutôt que coupés) */
-@media(max-width:440px){.subtabs.library-nav{display:grid;grid-template-columns:1fr 1fr;overflow:visible}.library-nav .subtab{text-align:center}}
 .subtabs{display:flex;gap:var(--e-2);overflow-x:auto;padding:var(--e-2) 0;scrollbar-width:none}.subtabs::-webkit-scrollbar{display:none}
 .subtab{flex:none;min-height:var(--toucher);padding:0 var(--e-3);border:1px solid var(--trait);border-radius:var(--r-pilule);background:var(--surface);color:var(--texte);font:inherit;font-size:var(--t-s);font-weight:600;white-space:nowrap;cursor:pointer}
 .subtab.on{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
 .subtab .n{display:inline-block;min-width:1.5em;padding:0 var(--e-1);margin-left:var(--e-1);border-radius:var(--r-pilule);background:var(--surface-2);font-size:var(--t-xs);text-align:center}
 .subtab.on .n{background:var(--surface);color:var(--texte)}
+/* (statuts de la bibliothèque : une seule ligne, chaque case à la largeur de son nom, le nombre en dessous ;
+   si le texte est agrandi, la ligne passe sur deux, sans rien couper — plan maître §6.1) */
+.subtabs.library-nav{flex-wrap:wrap;gap:var(--e-1);overflow:visible}
+.library-nav .subtab{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--e-1) var(--e-2);font-size:var(--t-xs);line-height:1.2}
+.library-nav .subtab .n,.library-nav .subtab.on .n{min-width:0;margin:0;padding:0;background:none;color:inherit}
 .carnet-entry{display:block;width:100%;margin:0 0 var(--e-2);padding:var(--e-4);border:1px solid var(--trait);border-radius:var(--r-m);background:var(--surface);color:var(--texte);text-align:left;font:inherit;cursor:pointer}
-.carnet-entry:hover{border-color:var(--accent)}.carnet-entry p{margin:0 0 var(--e-2);white-space:pre-wrap;overflow-wrap:anywhere}.carnet-entry .meta{display:flex;flex-wrap:wrap;gap:var(--e-1) var(--e-3)}
+.carnet-entry p{margin:0 0 var(--e-2);white-space:pre-wrap;overflow-wrap:anywhere}.carnet-entry .meta{display:flex;flex-wrap:wrap;gap:var(--e-1) var(--e-3)}
 .notice{display:flex;flex-wrap:wrap;gap:var(--e-2) var(--e-3);align-items:center;justify-content:center;padding:var(--e-2) var(--e-4);background:var(--surface-2);color:var(--texte);font-size:var(--t-s);border-left:4px solid var(--accent)}
 .notice.alerte{border-left-color:var(--alerte)}.notice.danger{border-left-color:var(--danger)}
 /* ---------- Champs ---------- */
 .tools{display:flex;gap:var(--e-2);padding:var(--e-3) 0;flex-wrap:wrap;align-items:center}
-input,select,textarea{font:inherit;font-size:var(--t-m);color:var(--texte);background:var(--surface);border:1px solid var(--trait);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);min-height:var(--toucher);width:100%}
+input,select,textarea{font:inherit;font-size:var(--t-m);color:var(--texte);background:var(--surface);border:1px solid var(--trait-champ);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);min-height:var(--toucher);width:100%}
 textarea{line-height:1.5}
 input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:var(--accent)}
 .tools input,.tools select{border-radius:var(--r-pilule);padding:var(--e-2) var(--e-4);width:auto}
@@ -369,11 +381,13 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .livre-resume[open] summary::after{content:"Réduire"}
 .livre-resume p{margin:0 0 var(--e-3);white-space:pre-wrap;overflow-wrap:anywhere}
 .livre-danger{border-top:1px solid var(--trait);margin-top:var(--e-5);padding-top:var(--e-3)}
-.resume-lecture{display:grid;grid-template-columns:clamp(64px,20vw,88px) 1fr;gap:var(--e-3);align-items:center;padding:var(--e-4);margin:var(--e-3) 0;background:var(--surface);border:1px solid var(--trait);border-left:4px solid var(--accent);border-radius:var(--r-m);box-shadow:var(--ombre-1)}
+.resume-lecture{display:grid;grid-template-columns:56px 1fr;gap:var(--e-2) var(--e-3);align-items:start;padding:var(--e-3) var(--e-4);margin:var(--e-3) 0;background:var(--surface);border:1px solid var(--trait);border-left:4px solid var(--accent);border-radius:var(--r-m);box-shadow:var(--ombre-1)}
 .resume-lecture .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);box-shadow:var(--ombre-1)}
 .resume-lecture h2{margin:0;font:500 var(--t-l)/1.25 var(--police-titres);color:var(--texte)}
 .resume-lecture .meta{margin:var(--e-1) 0}
-.resume-lecture .acts{margin-top:var(--e-2)}
+.resume-lecture > .acts{grid-column:1/-1;flex-wrap:nowrap;margin:0;padding-top:0}
+.resume-lecture .btn{padding:0 var(--e-3)}
+.resume-lecture h2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .resume-titre{font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--e-1)}
 .resultat-compte{font-size:var(--t-s);color:var(--texte-doux);margin:var(--e-2) 0;grid-column:1/-1}
 .ailleurs{padding:var(--e-2) 0 var(--e-3);border-bottom:1px solid var(--trait);margin-bottom:var(--e-2)}
@@ -389,6 +403,10 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .classif-choice input{width:20px;height:20px;flex:none;accent-color:var(--accent)}
 .classif-suggestion{border:1px dashed var(--accent);border-radius:var(--r-s);padding:var(--e-2);margin:var(--e-2) 0}
 .classif-tags{display:flex;gap:var(--e-1);flex-wrap:wrap;margin:var(--e-2) 0}
+:is(.classif-tags,.filtres-actifs) .chip button{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:var(--toucher-puce);min-height:var(--toucher-puce);margin-right:calc(-1 * var(--e-2));padding:0;border:0;background:none;color:inherit;font:inherit;font-size:var(--t-l);cursor:pointer}
+:is(.classif-tags,.filtres-actifs) .chip button::after{content:"";position:absolute;inset:-4px 0}
+.filtres-actifs{display:flex;flex-wrap:wrap;gap:var(--e-1);align-items:center;margin:0 0 var(--e-2)}
+.filtres-actifs[hidden]{display:none}
 .rq-tax-explorer{margin:var(--e-3) 0;padding:var(--e-3);border:1px solid var(--trait);border-radius:var(--r-m);background:var(--surface-2)}
 .rq-tax-head{margin:0 0 var(--e-2);font:600 var(--t-m)/1.35 var(--police-titres);color:var(--texte)}
 .rq-tax-intro{margin:0 0 var(--e-3);font-size:var(--t-xs);color:var(--texte-doux)}
@@ -412,7 +430,7 @@ h2{line-height:1.25}
 button,input,select,textarea{accent-color:var(--accent)}
 button{-webkit-touch-callout:none}
 .card,.gcard{transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
-.card:hover,.card:focus-visible,.gcard:hover,.gcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card:focus-visible,.gcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .btn:not(:disabled):active,.chipb:active,.subtab:active,.tab:active{transform:translateY(1px)}
 .panel>h3:first-child{font-family:var(--police-titres);font-size:var(--t-m);font-weight:700;letter-spacing:0;text-transform:none}
 .tile{min-width:0}.tile b{font-variant-numeric:tabular-nums lining-nums;line-height:1.15;overflow-wrap:anywhere}
@@ -423,7 +441,7 @@ button{-webkit-touch-callout:none}
 .fab{right:max(var(--e-5),env(safe-area-inset-right));bottom:calc(var(--barre-bas) + var(--e-4) + env(safe-area-inset-bottom))}
 .pill{left:max(var(--e-4),env(safe-area-inset-left));bottom:calc(var(--barre-bas) + var(--e-4) + env(safe-area-inset-bottom))}
 .toast{bottom:calc(var(--barre-bas) + 96px + env(safe-area-inset-bottom))}
-@media(hover:hover){.btn:not(:disabled):hover,.chipb:hover,.subtab:hover{border-color:var(--accent)}.card:hover{box-shadow:var(--ombre-2)}}
+@media(hover:hover){.btn:not(:disabled):hover,.chipb:hover,.subtab:hover{border-color:var(--accent)}.card:hover{box-shadow:var(--ombre-2)}.card:hover,.gcard:hover{outline:2px solid var(--accent);outline-offset:2px}.carnet-entry:hover{border-color:var(--accent)}}
 @media(max-width:420px){
   .wrap{padding-left:var(--e-3);padding-right:var(--e-3)}
   .panel{padding:var(--e-3)}
@@ -570,6 +588,19 @@ button{-webkit-touch-callout:none}
 #ouverture .ouv-revers[class*="cg-f-"]{background-color:var(--cg-fond)}
 /* (livre fermé : la tranche de papier, à droite, pendant tout le mouvement) */
 #ouverture .ouv-livre::after{content:"";position:absolute;top:3px;bottom:3px;right:-6px;width:6px;border-radius:0 2px 2px 0;background:repeating-linear-gradient(90deg,var(--livre-tranche-2) 0 1px,var(--livre-tranche) 1px 2px)}
+/* Style Éditorial (plan maître, phase 1, design §9) : composants séparés par leur fond, pas par un trait.
+   Les puces qui disent quelque chose par leur contour (suggéré, à compléter, en retard, page) le gardent ;
+   un choix actif garde un contour rose : son fond seul (accent doux) se distinguerait mal de la surface 2.
+   Sur un cadre déjà gris, le bouton reprend le fond surface. Le livre (.lv) garde ses propres boutons. */
+[data-style=editorial] .chip:not(.warn,.late,.pg,.suggere):not(.lv *){border-color:transparent;background:var(--surface-2)}
+[data-style=editorial] :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *){border-color:transparent;background:var(--surface-2)}
+[data-style=editorial] :is(.rq-tax-explorer,.entree,.editeur) :is(.btn,.chipb):not(.pri,.on,.del):not(.lv *){background:var(--surface)}
+[data-style=editorial] .btn.on{border-color:var(--accent)}
+[data-style=editorial] .panel.encadre{border-color:transparent;background:var(--surface)}
+[data-style=editorial] .resume-lecture{border:0}
+[data-style=editorial] .subtab .n{background:none;color:var(--texte-doux)}
+[data-style=editorial] .subtab.on .n{color:inherit}
+@media(hover:hover){[data-style=editorial] :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *):not(:disabled):hover{border-color:var(--accent)}}
 </style>
 </head>
 <body>
@@ -635,13 +666,15 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.23-11';
+const VERSION = '2026.10.25-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
 const STATUT_UN = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lu', abandon: 'Abandonné'};
 const GENRES = ['Roman', 'Polar / Thriller', 'SF / Fantasy', 'Essai', 'Pro / VAE', 'Développement perso', 'BD / Manga', 'Biographie', 'Jeunesse', 'Autre'];
 const FORMATS = {papier: '📖 Papier', numerique: '📱 Numérique', audio: '🎧 Audio'};
+const TRIS = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note'], ['pages', 'Les plus courts']];
+const POSSESSIONS = [['', 'Tous les livres'], ['a_moi', 'Ceux que j'ai'], ['emprunte', 'Empruntés'], ['prete', 'Prêtés'], ['numerique', 'Numériques'], ['audio', 'Audio'], ['completer', 'À compléter']];
 const POSSESSION = {a_moi: 'Je l\'ai', emprunte: 'Emprunté (médiathèque, ami…)', prete: 'Prêté à quelqu\'un', non: 'Je ne l\'ai pas'};
 const PAGES_SOURCES = {edition: 'nombre de pages de cette édition (d\'après son ISBN)', estimation: 'estimé : nombre de pages d\'une autre édition du livre', manuel: 'nombre de pages tapé à la main'};
 const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -681,10 +714,27 @@ const scrollBibliotheque = {};
 const scrollEspaces = {};
 // Page de tests (index.html?tests) : elle travaille dans une mémoire à part, jamais sur les vrais livres
 const ESSAI = new URLSearchParams(location.search).has('tests');
+// Grande carte « Ta lecture en cours » : masquée pendant les tests (pour qu'ils comptent tous les livres), sauf ceux qui l'allument
+let REPRISE = !ESSAI;
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
-const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'android', animation: 'complete', consultation: 'livre', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'},
+const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'editorial', animation: 'complete', consultation: 'livre', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
+// Passage unique au style Éditorial (plan maître, phase 1, option 10-A) : un appareil resté en Android moderne passe
+// une seule fois en Éditorial ; le repère « styleEditorial » garantit que tout choix fait ensuite est respecté
+function passageEditorial(p) {
+  if (p.styleEditorial) return false;
+  p.styleEditorial = 1;
+  if (p.style !== 'android') return false;
+  p.style = 'editorial'; return true;
+}
+const MSG_EDITORIAL = 'Nouveau style Éditorial. Tu peux revenir à Android moderne dans Réglages.';
+function appliquerPassageEditorial() {
+  if (prefs.styleEditorial) return;
+  const passe = passageEditorial(prefs); savePrefs();
+  if (passe) toastLater(MSG_EDITORIAL, 1500);
+}
+appliquerPassageEditorial();
 Recherche.setGoogleKey(prefs.googleKey);
 
 /* ---------- Petits outils ---------- */
@@ -923,13 +973,13 @@ const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : 
 
 /* ---------- Thème ---------- */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
-/* ---------- Apparence : style (Android moderne, Actuel, Carnet de lecture) et thème (clair, sombre) ---------- */
-const STYLES = {android: 'Android moderne', actuel: 'Actuel', carnet: 'Carnet de lecture'};
+/* ---------- Apparence : style (Éditorial, Android moderne, Actuel, Carnet de lecture) et thème (clair, sombre) ---------- */
+const STYLES = {editorial: 'Éditorial', android: 'Android moderne', actuel: 'Actuel', carnet: 'Carnet de lecture'};
 function applyTheme() {
   const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches), r = document.documentElement;
   r.dataset.theme = dark ? 'dark' : 'light';
-  // (style absent ou inconnu : Android moderne)
-  r.dataset.style = Object.hasOwn(STYLES, prefs.style) ? prefs.style : 'android';
+  // (style absent ou inconnu : Éditorial)
+  r.dataset.style = Object.hasOwn(STYLES, prefs.style) ? prefs.style : 'editorial';
   // Barre du navigateur : la couleur de l'en-tête du style choisi
   const barre = getComputedStyle(r).getPropertyValue('--barre').trim(), meta = document.querySelector('meta[name="theme-color"]');
   if (barre && meta) meta.content = barre;
@@ -1262,12 +1312,12 @@ function renderTout() {
   if (ui.tab === 'notes') return renderNotesTab();
   if (ui.tab === 'decouvrir') return renderDecouvrir();
   const libraryNav = `<nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
-  const reprendre = !ESSAI && ui.tab === 'en_cours' ? books.filter(b => b.statut === 'en_cours').sort((a, b) => dateKey(b).localeCompare(dateKey(a)))[0] : null;
+  const reprendre = REPRISE && ui.tab === 'en_cours' ? books.filter(b => b.statut === 'en_cours').sort((a, b) => dateKey(b).localeCompare(dateKey(a)))[0] : null;
   const resumeLecture = reprendre ? `<section class="resume-lecture" id="resumeLecture" data-id="${esc(reprendre.id)}" aria-label="Lecture en cours">
       ${coverHtml(reprendre, 'ph')}<div><p class="resume-titre">Ta lecture en cours</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
       ${progress(reprendre).tot ? `<div class="meta">Page ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>` : '<div class="meta">Ta lecture t’attend.</div>'}
-      <div class="acts"><button class="btn pri" type="button" data-open="${esc(reprendre.id)}"><span class="ico i-livre" aria-hidden="true">📖</span> Reprendre ma lecture</button>
-      <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn" type="button" data-act="plus" aria-label="Autres actions : chrono, citation, j'ai fini">⋯</button></div></div></section>` : '';
+      </div><div class="acts"><button class="btn pri" type="button" data-open="${esc(reprendre.id)}" aria-label="Reprendre ma lecture">Reprendre</button>
+      <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn" type="button" data-act="plus" aria-label="Autres actions : chrono, citation, j'ai fini">⋯</button></div></section>` : '';
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   const genresConfirmes = [...new Set(books.map(b => (b.classif || {}).genre).filter(Boolean))].sort((a, b) => Taxonomie.nom('genre', a).localeCompare(Taxonomie.nom('genre', b), 'fr'));
   if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
@@ -1288,15 +1338,14 @@ function renderTout() {
   const cats = Recherche.RAYONS.filter(c => nCat[c.id]);
   if (ui.cat && ui.cat.startsWith('sous:') ? !nSous[ui.cat.slice(5)] : ui.cat && ui.cat !== '_aucune' && !nCat[ui.cat]) ui.cat = '';
   if (ui.cat === '_aucune' && !sansCat) ui.cat = '';
-  const sorts = [['recent', 'Plus récents'], ['titre', 'Titre A → Z'], ['auteur', 'Auteur A → Z'], ['serie', 'Série et tome'], ['note', 'Meilleure note'], ['pages', 'Les plus courts']];
-  const owns = [['', 'Tous les livres'], ['a_moi', 'Ceux que j\'ai'], ['emprunte', 'Empruntés'], ['prete', 'Prêtés'], ['numerique', 'Numériques'], ['audio', 'Audio'], ['completer', 'À compléter']];
+  const sorts = TRIS, owns = POSSESSIONS;
   const grid = prefs.view === 'grille';
   // Recherche toujours visible ; dimensions du classement, rayon, possession et tri dans « Filtres et tri »
   $('#main').innerHTML = `${libraryNav}${resumeLecture}<div class="tools">
       <input id="q" type="search" aria-label="Chercher dans tous mes livres" placeholder="Chercher dans mes livres…" value="${esc(ui.q)}">
       <button class="icon" id="view" title="${grid ? 'Vue en liste' : 'Vue en grille'}" aria-label="Changer de vue">${grid ? ico('liste', '☰') : ico('grille', '▦')}</button>
-      ${ui.tab === 'a_lire' && c.a_lire > 1 ? '<button class="btn pri" id="dice" title="Que lire ensuite ?"><span class="ico i-de" aria-hidden="true">🎲</span> Que lire ensuite ?</button>' : ''}
-    </div>
+      ${ui.tab === 'a_lire' && c.a_lire > 1 ? '<button class="btn" id="dice" title="Que lire ensuite ?"><span class="ico i-de" aria-hidden="true">🎲</span> Que lire ensuite ?</button>' : ''}
+    </div><div class="filtres-actifs" id="filtresActifs" aria-label="Filtres actifs" hidden></div>
     <details class="filtres" id="filtres" ${ui.filtres ? 'open' : ''}><summary>${filtresTitre()}</summary><div class="tools">
       <select id="genre" aria-label="Genre indiqué sur la fiche"><option value="">Tous les genres indiqués</option>${genres.map(g => `<option value="${esc(g)}" ${g === ui.genre ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>
       ${genresConfirmes.length ? `<select id="genreConfirme" aria-label="Genre confirmé"><option value="">Tous les genres confirmés</option>${genresConfirmes.map(g => `<option value="${esc(g)}" ${g === ui.genreConfirme ? 'selected' : ''}>${esc(Taxonomie.nom('genre', g))}</option>`).join('')}</select>` : ''}
@@ -1317,6 +1366,28 @@ function renderTout() {
 function filtresTitre() {
   const n = [ui.genre, ui.genreConfirme, ui.cat, ui.own, ui.sousGenre, ui.theme, ui.ambiance, ui.etiquette].filter(Boolean).length + (ui.sort !== 'recent' ? 1 : 0);
   return ico('filtres', '⚙️') + ' Filtres et tri' + (n ? ' (' + n + ')' : '');
+}
+
+// Critères actifs de la bibliothèque, chacun retirable seul (plan maître §6.4) ; le tri compte s'il n'est pas « Plus récents »
+function criteresActifs() {
+  const rayon = v => v === '_aucune' ? 'Sans rayon' : ((v.startsWith('sous:') ? Recherche.SOUS_RAYONS.find(z => z.id === v.slice(5)) : Recherche.RAYONS.find(c => c.id === v)) || {nom: v}).nom;
+  const libelle = (liste, v) => (liste.find(x => x[0] === v) || [v, v])[1];
+  return [
+    ['genre', ui.genre],
+    ['genreConfirme', ui.genreConfirme && 'Genre confirmé : ' + Taxonomie.nom('genre', ui.genreConfirme)],
+    ['sousGenre', ui.sousGenre && Taxonomie.nom('sousGenres', ui.sousGenre)],
+    ['theme', ui.theme && 'Thème : ' + Taxonomie.nom('themes', ui.theme)],
+    ['ambiance', ui.ambiance && 'Ambiance : ' + Taxonomie.nom('ambiances', ui.ambiance)],
+    ['etiquette', ui.etiquette && 'Étiquette : ' + ui.etiquette],
+    ['cat', ui.cat && 'Rayon : ' + rayon(ui.cat)],
+    ['own', ui.own && libelle(POSSESSIONS, ui.own)],
+    ['sort', ui.sort !== 'recent' && 'Tri : ' + libelle(TRIS, ui.sort)]
+  ].filter(([, nom]) => nom);
+}
+function puceFiltres() {
+  const l = criteresActifs();
+  return l.map(([k, nom]) => `<span class="chip">${esc(nom)}<button type="button" data-retirer-filtre="${k}" aria-label="Retirer : ${esc(nom)}">×</button></span>`).join('') +
+    (l.length ? '<button type="button" class="chipb" data-effacer>Tout effacer</button>' : '');
 }
 
 function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.dateFin : b.statut === 'en_cours' ? b.dateDebut : '') || b.ajoute || ''; }
@@ -1341,6 +1412,7 @@ function renderCards() {
   if (ui.etiquette) l = l.filter(b => (b.etiquettes || []).includes(ui.etiquette));
   if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : ui.cat.startsWith('sous:') ? sousDe(b).some(z => z.id === ui.cat.slice(5)) : catsDe(b).some(c => c.id === ui.cat));
   if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
+  const fa = $('#filtresActifs'); if (fa) { fa.innerHTML = puceFiltres(); fa.hidden = !fa.innerHTML; }
   const by = {
     recent: (a, b) => dateKey(b).localeCompare(dateKey(a)),
     titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
@@ -1354,7 +1426,7 @@ function renderCards() {
   vitesseAffichage = ui.tab === 'en_cours' ? speed() : null;
   const resultatCount = l.length + (resumeVisible ? 1 : 0);
   $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs"><p class="ailleurs-titre">La recherche trouve aussi des livres dans ces statuts</p>${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
-    `${books.length || filtresActifs ? `<p class="resultat-compte" role="status">Dans « ${STATUTS[ui.tab]} » : ${plural(resultatCount, 'livre')}${filtresActifs ? (resultatCount === 1 ? ' correspond' : ' correspondent') : ''}${resumeVisible && !l.length ? ' · présenté en tête' : ''}</p>` : ''}` +
+    `${filtresActifs ? `<p class="resultat-compte" role="status">Dans « ${STATUTS[ui.tab]} » : ${plural(resultatCount, 'livre')}${filtresActifs ? (resultatCount === 1 ? ' correspond' : ' correspondent') : ''}</p>` : ''}` +
     (l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') : resumeVisible ? '' :
     (q || ui.genre || ui.genreConfirme || ui.own || ui.cat || ui.sousGenre || ui.theme || ui.ambiance || ui.etiquette ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucun livre ne correspond', texte: 'dans cet onglet, avec cette recherche ou ces filtres.',
       actions: '<button class="btn" type="button" data-effacer>Effacer la recherche et les filtres</button>'}) : !books.length ? accueil() : ETATS[ui.tab]()));
@@ -1381,11 +1453,11 @@ function card(b) {
     extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %${reste}</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
     // (l'action la plus fréquente en grand ; le chrono, les citations et « J'ai fini » dans « ⋯ »)
-    acts = `<button class="btn pri" data-act="pages"><span class="ico i-livre" aria-hidden="true">📖</span> Où j'en suis</button><button class="btn" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button>`;
+    acts = `<button class="btn" data-act="pages"><span class="ico i-livre" aria-hidden="true">📖</span> Où j'en suis</button><button class="btn" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button>`;
   } else if (b.statut === 'a_lire') {
     extra = (b.pagesTotal ? `<div class="meta"${b.pagesSource === 'estimation' ? ` title="${PAGES_SOURCES.estimation}"` : ''}>${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} pages</div>` : '') +
       (b.resume ? `<div class="a resum">${esc(b.resume)}</div>` : '');
-    acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut"><span class="ico i-epingle" aria-hidden="true">📌</span> ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn pri" data-act="start">Commencer</button>`;
+    acts = `<button class="btn ${b.epingle ? 'on' : ''}" data-act="pin" title="Épingler en haut"><span class="ico i-epingle" aria-hidden="true">📌</span> ${b.epingle ? 'Épinglé' : 'Épingler'}</button><button class="btn" data-act="start">Commencer</button>`;
   } else if (b.statut === 'lu') {
     extra = `<div class="meta">${scoreHtml(b.note)}${b.dateFin ? `<span>Fini le ${fdate(b.dateFin)}</span>` : ''}${fois ? `<span class="chip">Lu ${fois + 1} fois</span>` : ''}</div>` +
       (b.avis ? `<div class="a avis">${esc(b.avis)}</div>` : '');
@@ -4506,6 +4578,15 @@ document.addEventListener('click', e => {
   // (« Annuler » : comme la touche retour, on demande avant de perdre une fiche modifiée)
   if (e.target.closest('[data-close]')) return fermerFenetre();
   if (e.target.closest('[data-ajouter]')) return openAjout();
+  const retirer = e.target.closest('[data-retirer-filtre]');
+  if (retirer) {
+    // (le focus va au critère suivant, ou au précédent, ou au titre « Filtres et tri » s'il n'en reste aucun)
+    const k = retirer.dataset.retirerFiltre, cles = [...document.querySelectorAll('#filtresActifs [data-retirer-filtre]')].map(x => x.dataset.retirerFiltre), i = cles.indexOf(k);
+    const voisin = cles[i + 1] || cles[i - 1];
+    ui[k] = k === 'sort' ? 'recent' : ''; render();
+    const cible = voisin && $(`#filtresActifs [data-retirer-filtre="${voisin}"]`);
+    (cible || $('#filtres summary')).focus(); return;
+  }
   if (e.target.closest('[data-effacer]')) { Object.assign(ui, {q: '', genre: '', genreConfirme: '', cat: '', own: '', sort: 'recent', sousGenre: '', theme: '', ambiance: '', etiquette: '', filtres: false}); return render(); }
   if (e.target.closest('[data-effacer-citations]')) { ui.cq = ''; return renderQuotesTab(); }
   if (e.target.closest('[data-effacer-notes]')) { ui.nq = ''; return renderNotesTab(); }

@@ -2422,6 +2422,15 @@
     books = [fiche(long)]; ui.tab = 'a_lire'; prefs.view = 'liste'; render(); const t = $('#list .card .t'), lh = parseFloat(getComputedStyle(t).lineHeight);
     return (t.getBoundingClientRect().height <= 3 * lh + 2 ? '3 lignes au plus' : Math.round(t.getBoundingClientRect().height / lh) + ' lignes') + '|' + (t.textContent.includes(long) ? 'titre complet' : 'titre tronqué');
   });
+  // (objectif de la conception §3 ; le lanceur règle la hauteur à 860 px : on mesure par rapport à 780 ou 640 px)
+  await test('Bibliothèque : avec un bandeau de prêt, le premier livre de la collection se voit sous la grande carte', 'visible', () => avecReprise(async () => {
+    books = [enCours('Les Années', {auteur: 'Annie Ernaux'}), enCours('La Communauté de l\'anneau', {auteur: 'J. R. R. Tolkien', pagesTotal: 704, pageActuelle: 90, dateDebut: addDays(-10)}),
+      fiche('Chanson douce', {possession: 'emprunte', pretRetour: addDays(2)})];
+    ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render(); paintNotice(); scrollTo(0, 0); await pause(50);
+    const barre = $('#tabs').getBoundingClientRect().height, c = $('#list .card').getBoundingClientRect(), limite = (innerWidth >= 360 ? 780 : 640) - barre;
+    const ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
+    books = []; paintNotice(); return ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
+  }));
   /* ---------- 9. 🌐 Vrais catalogues (recherche par thème) ---------- */
   if (enLigne) {
     await test('🌐 Par auteur « Annie Ernaux » : seulement ses livres, une fois chacun', true, async () => {

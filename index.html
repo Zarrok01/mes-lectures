@@ -404,6 +404,9 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .livre-haut{display:flex;gap:var(--e-4);padding:var(--e-4) 0 var(--e-3)}
 .livre-haut .big{width:clamp(88px,25vw,120px);height:auto;aspect-ratio:2/3}
 .livre-titre{margin:0 0 var(--e-1);font-size:var(--t-xl);line-height:1.25;font-family:var(--police-titres);overflow-wrap:anywhere}
+.livre-actions-hero{display:flex;flex-wrap:wrap;gap:var(--e-2);margin:var(--e-3) 0 0}
+.livre-actions-hero .btn{min-height:var(--toucher)}
+.livre-actions-hero .btn:not(.pri){background:transparent}
 .livre-resume{border-top:1px solid var(--trait);border-bottom:1px solid var(--trait);padding:0 var(--e-2);margin:0 0 var(--e-3)}
 .livre-resume summary{display:flex;align-items:center;justify-content:space-between;font-family:var(--police-titres);font-size:var(--t-m);text-transform:none;letter-spacing:0}
 .livre-resume summary::after{content:"Afficher";font:600 var(--t-xs)/1.4 var(--police-texte);color:var(--accent)}
@@ -507,7 +510,8 @@ button{-webkit-touch-callout:none}
 #livreOv.mode-livre{overflow:hidden}
 #livreOv.mode-livre .livre{height:100%;padding:0 var(--e-2) env(safe-area-inset-bottom);display:flex;flex-direction:column}
 .lv-cadre{display:flex;flex-direction:column;flex:1;min-height:0}
-.lv-cadre .livre-tete{position:static}
+.lv-cadre .livre-tete{position:static;overflow-x:auto;scrollbar-width:none}
+.lv-cadre .livre-tete::-webkit-scrollbar{display:none}
 .lv{position:relative;flex:1;min-height:0;margin:var(--e-2) 34px var(--e-1) 18px;isolation:isolate;touch-action:pan-y}
 .lv::before,.lv::after{content:"";position:absolute;top:2px;bottom:2px;left:0;z-index:-1;border-radius:0 3px 3px 0}
 .lv::before{right:-5px;background:var(--livre-tranche)}.lv::after{right:-2.5px;background:var(--livre-tranche-2)}
@@ -732,7 +736,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.25-4';
+const VERSION = '2026.10.29-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1877,10 +1881,12 @@ function remplirSommaire(pages, b) {
 }
 
 /* ---------- 📖 Le livre feuilletable : affichage ---------- */
-const CONSULTATIONS = {livre: 'Feuilleter', continue: 'Vue continue'};
+// La fiche est l'entrée naturelle. Le carnet feuilletable reste un espace à ouvrir volontairement,
+// sauf si la personne a explicitement choisi de l'utiliser comme ouverture par défaut.
+const CONSULTATIONS = {continue: 'Fiche de lecture', livre: 'Carnet feuilletable'};
 const PAGE_STYLES = {classique: 'Classique', ivoire: 'Ivoire', nuit: 'Nuit'};
 const stylePageLivre = () => Object.hasOwn(PAGE_STYLES, prefs.pageStyle) ? prefs.pageStyle : 'classique';
-const consultationLivre = () => prefs.consultation !== 'continue';
+const consultationLivre = () => fiche.mode === 'carnet';
 // Livre affiché, pages, page courante, position stable (section + premier bloc visible), tour de page en cours
 const Feuille = {livre: '', pages: [], page: 0, position: {section: 'garde', bloc: 'garde'}, jeton: 0, animations: [], calques: [], glisse: null, forcerDouble: null};
 let doublePage = () => Feuille.forcerDouble ?? (innerWidth >= 720 && innerWidth > innerHeight);
@@ -1915,8 +1921,8 @@ function peindreLivre(b, box) {
   if (Feuille.livre !== b.id) Object.assign(Feuille, {livre: b.id, position: {section: 'garde', bloc: 'garde'}});
   const ed = fiche.edition; if (ed) Feuille.position = {section: ed.type === 'note' ? 'notes' : 'citations', bloc: ed.id || 'fe'};
   box.innerHTML = `<div class="lv-cadre"><div class="livre-tete"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button>
-      <span class="etire">${esc(STATUTS[b.statut] || '')}</span><button class="btn" type="button" data-fiche="sommaire">Sommaire</button>
-      <button class="btn" type="button" data-fiche="modifier-livre">${ico('modifier', '✍️')} Modifier</button></div>
+      <span class="etire">${esc(STATUTS[b.statut] || '')}</span><button class="btn small" type="button" data-fiche="revenir-fiche">Fiche</button><button class="btn" type="button" data-fiche="sommaire">Sommaire</button>
+      <button class="icon" type="button" data-fiche="modifier-livre" aria-label="Modifier ce livre" title="Modifier ce livre">${ico('modifier', '✍️')}</button></div>
     <div class="lv lv-style-${stylePageLivre()}${doublePage() ? ' lv-double' : ''}${stylePageLivre() === 'classique' && GRAIN_PAPIER && modeAnimation() === 'complete' ? ' lv-grain' : ''}" id="lv" role="region" aria-label="Livre : ${esc(b.titre)}"><div class="lv-gauche" aria-hidden="true"></div><div class="lv-tranche" aria-hidden="true"></div>
       <div id="lvPages"></div><nav class="lv-signets" aria-label="Signets"></nav><div class="lv-mesure" aria-hidden="true"></div></div>
     <div class="lv-pied"><button class="icon" type="button" data-fiche="page-prec" aria-label="Page précédente">‹</button><span id="lvNum" class="doux"></span>
@@ -2042,7 +2048,7 @@ $('#livreOv').addEventListener('keydown', e => {
 /* ---------- 📖 Carnet du livre : la fiche en consultation ---------- */
 // Livre affiché (par son identifiant), édition en cours (note ou citation), dernière version connue (si le livre
 // disparaît dans une autre fenêtre), historique déplié
-const fiche = {id: '', edition: null, dernier: null, toutHisto: false};
+const fiche = {id: '', edition: null, dernier: null, toutHisto: false, mode: 'fiche'};
 window.ficheEtat = fiche;   // (pour la page de tests, où « fiche » désigne autre chose)
 function ouvrirFiche(id, section) {
   const b = books.find(x => x.id === id);
@@ -2050,8 +2056,9 @@ function ouvrirFiche(id, section) {
   // (une note ou une citation est en cours sur un autre livre : on ne l'efface pas sans rien dire)
   if (fiche.id && fiche.id !== id && fiche.edition && fiche.edition.texte.trim()) { toast('Termine d\'abord ce que tu écris'); return false; }
   // (un livre est déjà ouvert — le même, ou un autre par « Voir » : on change de contenu sans animation)
-  const dejaOuverte = $('#livreOv').classList.contains('show');
-  Object.assign(fiche, {id, edition: fiche.id === id ? fiche.edition : null, dernier: b, toutHisto: false});
+  const dejaOuverte = $('#livreOv').classList.contains('show'), memeLivre = fiche.id === id;
+  Object.assign(fiche, {id, edition: memeLivre ? fiche.edition : null, dernier: b, toutHisto: false,
+    mode: memeLivre ? fiche.mode : (prefs.consultation === 'livre' ? 'carnet' : 'fiche')});
   $('#livreOv').classList.add('show'); $('#livreOv').scrollTop = 0; peindreFiche();
   const h = $('#livreTitre'); if (h) { h.tabIndex = -1; h.focus({preventScroll: true}); }
   const s = section && $('#fs_' + section); if (s) s.scrollIntoView({block: 'start'});
@@ -2119,11 +2126,8 @@ function peindreFiche() {
   fiche.dernier = b;
   $('#livreOv').classList.toggle('mode-livre', consultationLivre());
   if (consultationLivre()) return peindreLivre(b, box);
-  const p = progress(b), ray = Recherche.rayons(b), sous = Recherche.sousRayons(b), c = b.classif || {};
-  const gc = Taxonomie.genre(c.genre), sg = gc ? '' : suggestionGenre(b);
-  const classes = [gc && gc.nom, ...(c.sousGenres || []).map(x => Taxonomie.nom('sousGenres', x)),
-    ...(c.themes || []).map(x => 'Thème · ' + Taxonomie.nom('themes', x)), ...(c.ambiances || []).map(x => 'Ambiance · ' + Taxonomie.nom('ambiances', x)),
-    ...(b.etiquettes || []).map(x => 'Étiquette · ' + x)].filter(Boolean);
+  const p = progress(b), ray = Recherche.rayons(b), sous = Recherche.sousRayons(b);
+  const rayonsInfos = [...ray.map(x => x.e + ' ' + x.nom), ...sous.map(x => '› ' + x.nom)];
   const notes = [...(b.notes || [])].sort((x, y) => (y.date || '').localeCompare(x.date || ''));
   const cits = [...(b.citations || [])].sort((x, y) => (+x.page || 1e9) - (+y.page || 1e9) || (x.date || '').localeCompare(y.date || ''));
   const trace = [...notes.map(x => ({...x, type: 'notes', libelle: 'Dernière note'})), ...cits.map(x => ({...x, type: 'citations', libelle: 'Dernière citation'}))]
@@ -2137,9 +2141,10 @@ function peindreFiche() {
   const orpheline = type => fiche.edition && fiche.edition.id && fiche.edition.type === type && !(type === 'note' ? notes : cits).some(x => x.id === fiche.edition.id);
   const nouveau = type => !fiche.edition || fiche.edition.type !== type ? '' : !fiche.edition.id ? editeurHtml()
     : orpheline(type) ? `<p class="a">Cette ${type === 'note' ? 'note' : 'citation'} a été supprimée dans une autre fenêtre : « Enregistrer » la remet.</p>${editeurHtml()}` : '';
-  const action = b.statut === 'en_cours' ? `<button class="btn pri" type="button" data-fiche="pages">${ico('livre', '📖')} Où j'en suis</button>`
-    : b.statut === 'a_lire' ? '<button class="btn pri" type="button" data-fiche="start">Commencer</button>'
-    : b.statut === 'abandon' ? '<button class="btn" type="button" data-fiche="resume">Reprendre</button>' : '';
+  const action = b.statut === 'en_cours' ? `<button class="btn pri" type="button" data-fiche="pages">${ico('livre', '📖')} Continuer${p.cur ? ' · p. ' + p.cur : ''}</button>`
+    : b.statut === 'a_lire' ? '<button class="btn pri" type="button" data-fiche="start">Commencer ce livre</button>'
+    : b.statut === 'abandon' ? '<button class="btn pri" type="button" data-fiche="resume">Reprendre ce livre</button>'
+    : b.statut === 'lu' ? `<button class="btn pri" type="button" data-fiche="modifier-livre">${b.avis ? 'Revoir mon avis' : 'Ajouter mon avis'}</button>` : '';
   const section = (k, titre, corps, bouton) => `<section class="livre-section" id="fs_${k}" aria-labelledby="fh_${k}"><h3 id="fh_${k}"><span>${titre}</span>${bouton || ''}</h3>${corps}</section>`;
   const ajouter = (type, t) => `<button class="btn small" type="button" data-fiche="ajouter" data-type="${type}">${ico('ajouter', '＋')} ${t}</button>`;
   const resume = b.resume ? `<details class="livre-resume"><summary>Résumé</summary><p>${esc(b.resume)}</p></details>` : '';
@@ -2153,7 +2158,7 @@ function peindreFiche() {
       ${ligneSi(b.auteur, `<div class="a">${esc(b.auteur)}</div>`)}
       <div class="meta">${metaLivre}</div>
       <div class="meta"><span class="chip">${esc(STATUT_UN[b.statut])}${b.statut === 'en_cours' && p.tot ? ' · ' + p.pct + ' %' : ''}</span>${ligneSi(b.note, `<span class="stars" aria-label="Note : ${b.note} sur 5">${stars(b.note)}</span>`)}</div>
-      <div class="meta">${ray.map(c => `<span class="chip">${c.e} ${esc(c.nom)}</span>`).join('')}${sous.map(z => `<span class="chip">› ${esc(z.nom)}</span>`).join('')}${classes.map(x => `<span class="chip">${esc(x)}</span>`).join('')}${ligneSi(sg, `<span class="chip suggere" title="Proposé d'après le genre « ${esc(b.genre)} » : pas encore confirmé">${esc((Taxonomie.genre(sg) || {}).nom || '')} · suggéré</span>`)}</div>
+      <div class="livre-actions-hero">${action}<button class="btn" type="button" data-fiche="ouvrir-carnet">${ico('livre', '📖')} Ouvrir mon carnet</button></div>
     </div></div>
     ${ligneSi(b.avis, `<div class="livre-avis"><p>${esc(b.avis)}</p><div class="a">Mon avis</div></div>`)}
     ${resume}
@@ -2162,11 +2167,11 @@ function peindreFiche() {
       .map(([k, t]) => `<button type="button" class="chipb" data-fiche="aller" data-section="${k}">${t}</button>`).join('')}</nav>
     <details class="livre-approfondir"><summary>Approfondir ce livre</summary><nav class="livre-nav" aria-label="Informations complémentaires"><button type="button" class="chipb" data-fiche="aller" data-section="historique">Historique</button><button type="button" class="chipb" data-fiche="aller" data-section="infos">Informations et édition</button></nav></details>
     ${section('progression', 'Progression', (p.tot ? `<div class="bar"><i style="width:${p.pct}%"></i></div><p class="moyen">p. ${p.cur} sur ${b.pagesSource === 'estimation' ? 'environ ' : ''}${p.tot} · ${p.pct} %${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>`
-      : p.cur ? `<p class="moyen">p. ${p.cur}${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>` : '<p class="a">Pas encore de progression</p>') + ligneSi(action, `<div class="acts">${action}</div>`))}
+      : p.cur ? `<p class="moyen">p. ${p.cur}${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>` : '<p class="a">Pas encore de progression</p>'))}
     ${section('notes', 'Mes notes', nouveau('note') + (notes.length ? notes.map(x => entreeHtml(x, 'note')).join('') : nouveau('note') ? '' : '<p class="a">Aucune note pour l\'instant</p>'), ajouter('note', 'Note'))}
     ${section('citations', 'Citations', nouveau('citation') + (cits.length ? cits.map(x => entreeHtml(x, 'citation')).join('') : nouveau('citation') ? '' : '<p class="a">Aucune citation pour l\'instant</p>'), ajouter('citation', 'Citation'))}
     ${section('historique', 'Historique', ev.length ? `<div class="histo">${evVus.map(e => `<span class="d">${fdate(e.date)}</span><span>${esc(e.texte)}</span>`).join('')}</div>${ligneSi(!fiche.toutHisto && ev.length > 20, `<button class="btn small mt-2" type="button" data-fiche="histo">Tout afficher (${ev.length})</button>`)}` : '<p class="a">Aucun événement enregistré pour ce livre</p>')}
-    ${section('infos', 'Infos', `<dl class="livre-infos">${infos.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    ${section('infos', 'Infos', `<dl class="livre-infos">${infos.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${ligneSi(rayonsInfos.length, `<p class="a">Rayons · ${rayonsInfos.map(esc).join(' · ')}</p>`)}
       <div class="livre-danger"><button class="btn del" type="button" data-fiche="supprimer-livre">${ico('fermer', '✕')} Supprimer ce livre…</button></div>`)}`;
   if (actif && $('#' + actif)) $('#' + actif).focus({preventScroll: true});
 }
@@ -2179,6 +2184,8 @@ $('#livreOv').addEventListener('click', e => {
   if (!b) return;   // (livre supprimé dans une autre fenêtre : plus rien n'est modifiable)
   if (a === 'page-suiv') return tournerPage(1);
   if (a === 'page-prec') return tournerPage(-1);
+  if (a === 'ouvrir-carnet') { if (fiche.edition && fiche.edition.texte.trim()) return toast('Termine d’abord ce que tu écris'); fiche.mode = 'carnet'; $('#livreOv').scrollTop = 0; peindreFiche(); const h = $('#livreTitre'); if (h) h.focus({preventScroll: true}); return; }
+  if (a === 'revenir-fiche') { if (fiche.edition && fiche.edition.texte.trim()) return toast('Termine d’abord ce que tu écris'); fiche.mode = 'fiche'; $('#livreOv').scrollTop = 0; peindreFiche(); const h = $('#livreTitre'); if (h) h.focus({preventScroll: true}); return; }
   if (a === 'signet') return allerSection(x.dataset.section);
   if (a === 'sommaire') return allerSection('sommaire');
   if (a === 'marque') { const m = Marques.de(b.id), n = m ? pageDe(Feuille.pages, m) : -1; return n >= 0 ? tournerPage(0, n) : false; }
@@ -4419,8 +4426,8 @@ function openSettings() {
       <p class="a petit">Confortable laisse respirer la bibliothèque. Compact montre plus de livres. Concentration simplifie le cadre pendant la consultation d’un livre, sans retirer ses actions.</p></div>
     <div class="f"><label>Animations</label><div class="seg" id="st_anim">${Object.entries(MODES_ANIM).map(([k, v]) => `<button data-an="${k}" class="${(Object.hasOwn(MODES_ANIM, prefs.animation) ? prefs.animation : 'complete') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="a petit" id="st_anim_note">${esc(noteAnim())}</p></div>
-    <div class="f"><label>Consulter un livre</label><div class="seg" id="st_consult">${Object.entries(CONSULTATIONS).map(([k, v]) => `<button data-co="${k}" class="${(prefs.consultation === 'continue' ? 'continue' : 'livre') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-      <p class="a petit">« Vue continue » : la fiche qui défile, avec les mêmes informations et actions.</p></div>
+    <div class="f"><label>À l’ouverture d’un livre</label><div class="seg" id="st_consult">${Object.entries(CONSULTATIONS).map(([k, v]) => `<button data-co="${k}" class="${(prefs.consultation === 'livre' ? 'livre' : 'continue') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+      <p class="a petit">La fiche de lecture est recommandée : elle aide à reprendre où tu en es. Le carnet feuilletable reste accessible à tout moment depuis « Ouvrir mon carnet ».</p></div>
     <div class="f"><label>Apparence des pages · mode « Feuilleter »</label><div class="page-styles" id="st_pages" role="group" aria-label="Apparence des pages du livre">${Object.entries(PAGE_STYLES).map(([k, v]) => `<button type="button" class="page-style-choice ${stylePageLivre() === k ? 'on' : ''}" data-page-style="${k}" aria-pressed="${stylePageLivre() === k}"><span class="page-style-preview ${k}" aria-hidden="true"><i></i><b></b></span><strong>${v}</strong></button>`).join('')}</div>
       <p class="a petit">Classique suit le thème clair ou sombre de l’appli ; Ivoire garde un papier crème aux détails bordeaux ; Nuit propose un papier anthracite et une encre claire. La couverture reste celle du livre. « Vue continue » garde le thème de l’application.</p></div>
     <div class="panel encadre"><h3>🔎 Recherche de livres</h3>
@@ -4463,7 +4470,6 @@ function openSettings() {
   $('#st_consult').onclick = e => {
     const b = e.target.closest('[data-co]'); if (!b) return;
     prefs.consultation = b.dataset.co; savePrefs(); document.querySelectorAll('#st_consult button').forEach(x => x.classList.toggle('on', x === b));
-    if (fiche.id) peindreFiche();
   };
   $('#st_pages').onclick = e => {
     const b = e.target.closest('[data-page-style]'); if (!b) return;

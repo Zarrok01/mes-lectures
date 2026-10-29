@@ -2035,11 +2035,19 @@
   const LIVRE_PLEIN = () => fiche('Plein', {statut: 'en_cours', resume: 'Premier paragraphe.\n\nSecond.', avis: 'Beau livre', pagesTotal: 300, pageActuelle: 40, dateDebut: '2026-09-01',
     journal: [{date: '2026-09-01', page: 0}, {date: '2026-09-10', page: 40}], notes: [{id: 'n-1', date: '2026-09-02', texte: 'Première note'}],
     citations: [{id: 'c-1', texte: 'Une phrase', page: '12', date: '2026-09-03', commentaire: 'relue'}]});
-  await test('Réglages : « Consulter un livre » (Feuilleter par défaut, Vue continue), mémorisé', 'Feuilleter,Vue continue|Feuilleter|continue', async () => {
+  await test('Réglages : ouverture d’un livre (Fiche par défaut, Carnet), mémorisée', 'Fiche de lecture,Carnet feuilletable|Fiche de lecture|continue', async () => {
     const c0 = prefs.consultation; delete prefs.consultation; openSettings();
     const r = [[...document.querySelectorAll('#st_consult button')].map(b => b.textContent.trim()).join(','), ($('#st_consult .on') || {textContent: '?'}).textContent.trim()];
     $('#st_consult [data-co="continue"]').click(); r.push(JSON.parse(localStorage.getItem(CLE + '-prefs')).consultation); closeM(); await pause(250);
     prefs.consultation = c0; savePrefs(); return r.join('|');
+  });
+  await test('Fiche : le carnet s’ouvre volontairement et revient à la fiche', 'fiche|carnet|fiche', async () => {
+    const c0 = prefs.consultation, a0 = prefs.animation;
+    try {
+      delete prefs.consultation; prefs.animation = 'aucune'; books = [LIVRE_PLEIN()]; ouvrirFiche(books[0].id);
+      const r = [$('#fs_progression') ? 'fiche' : '?']; $('#livre [data-fiche="ouvrir-carnet"]').click(); r.push($('#lv') ? 'carnet' : '?');
+      $('#livre [data-fiche="revenir-fiche"]').click(); r.push($('#fs_progression') ? 'fiche' : '?'); return r.join('|');
+    } finally { if (ficheEtat.id) await fermerFiche(); prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
   });
   // (l'animation d'ouverture montre déjà la couverture : le livre s'ouvre sur la page de garde ; la couverture est la page 1, une page en arrière)
   await test('Livre : s\'ouvre sur la page de garde (page 2), la couverture est juste avant (page 1, visible), papier du livre', 'garde|Page 2 sur|couverture|Plein|visible|papier', () => avecLivre(async () => {
@@ -2053,6 +2061,22 @@
   await test('Livre : vue continue toujours disponible (même fiche qu\'avant, sections #fs_)', 'continue|fs_progression', () => avecLivre(async () => {
     prefs.consultation = 'continue'; ouvrirLivre(LIVRE_PLEIN());
     return ($('#lv') ? 'livre !' : 'continue') + '|' + ($('#fs_progression') ? 'fs_progression' : '?');
+  }));
+  // (lot 0 du 29/10/2026 : avec « Fiche », « Sommaire » et « Modifier », la barre du livre sortait de l'écran ; « Modifier » devient
+  // un bouton rond nommé pour les lecteurs d'écran ; avec un texte agrandi, la barre défile de côté au lieu de couper un bouton)
+  await test('Livre : la barre du haut tient dans l’écran, « Modifier » en bouton rond nommé (texte normal, puis agrandi de 30 %)', 'tient|Modifier ce livre|form|accessible', () => avecLivre(async () => {
+    const tete = () => $('#livre .livre-tete'), boutons = () => [...tete().querySelectorAll('button')];
+    try {
+      ouvrirLivre(LIVRE_PLEIN()); const r = [];
+      r.push(boutons().every(b => b.getBoundingClientRect().right <= innerWidth + 1 && b.getBoundingClientRect().width >= 44) && tete().scrollWidth <= tete().clientWidth + 1
+        ? 'tient' : 'déborde : ' + boutons().map(b => Math.round(b.getBoundingClientRect().right)).join(',') + ' / ' + innerWidth);
+      const m = $('#livre [data-fiche="modifier-livre"]'); r.push(m ? m.getAttribute('aria-label') || m.textContent.trim() : '?');
+      m.click(); await pause(50); r.push($('#ov').classList.contains('show') ? 'form' : '?'); modalModifie = false; closeM(); await pause(250);
+      document.documentElement.style.fontSize = '130%'; peindreFiche(); await pause(30);
+      const t = tete(), defile = getComputedStyle(t).overflowX === 'auto' || getComputedStyle(t).overflowX === 'scroll';
+      r.push(t.getBoundingClientRect().right <= innerWidth + 1 && (t.scrollWidth <= t.clientWidth + 1 || defile) ? 'accessible' : 'coupé : ' + t.scrollWidth + ' > ' + t.clientWidth);
+      return r.join('|');
+    } finally { document.documentElement.style.fontSize = ''; }
   }));
   await test('Livre : les actions existantes marchent depuis les pages (Où j\'en suis, ＋ Note, Modifier, Supprimer…)', 'pages|note|form|question', () => avecLivre(async () => {
     ouvrirLivre(LIVRE_PLEIN()); const r = [];

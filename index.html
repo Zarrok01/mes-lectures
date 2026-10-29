@@ -52,6 +52,9 @@
   --livre-dos:linear-gradient(90deg,rgba(0,0,0,.22),rgba(255,255,255,.05) 60%,rgba(0,0,0,.12));--livre-voile:rgba(0,0,0,.35);--livre-ombre-feuille:rgba(0,0,0,.25);--livre-verso:rgba(0,0,0,.06);--livre-lustre:rgba(255,255,255,.05);
   --livre-grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .15 0 0 0 0 .1 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 [data-theme=dark]{--livre-papier:#191A18;--livre-encre:#F6F1E8;--livre-doux:#C4BFB5;--livre-or:#C5A775;--livre-or-texte:#C5A775;--livre-vert:#D69AA4;--livre-bordeaux:#D69AA4;--livre-tranche:#302F2A;--livre-tranche-2:#252723;--livre-ombre:rgba(0,0,0,.58)}
+/* (ouverture du livre, lot O1 : bibliothèque assombrie, ombre portée du livre, ombre de la couverture sur la page, voiles de lumière) */
+:root{--ouv-fond:rgba(24,20,18,.42);--ouv-ombre:0 26px 48px -10px rgba(0,0,0,.55),0 8px 16px -6px rgba(0,0,0,.35);--ouv-ombre-page:linear-gradient(90deg,rgba(0,0,0,.42),rgba(0,0,0,.12) 35%,transparent 75%);--ouv-voile:#000}
+[data-theme=dark]{--ouv-fond:rgba(0,0,0,.55)}
 /* ---------- Couvertures générées (livres sans couverture : calculées, jamais enregistrées) ---------- */
 /* (palette des couvertures générées : fond, fond de nuit, encre, dorure lisible — contrastes ≥ 4,5 vérifiés par les tests) */
 :root .cg-f-vert{--cg-fond:#24483B;--cg-nuit:#1C3A30;--cg-encre:#F3EBDD;--cg-or:#D9C08A}
@@ -615,6 +618,13 @@ button{-webkit-touch-callout:none}
 #ouverture{position:fixed;inset:0;z-index:26;pointer-events:none;overflow:hidden}
 #ouverture .ouv-page,#ouverture .ouv-livre{position:absolute;transform-origin:0 0;will-change:transform,opacity}
 #ouverture .ouv-page{background:var(--fond);border-radius:var(--r-s);box-shadow:var(--ombre-2)}
+/* (lot O1 : l'objet — jamais d'opacité, de « will-change: opacity » ni de débordement caché sur un élément en relief : Chrome l'aplatirait) */
+#ouverture .ouv-fond{position:absolute;inset:0;background:var(--ouv-fond);opacity:0;will-change:opacity}
+#ouverture .ouv-objet{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 50%;will-change:transform}
+#ouverture .ouv-ombre{position:absolute;inset:0;border-radius:2px var(--r-s) var(--r-s) 2px;box-shadow:var(--ouv-ombre);transform:translateZ(-2px);opacity:0}
+#ouverture .ouv-tranche3d{position:absolute;left:100%;top:1.2%;height:97.6%;width:7%;transform-origin:0 50%;transform:rotateY(90deg);background:repeating-linear-gradient(90deg,var(--livre-tranche-2) 0 1px,var(--livre-tranche) 1px 2px)}
+#ouverture .ouv-ombre-page{position:absolute;inset:0;transform-origin:0 50%;transform:translateZ(-1px);background:var(--ouv-ombre-page);opacity:0}
+#ouverture .ouv-voile{position:absolute;inset:0;border-radius:inherit;background:var(--ouv-voile);opacity:0;pointer-events:none}
 #ouverture .ouv-couv{position:absolute;inset:0;transform-origin:0 50%;transform-style:preserve-3d;will-change:transform}
 #ouverture .ouv-face,#ouverture .ouv-revers{position:absolute;inset:0;border-radius:2px var(--r-s) var(--r-s) 2px;backface-visibility:hidden;box-shadow:var(--ombre-2)}
 #ouverture .ouv-revers{transform:rotateY(180deg);background:var(--livre-vert) repeating-linear-gradient(45deg,var(--livre-lustre) 0 1px,transparent 1px 4px)}
@@ -736,7 +746,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.29-1';
+const VERSION = '2026.10.29-2';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1560,7 +1570,7 @@ function gcard(b) {
 const MODES_ANIM = {complete: 'Complète', simple: 'Simple', aucune: 'Aucune'};
 // Durées en millisecondes (ouverture : prendre, ouvrir, page ; fermeture : réduire, fermer, rentrer ; tour d'une page)
 // (mesurées fluides sur le téléphone d'Elias le 23/10/2026 : 60 images/s, pages 450 ms, ouverture ≈ 0,66 s)
-const DUREES = {prendre: 160, ouvrir: 300, ouvrir2d: 220, page: 200, reduire: 150, fermer: 220, fermer2d: 180, rentrer: 160, fondu: 150, tour: 450, tour2d: 300};
+const DUREES = {prendre: 170, ouvrir: 300, ouvrir2d: 220, page: 160, reduire: 140, fermer: 210, fermer2d: 180, rentrer: 150, fondu: 150, tour: 450, tour2d: 300};
 const reduitQuery = matchMedia('(prefers-reduced-motion: reduce)');
 // État de l'animation en cours : jeton (une animation dépassée s'arrête d'elle-même), animations, calque, dernière interruption
 const Ouverture = {jeton: 0, animations: [], calque: null, coupeeA: -1e9, gesteCoupe: false, reduit: () => reduitQuery.matches};
@@ -1607,11 +1617,16 @@ function noteAnim() {
 // Rectangles (x, y, largeur, hauteur) et passage de l'un à l'autre par un seul « transform » (origine en haut à gauche)
 const rectDe = el => { const r = el.getBoundingClientRect(); return {x: r.left, y: r.top, w: r.width, h: r.height}; };
 const rectEcran = () => ({x: 0, y: 0, w: innerWidth, h: innerHeight});
-function rectCentre() {
-  let w = Math.min(innerWidth * .55, 240), h = w * 1.5;
-  if (h > innerHeight * .7) { h = innerHeight * .7; w = h / 1.5; }
+// (en 3D le livre est plus petit : ouvert, la double page — deux fois sa largeur — doit tenir dans l'écran)
+function rectCentre(mode) {
+  const d3 = mode === 'complete'; let w = Math.min(innerWidth * (d3 ? .42 : .55), d3 ? 230 : 240), h = w * 1.5;
+  if (h > innerHeight * (d3 ? .62 : .7)) { h = innerHeight * (d3 ? .62 : .7); w = h / 1.5; }
   return {x: (innerWidth - w) / 2, y: (innerHeight - h) / 2, w, h};
 }
+// Livre ouvert en 3D : décalé d'une demi-largeur, la reliure au milieu de l'écran (la double page est centrée)
+const rectOuvert = (ce, mode) => mode === 'complete' ? {...ce, x: innerWidth / 2} : ce;
+// Livre qui s'agrandit (même proportion) jusqu'à la largeur de l'écran, centré en hauteur : la page « vient » vers soi
+const rectZoom = r => { const k = innerWidth / r.w; return {x: 0, y: (innerHeight - r.h * k) / 2, w: innerWidth, h: r.h * k}; };
 const reduire = (r, k) => ({x: r.x + r.w * (1 - k) / 2, y: r.y + r.h * (1 - k) / 2, w: r.w * k, h: r.h * k});
 const versRect = (r, base) => `translate(${r.x - base.x}px, ${r.y - base.y}px) scale(${r.w / base.w}, ${r.h / base.h})`;
 // Couverture de la carte du livre, si elle est visible à l'écran (sinon : pas de point de départ)
@@ -1634,9 +1649,16 @@ function monterLivre(modele, ce) {
   face.querySelectorAll('img').forEach(i => { i.removeAttribute('onload'); i.removeAttribute('onerror'); i.removeAttribute('loading'); });
   // (le revers de la couverture : une garde de couleur, celle de la couverture générée s'il y en a une)
   const revers = document.createElement('div'); revers.className = 'ouv-revers ' + ([...modele.classList].find(c => c.startsWith('cg-f-')) || '');
+  // (lot O1 : l'objet en relief — ombre portée, tranche des feuilles, ombre de la couverture sur la page, voiles de lumière ;
+  // la bibliothèque s'assombrit derrière)
+  const div = c => { const d = document.createElement('div'); d.className = c; return d; };
+  const fond = div('ouv-fond'), objet = div('ouv-objet'), ombre = div('ouv-ombre'), ombrePage = div('ouv-ombre-page');
+  const voileFace = div('ouv-voile'), voileRevers = div('ouv-voile');
+  face.appendChild(voileFace); revers.appendChild(voileRevers);
   couv.append(face, revers);
-  livre.appendChild(couv); calque.append(page, livre); document.body.appendChild(calque); Ouverture.calque = calque;
-  return {calque, page, livre, couv};
+  objet.append(ombre, div('ouv-tranche3d'), ombrePage, couv);
+  livre.appendChild(objet); calque.append(fond, page, livre); document.body.appendChild(calque); Ouverture.calque = calque;
+  return {calque, page, livre, couv, fond, objet, ombre, ombrePage, voileFace, voileRevers};
 }
 function nettoyerAnimation() {
   Ouverture.animations.forEach(a => { try { a.cancel(); } catch (e) {} });
@@ -1681,17 +1703,30 @@ async function animerOuverture(id) {
     return;
   }
   const src = couvertureCarte(id), modele = src || $('#livre .ph') || creerCouverture(id); if (!modele) return;
-  const ce = rectCentre(), {page, livre, couv} = monterLivre(modele, ce);
+  const d3 = mode === 'complete', ce = rectCentre(mode), ouvert = versRect(rectOuvert(ce, mode), ce), o = monterLivre(modele, ce), {page, livre, couv} = o;
+  if (d3) o.objet.style.transform = 'perspective(1000px)';
   ov.classList.add('masque');
   const images = mode === 'complete' || mode === 'simple' ? mesurerImages(jeton) : null, t0 = performance.now();
-  // 1. On prend le livre : de la carte au centre (sans carte visible : il apparaît au centre)
+  // 1. On prend le livre : de la carte au centre (sans carte visible : il apparaît au centre) ; il se soulève (ombre),
+  // pivote un peu dans la main (on voit la tranche des feuilles) et la bibliothèque s'assombrit
   const venue = src ? [{transform: versRect(rectDe(src), ce), opacity: 1}, {transform: 'none', opacity: 1}] : [{transform: versRect(reduire(ce, .6), ce), opacity: 0}, {transform: 'none', opacity: 1}];
-  if (!(await etape(jeton, [page.animate(venue, anim(DUREES.prendre, 'ease-out')), livre.animate(venue, anim(DUREES.prendre, 'ease-out'))]))) return;
-  // 2. On l'ouvre : la couverture pivote sur sa tranche gauche (3D), ou se replie à plat (Simple)
-  const pivot = mode === 'complete' ? [{transform: 'perspective(1200px) rotateY(0deg)'}, {transform: 'perspective(1200px) rotateY(-180deg)'}] : [{transform: 'scaleX(1)'}, {transform: 'scaleX(0)'}];
-  if (!(await etape(jeton, [couv.animate(pivot, anim(mode === 'complete' ? DUREES.ouvrir : DUREES.ouvrir2d))]))) return;
-  // 3. La page devient le carnet
-  if (!(await etape(jeton, [page.animate([{transform: 'none'}, {transform: versRect(rectEcran(), ce)}], anim(DUREES.page)),
+  const prise = [page.animate(venue, anim(DUREES.prendre, 'ease-out')), livre.animate(venue, anim(DUREES.prendre, 'ease-out')),
+    o.ombre.animate([{opacity: 0}, {opacity: 1}], anim(DUREES.prendre, 'ease-out')), o.fond.animate([{opacity: 0}, {opacity: 1}], anim(DUREES.prendre, 'linear'))];
+  if (d3) prise.push(o.objet.animate([{transform: 'perspective(1000px) rotateY(0deg)'}, {transform: 'perspective(1000px) rotateY(-14deg)'}, {transform: 'perspective(1000px) rotateY(0deg)'}], anim(DUREES.prendre)));
+  if (!(await etape(jeton, prise))) return;
+  // 2. On l'ouvre : la couverture pivote sur sa reliure (3D) pendant que le livre glisse d'une demi-largeur (la double page
+  // finit centrée), ou se replie à plat (Simple) ; la face s'assombrit en s'éloignant de la lumière, la garde s'éclaire,
+  // l'ombre de la couverture quitte la page
+  const duree = d3 ? DUREES.ouvrir : DUREES.ouvrir2d, courbe = d3 ? 'cubic-bezier(.45,.05,.3,1)' : 'ease-in-out';
+  const pivot = d3 ? [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(-180deg)'}] : [{transform: 'scaleX(1)'}, {transform: 'scaleX(0)'}];
+  if (!(await etape(jeton, [couv.animate(pivot, anim(duree, courbe)),
+    page.animate([{transform: 'none'}, {transform: ouvert}], anim(duree, courbe)), livre.animate([{transform: 'none'}, {transform: ouvert}], anim(duree, courbe)),
+    o.voileFace.animate([{opacity: 0}, {opacity: .45, offset: .5}, {opacity: .45}], anim(duree, courbe)),
+    o.voileRevers.animate([{opacity: .4}, {opacity: .4, offset: .5}, {opacity: 0}], anim(duree, courbe)),
+    o.ombrePage.animate([{opacity: .9, transform: 'translateZ(-1px) scaleX(1)'}, {opacity: 0, transform: 'translateZ(-1px) scaleX(.25)', offset: .8}, {opacity: 0, transform: 'translateZ(-1px) scaleX(.25)'}], anim(duree, courbe))]))) return;
+  // 3. La page devient le carnet ; le livre s'approche (même proportion) et s'efface
+  if (!(await etape(jeton, [page.animate([{transform: ouvert}, {transform: versRect(rectEcran(), ce)}], anim(DUREES.page)),
+    livre.animate([{transform: ouvert, opacity: 1}, {transform: versRect(rectZoom(rectOuvert(ce, mode)), ce), opacity: 0}], anim(DUREES.page)),
     ov.animate([{opacity: 0}, {opacity: 0, offset: .4}, {opacity: 1}], anim(DUREES.page, 'linear'))]))) return;
   nettoyerAnimation();
   if (images) {
@@ -1700,24 +1735,38 @@ async function animerOuverture(id) {
     noterFluidite(fluide, mode === 'complete' ? '3d' : '2d');
   }
 }
-// Fermeture : la fiche est déjà fermée ; le calque refait le chemin (page qui rétrécit, couverture qui se referme,
-// livre qui rentre dans sa carte — ou qui s'efface au centre si la carte n'est plus là)
+// Fermeture : la fiche est déjà fermée ; le calque refait le chemin (page qui rétrécit, couverture qui se referme en revenant
+// au centre, livre qui rentre dans sa carte — ou qui s'efface au centre si la carte n'est plus là)
 async function animerFermeture(id, modele) {
   const mode = modeAnimation(); if (mode === 'aucune' || !modele) return;
-  interrompreAnimation(); const jeton = ++Ouverture.jeton, ce = rectCentre(), ecran = versRect(rectEcran(), ce);
-  const {page, livre, couv} = monterLivre(modele, ce);
+  interrompreAnimation(); const jeton = ++Ouverture.jeton, ce = rectCentre(mode), ecran = versRect(rectEcran(), ce);
+  const o = monterLivre(modele, ce), {page, livre, couv} = o;
   if (mode === 'fondu') {
     livre.remove();
     if (await etape(jeton, [page.animate([{transform: ecran, opacity: 1}, {transform: ecran, opacity: 0}], {duration: DUREES.fondu, easing: 'linear', fill: 'both'})])) nettoyerAnimation();
     return;
   }
-  const ouverte = mode === 'complete' ? 'perspective(1200px) rotateY(-180deg)' : 'scaleX(0)', fermee = mode === 'complete' ? 'perspective(1200px) rotateY(0deg)' : 'scaleX(1)';
-  couv.style.transform = ouverte;
-  if (!(await etape(jeton, [page.animate([{transform: ecran}, {transform: 'none'}], anim(DUREES.reduire))]))) return;
-  if (!(await etape(jeton, [couv.animate([{transform: ouverte}, {transform: fermee}], anim(mode === 'complete' ? DUREES.fermer : DUREES.fermer2d))]))) return;
+  const d3 = mode === 'complete', ouvert = versRect(rectOuvert(ce, mode), ce);
+  const ouverte = d3 ? 'rotateY(-180deg)' : 'scaleX(0)', fermee = d3 ? 'rotateY(0deg)' : 'scaleX(1)';
+  if (d3) o.objet.style.transform = 'perspective(1000px)';
+  couv.style.transform = ouverte; o.voileFace.style.opacity = .45; o.ombre.style.opacity = 1; o.fond.style.opacity = 1;
+  // 1. La page redevient la page du livre ouvert, qui revient vers soi
+  if (!(await etape(jeton, [page.animate([{transform: ecran}, {transform: ouvert}], anim(DUREES.reduire)),
+    livre.animate([{transform: versRect(rectZoom(rectOuvert(ce, mode)), ce), opacity: 0}, {transform: ouvert, opacity: 1}], anim(DUREES.reduire))]))) return;
+  // 2. La couverture se referme pendant que la double page revient au centre
+  const duree = d3 ? DUREES.fermer : DUREES.fermer2d, courbe = d3 ? 'cubic-bezier(.55,0,.6,.95)' : 'ease-in-out';
+  if (!(await etape(jeton, [couv.animate([{transform: ouverte}, {transform: fermee}], anim(duree, courbe)),
+    page.animate([{transform: ouvert}, {transform: 'none'}], anim(duree, courbe)), livre.animate([{transform: ouvert}, {transform: 'none'}], anim(duree, courbe)),
+    o.voileFace.animate([{opacity: .45}, {opacity: .45, offset: .5}, {opacity: 0}], anim(duree, courbe)),
+    o.voileRevers.animate([{opacity: 0}, {opacity: .4, offset: .5}, {opacity: .4}], anim(duree, courbe)),
+    o.ombrePage.animate([{opacity: 0, transform: 'translateZ(-1px) scaleX(.25)'}, {opacity: 0, transform: 'translateZ(-1px) scaleX(.25)', offset: .2}, {opacity: .9, transform: 'translateZ(-1px) scaleX(1)'}], anim(duree, courbe))]))) return;
+  // 3. Le livre rentre dans sa carte (il se repose : l'ombre disparaît, la bibliothèque s'éclaire)
   const src = couvertureCarte(id);
   const retour = src ? [{transform: 'none', opacity: 1}, {transform: versRect(rectDe(src), ce), opacity: 1}] : [{transform: 'none', opacity: 1}, {transform: versRect(reduire(ce, .6), ce), opacity: 0}];
-  if (!(await etape(jeton, [page.animate(retour, anim(DUREES.rentrer, 'ease-in')), livre.animate(retour, anim(DUREES.rentrer, 'ease-in'))]))) return;
+  const rangement = [page.animate(retour, anim(DUREES.rentrer, 'ease-in')), livre.animate(retour, anim(DUREES.rentrer, 'ease-in')),
+    o.ombre.animate([{opacity: 1}, {opacity: 0}], anim(DUREES.rentrer, 'ease-in')), o.fond.animate([{opacity: 1}, {opacity: 0}], anim(DUREES.rentrer, 'linear'))];
+  if (d3) rangement.push(o.objet.animate([{transform: 'perspective(1000px) rotateY(0deg)'}, {transform: 'perspective(1000px) rotateY(-14deg)'}, {transform: 'perspective(1000px) rotateY(0deg)'}], anim(DUREES.rentrer)));
+  if (!(await etape(jeton, rangement))) return;
   nettoyerAnimation();
 }
 // Un toucher, une touche ou un écran qui change de taille arrêtent l'animation tout de suite

@@ -1904,6 +1904,43 @@
     r.push(k && +k[k.length - 1].opacity === 0 ? 'effacée au centre' : '?', $('#ouverture') ? '?' : 'fini');
     ui.tab = 'en_cours'; render(); return r.join('|');
   }));
+  // (lot O1 du 29/10/2026 : le livre devient un objet — épaisseur, ombres, double page centrée ; prototype docs/essais/ouverture-livre)
+  // Fige toutes les animations du calque à leur début ou à leur fin (l'étape en cours ne s'achève pas : la suivante ne démarre pas)
+  const figer = fin => effets().forEach(a => { a.pause(); a.currentTime = fin ? a.effect.getComputedTiming().endTime : 0; });
+  const animDe = (cls, cond) => effets().find(a => a.effect.target.classList.contains(cls) && (!cond || cond(JSON.stringify(a.effect.getKeyframes()))));
+  await test('Ouverture complète : la double page s\'ouvre au centre de l\'écran (reliure au milieu, couverture ouverte dans l\'écran)', 'reliure au centre|couverture dans l\'écran', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await attendre(() => animDe('ouv-couv'), 1500); figer(true); await pause(30);
+    const l = $('#ouverture .ouv-livre').getBoundingClientRect(), c = $('#ouverture .ouv-couv').getBoundingClientRect();
+    return [Math.abs(l.left - innerWidth / 2) < 2 ? 'reliure au centre' : 'reliure à ' + Math.round(l.left) + ' / ' + innerWidth, c.left >= -1 ? 'couverture dans l\'écran' : 'couverture à ' + Math.round(c.left)].join('|');
+  }));
+  await test('Ouverture complète : le livre a une épaisseur (tranche des feuilles), une ombre qui grandit, et pivote un peu dans la main', 'tranche|ombre qui grandit|pivote dans la main', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const o = animDe('ouv-ombre'), k = o ? o.effect.getKeyframes() : [];
+    return [$('#ouverture .ouv-livre .ouv-tranche3d') ? 'tranche' : '?', k.length && +k[0].opacity === 0 && +k[k.length - 1].opacity === 1 ? 'ombre qui grandit' : '?',
+      animDe('ouv-objet', t => t.includes('rotateY(-14deg)')) ? 'pivote dans la main' : '?'].join('|');
+  }));
+  await test('Ouverture complète : ombres pendant la rotation (face qui s\'assombrit, garde qui s\'éclaire, ombre sur la page) et bibliothèque assombrie', 'face|garde|page|fond', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const vus = new Set();
+    await attendre(() => { effets().forEach(a => { const t = a.effect.target, c = t.parentElement ? t.parentElement.classList : null;
+      if (t.classList.contains('ouv-voile') && c.contains('ouv-face')) vus.add('face'); if (t.classList.contains('ouv-voile') && c.contains('ouv-revers')) vus.add('garde');
+      if (t.classList.contains('ouv-ombre-page')) vus.add('page'); if (t.classList.contains('ouv-fond')) vus.add('fond'); }); return !$('#ouverture'); }, 2000);
+    return ['face', 'garde', 'page', 'fond'].map(k => vus.has(k) ? k : '?').join('|');
+  }));
+  await test('Ouverture complète : la 3D n\'est jamais aplatie (éléments en relief sans opacité, sans « will-change: opacity », sans débordement caché)', '2 éléments en relief|intacts', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await attendre(() => animDe('ouv-couv'), 1500);
+    const relief = [...document.querySelectorAll('#ouverture *')].filter(e => getComputedStyle(e).transformStyle === 'preserve-3d');
+    const fautes = relief.filter(e => { const s = getComputedStyle(e); return s.opacity !== '1' || s.willChange.includes('opacity') || s.overflow !== 'visible' || e.getAnimations().some(a => a.effect.getKeyframes().some(k => 'opacity' in k)); });
+    return relief.length + ' éléments en relief|' + (fautes.length ? 'aplatis : ' + fautes.map(e => e.className).join(',') : 'intacts');
+  }));
+  await test('Durées : ouverture 630 ms (170 + 300 + 160), fermeture 500 ms (140 + 210 + 150)', '630|500', () => [DUREES.prendre + DUREES.ouvrir + DUREES.page, DUREES.reduire + DUREES.fermer + DUREES.rentrer].join('|'));
+  await test('Fermeture complète : la double page se referme en revenant au centre, puis le livre rentre dans sa carte', 'double page centrée|refermé au centre|vers la carte', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await attendre(() => !$('#ouverture'), 2000);
+    fermerFiche(); await attendre(() => animDe('ouv-couv'), 1500); const r = [], centre = () => { const l = $('#ouverture .ouv-livre').getBoundingClientRect(); return [l.left, l.left + l.width / 2]; };
+    figer(false); await pause(30); r.push(Math.abs(centre()[0] - innerWidth / 2) < 2 ? 'double page centrée' : 'reliure à ' + Math.round(centre()[0]));
+    figer(true); await pause(30); r.push(Math.abs(centre()[1] - innerWidth / 2) < 2 ? 'refermé au centre' : 'milieu à ' + Math.round(centre()[1]));
+    effets().forEach(a => a.play()); let k = null;
+    await attendre(() => { const l = effets().filter(a => a.effect.target.classList.contains('ouv-livre')); if (l.length) k = l[l.length - 1].effect.getKeyframes(); return !$('#ouverture'); }, 2000);
+    r.push(k && String(k[k.length - 1].transform).includes('translate') && +(k[k.length - 1].opacity ?? 1) === 1 ? 'vers la carte' : '?'); return r.join('|');
+  }));
   // (relecture : le vrai geste au doigt, c'est « appui » puis « clic » au relâchement, sur la fiche encore invisible)
   const appui = el => el.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
   await test('Toucher pour passer l\'ouverture : le clic du même geste ne déclenche pas un bouton invisible', 'a_lire|en_cours', () => avecAnim('complete', async () => {

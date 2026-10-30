@@ -1832,7 +1832,7 @@
     prefs.animation = p0; delete prefs.anim3dLent; delete prefs.anim3dSaccades; savePrefs(); return r.join('|');
   });
   const attendre = async (cond, max) => { const t = performance.now(); while (!cond() && performance.now() - t < max) await pause(15); return Math.round(performance.now() - t); };
-  const effets = () => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && (a.effect.target.closest('#ouverture') || a.effect.target.id === 'livreOv'));
+  const effets = () => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && (a.effect.target.closest('#ouverture, #ouvertureFond') || a.effect.target.id === 'livreOv'));
   const formes = () => effets().map(a => JSON.stringify(a.effect.getKeyframes().map(k => k.transform || '')));
   const avecAnim = async (mode, fn, reduit) => {
     const m0 = prefs.animation, r0 = Ouverture.reduit; prefs.animation = mode; Ouverture.reduit = () => !!reduit;
@@ -1943,6 +1943,76 @@
   }));
   // (relecture : le vrai geste au doigt, c'est « appui » puis « clic » au relâchement, sur la fiche encore invisible)
   const appui = el => el.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  // (lot O2 du 30/10/2026 : la page intérieure EST la fiche — mise à l'échelle avec compensation, sans fondu ; prototype docs/essais/ouverture-livre)
+  // Animations de la fiche elle-même (compensation de l'échelle sur #livre, barre du haut) : figées avec le reste
+  const effetsFiche = () => document.getAnimations().filter(a => a.effect && a.effect.target && (a.effect.target.id === 'livre' || (a.effect.target.classList && a.effect.target.classList.contains('livre-tete'))));
+  const figerA = (t, liste) => liste.forEach(a => { a.pause(); a.currentTime = t === 'fin' ? a.effect.getComputedTiming().endTime : t === 'milieu' ? a.effect.getComputedTiming().endTime / 2 : 0; });
+  const agrandissement = () => effetsFiche().some(a => a.effect.target.id === 'livre' && a.effect.getKeyframes().length > 2);
+  // (échelle réelle du texte de la fiche : celle de la fenêtre multipliée par la compensation — jamais étirée)
+  const echelleTexte = () => new DOMMatrix(getComputedStyle($('#livreOv')).transform).multiply(new DOMMatrix(getComputedStyle($('#livre')).transform));
+  const longue = () => { books = [fiche('Longue', {statut: 'en_cours', couverture: COUV, pagesTotal: 300, pageActuelle: 30,
+    notes: Array.from({length: 24}, (x, i) => ({id: 'n-' + i, texte: 'Une note assez longue pour remplir la fiche, numéro ' + i + '. '.repeat(3), date: today()}))})];
+    ui.tab = 'en_cours'; prefs.view = 'liste'; render(); return $('#list .card[data-id="t-Longue"]'); };
+  await test('Ouverture complète : la vraie fiche est sur la page de droite dès que la couverture s\'ouvre (ni page vide, ni fondu)', 'fiche sur la page|pas de page vide|pas de fondu', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const fondus = new Set();
+    await attendre(() => animDe('ouv-couv'), 1500); figer(true); figerA('fin', effetsFiche()); await pause(30);
+    const o = $('#livreOv').getBoundingClientRect(), l = $('#ouverture .ouv-livre').getBoundingClientRect();
+    const r = [getComputedStyle($('#livreOv')).visibility === 'visible' && Math.abs(o.left - l.left) < 2 && Math.abs(o.width - l.width) < 2 && Math.abs(o.top - l.top) < 2 && Math.abs(o.height - l.height) < 2 ? 'fiche sur la page' : 'fiche à ' + [o.left, o.top, o.width, o.height].map(Math.round) + ' / page à ' + [l.left, l.top, l.width, l.height].map(Math.round),
+      $('#ouverture .ouv-page') ? 'page vide !' : 'pas de page vide'];
+    effets().forEach(a => a.play()); effetsFiche().forEach(a => a.play());
+    await attendre(() => { effets().filter(a => a.effect.target.id === 'livreOv').forEach(a => { if (a.effect.getKeyframes().some(k => 'opacity' in k)) fondus.add(1); }); return !$('#ouverture'); }, 2000);
+    r.push(fondus.size ? 'fondu !' : 'pas de fondu'); return r.join('|');
+  }));
+  await test('Ouverture complète : le texte de la fiche n\'est jamais étiré (sur la page, puis pendant l\'agrandissement)', 'droit sur la page|droit en grandissant', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const r = [], droit = () => { const m = echelleTexte(); return Math.abs(m.a - m.d) / m.a < .03 && m.a < .95; };
+    await attendre(() => animDe('ouv-couv'), 1500); figer(true); figerA('fin', effetsFiche()); await pause(30);
+    r.push(droit() ? 'droit sur la page' : 'étiré : ' + echelleTexte().a.toFixed(2) + ' × ' + echelleTexte().d.toFixed(2));
+    effets().forEach(a => a.play()); effetsFiche().forEach(a => a.play()); await attendre(agrandissement, 1500);
+    figerA('milieu', [...effets(), ...effetsFiche()]); await pause(30);
+    r.push(droit() ? 'droit en grandissant' : 'étiré : ' + echelleTexte().a.toFixed(2) + ' × ' + echelleTexte().d.toFixed(2)); return r.join('|');
+  }));
+  await test('Ouverture complète : la barre du haut de la fiche apparaît en dernier', 'barre en dernier', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await attendre(agrandissement, 1500);
+    const a = effetsFiche().find(x => x.effect.target.classList.contains('livre-tete')), k = a ? a.effect.getKeyframes() : [];
+    return k.length && +k[0].opacity === 0 && +k[k.length - 1].opacity === 1 && k.some(x => x.offset >= .4 && +x.opacity === 0) ? 'barre en dernier' : '?';
+  }));
+  await test('Bibliothèque assombrie SOUS la fiche : la page reste claire pendant l\'ouverture', 'fond sous la page', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const f = document.querySelector('.ouv-fond');
+    return f && !f.closest('#ouverture') && +getComputedStyle(f.closest('#ouvertureFond') || f).zIndex < +getComputedStyle($('#livreOv')).zIndex ? 'fond sous la page' : '?';
+  }));
+  await test('Livre feuilletable : sa page de garde est sur la page de droite pendant l\'ouverture', 'livre sur la page', async () => {
+    const c0 = prefs.consultation; prefs.consultation = 'livre';
+    try { return await avecAnim('complete', async () => {
+      carteAnim().querySelector('.t').click(); await attendre(() => animDe('ouv-couv'), 1500); figer(true); figerA('fin', effetsFiche()); await pause(30);
+      const o = $('#livreOv').getBoundingClientRect(), l = $('#ouverture .ouv-livre').getBoundingClientRect();
+      return $('#livreOv').classList.contains('mode-livre') && getComputedStyle($('#livreOv')).visibility === 'visible' && Math.abs(o.left - l.left) < 2 && Math.abs(o.width - l.width) < 2 ? 'livre sur la page' : '?';
+    }); } finally { prefs.consultation = c0; }
+  });
+  await test('Fermeture depuis une fiche défilée : la fiche redevient la page de droite là où on lisait, puis disparaît', 'fermée|fiche visible|défilement gardé|origine au défilement|droit|rangée', () => avecAnim('complete', async () => {
+    longue().querySelector('.t').click(); await attendre(() => !$('#ouverture'), 2000);
+    $('#livreOv').scrollTop = 400; const s = $('#livreOv').scrollTop; fermerFiche(); await attendre(() => animDe('ouv-couv'), 1500);
+    const ov = $('#livreOv'), r = [ficheEtat.id === '' && !ov.classList.contains('show') ? 'fermée' : '?', getComputedStyle(ov).display !== 'none' && ov.inert ? 'fiche visible' : '?'];
+    r.push(s > 300 && ov.scrollTop === s ? 'défilement gardé' : 'défilement ' + ov.scrollTop + ' / ' + s, getComputedStyle($('#livre')).transformOrigin.endsWith(' ' + s + 'px') ? 'origine au défilement' : 'origine ' + getComputedStyle($('#livre')).transformOrigin);
+    figer(false); figerA('debut', effetsFiche()); await pause(30); const m = echelleTexte(); r.push(Math.abs(m.a - m.d) / m.a < .03 ? 'droit' : 'étiré');
+    effets().forEach(a => a.play()); effetsFiche().forEach(a => a.play()); await attendre(() => !$('#ouverture'), 2000);
+    r.push(getComputedStyle(ov).display === 'none' && !ov.inert && getComputedStyle(ov).transform === 'none' ? 'rangée' : '?'); return r.join('|');
+  }));
+  await test('Interruption à chaque étape de l\'ouverture : la fiche est aussitôt entière, à plat, sans fond sombre', 'prise|ouverture|agrandissement', () => avecAnim('complete', async () => {
+    const r = [], net = () => !$('#ouverture') && !$('#ouvertureFond') && getComputedStyle($('#livreOv')).transform === 'none' && getComputedStyle($('#livre')).transform === 'none' && getComputedStyle($('#livreOv')).visibility === 'visible' && !effetsFiche().length;
+    for (const [nom, attente] of [['prise', () => true], ['ouverture', () => animDe('ouv-couv')], ['agrandissement', agrandissement]]) {
+      carteAnim().querySelector('.t').click(); await attendre(attente, 1500); appui($('#livreOv')); await pause(20);
+      r.push(net() ? nom : nom + ' ?'); ficheEtat.edition = null; await fermerFiche(); interrompreAnimation(); await pause(30);
+    }
+    return r.join('|');
+  }));
+  await test('Fermeture avec moins d\'animations : la fiche s\'efface (un seul fondu), puis plus rien', 'fondu de la fiche|plus rien', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); const du = await attendre(() => !effets().length, 1000);
+    const diag = ' · attente ' + du + ' · geste ' + Ouverture.gesteCoupe + ' · coupée il y a ' + Math.round(performance.now() - Ouverture.coupeeA) + ' · anims ' + Ouverture.animations.length + ' · show ' + $('#livreOv').classList.contains('show');
+    fermerFiche(); const f = effets();
+    const r = [f.length === 1 && f[0].effect.target.id === 'livreOv' && +f[0].effect.getKeyframes()[0].opacity === 1 && getComputedStyle($('#livreOv')).display !== 'none' ? 'fondu de la fiche'
+      : 'effets ' + f.map(a => (a.effect.target.id || a.effect.target.className) + ' ' + JSON.stringify(a.effect.getKeyframes().map(k => k.opacity))).join(', ') + ' · ' + getComputedStyle($('#livreOv')).display + ' · fiche ' + ficheEtat.id + diag];
+    await attendre(() => !effets().length, 1000); r.push(getComputedStyle($('#livreOv')).display === 'none' && !$('#ouverture') ? 'plus rien' : '?'); return r.join('|');
+  }, true));
   await test('Toucher pour passer l\'ouverture : le clic du même geste ne déclenche pas un bouton invisible', 'a_lire|en_cours', () => avecAnim('complete', async () => {
     books = [fiche('Geste', {statut: 'a_lire', couverture: COUV})]; ui.tab = 'a_lire'; prefs.view = 'liste'; render();
     $('#list .card .t').click(); await pause(100);

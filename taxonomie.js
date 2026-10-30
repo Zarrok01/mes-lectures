@@ -5,7 +5,7 @@
    ambiances et étiquettes personnelles.
    ===================================================================== */
 const Taxonomie = (() => {
-  const VERSION = '2026.10.29-2';   // (le même numéro que dans index.html et recherche.js)
+  const VERSION = '2026.10.30-1';   // (le même numéro que dans index.html et recherche.js)
   // Comparaison sans majuscules, accents ni ponctuation, et sans le « s » ou le « x » du pluriel (« Théâtres » = « Théâtre »)
   const cle = s => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z0-9]+/g, ' ').trim()
     .split(' ').map(m => m.length > 3 ? m.replace(/[sx]$/, '') : m).join(' ');

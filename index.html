@@ -614,12 +614,16 @@ button{-webkit-touch-callout:none}
 .lv-double .lv-page+.lv-page{left:50%;border-radius:0 3px 3px 0;box-shadow:inset 16px 0 16px -14px var(--livre-ombre)}
 .lv-double .lv-feuille,.lv-double .lv-ombre,.lv-double .lv-dessus{left:50%}
 /* ---------- Ouverture du livre (animation) ---------- */
-#livreOv.masque{opacity:0}
+/* (lot O2 : pendant l'ouverture et la fermeture, la fiche EST la page intérieure du livre — mise à l'échelle depuis son coin
+   haut gauche ; à la fermeture elle reste visible le temps du chemin, sans toucher ni focus) */
+#livreOv{transform-origin:0 0}
+#livreOv.masque,#livreOv.fermeture{will-change:transform}
+#livreOv.fermeture{display:block;pointer-events:none}
 #ouverture{position:fixed;inset:0;z-index:26;pointer-events:none;overflow:hidden}
-#ouverture .ouv-page,#ouverture .ouv-livre{position:absolute;transform-origin:0 0;will-change:transform,opacity}
-#ouverture .ouv-page{background:var(--fond);border-radius:var(--r-s);box-shadow:var(--ombre-2)}
+#ouverture .ouv-livre{position:absolute;transform-origin:0 0;will-change:transform,opacity}
 /* (lot O1 : l'objet — jamais d'opacité, de « will-change: opacity » ni de débordement caché sur un élément en relief : Chrome l'aplatirait) */
-#ouverture .ouv-fond{position:absolute;inset:0;background:var(--ouv-fond);opacity:0;will-change:opacity}
+/* (la bibliothèque assombrie : SOUS la fiche, pour que la page reste claire) */
+#ouvertureFond{position:fixed;inset:0;z-index:24;pointer-events:none;background:var(--ouv-fond);opacity:0;will-change:opacity}
 #ouverture .ouv-objet{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 50%;will-change:transform}
 #ouverture .ouv-ombre{position:absolute;inset:0;border-radius:2px var(--r-s) var(--r-s) 2px;box-shadow:var(--ouv-ombre);transform:translateZ(-2px);opacity:0}
 #ouverture .ouv-tranche3d{position:absolute;left:100%;top:1.2%;height:97.6%;width:7%;transform-origin:0 50%;transform:rotateY(90deg);background:repeating-linear-gradient(90deg,var(--livre-tranche-2) 0 1px,var(--livre-tranche) 1px 2px)}
@@ -746,7 +750,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.29-2';
+const VERSION = '2026.10.30-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1573,7 +1577,7 @@ const MODES_ANIM = {complete: 'Complète', simple: 'Simple', aucune: 'Aucune'};
 const DUREES = {prendre: 170, ouvrir: 300, ouvrir2d: 220, page: 160, reduire: 140, fermer: 210, fermer2d: 180, rentrer: 150, fondu: 150, tour: 450, tour2d: 300};
 const reduitQuery = matchMedia('(prefers-reduced-motion: reduce)');
 // État de l'animation en cours : jeton (une animation dépassée s'arrête d'elle-même), animations, calque, dernière interruption
-const Ouverture = {jeton: 0, animations: [], calque: null, coupeeA: -1e9, gesteCoupe: false, reduit: () => reduitQuery.matches};
+const Ouverture = {jeton: 0, animations: [], calque: null, fond: null, tete: null, coupeeA: -1e9, gesteCoupe: false, reduit: () => reduitQuery.matches};
 // Mode réellement utilisé : le réglage du téléphone « réduire les animations » l'emporte (fondu seulement) ;
 // la 3D passe en Simple si elle a saccadé (ou si le navigateur ne sait pas faire de 3D), puis le Simple au fondu s'il saccade aussi
 function modeAnimation() {
@@ -1629,6 +1633,14 @@ const rectOuvert = (ce, mode) => mode === 'complete' ? {...ce, x: innerWidth / 2
 const rectZoom = r => { const k = innerWidth / r.w; return {x: 0, y: (innerHeight - r.h * k) / 2, w: innerWidth, h: r.h * k}; };
 const reduire = (r, k) => ({x: r.x + r.w * (1 - k) / 2, y: r.y + r.h * (1 - k) / 2, w: r.w * k, h: r.h * k});
 const versRect = (r, base) => `translate(${r.x - base.x}px, ${r.y - base.y}px) scale(${r.w / base.w}, ${r.h / base.h})`;
+// (lot O2) La fiche est la page intérieure : #livreOv (plein écran) prend la taille de la page par une échelle non uniforme,
+// compensée sur #livre pour que le texte ne soit jamais étiré ; on voit ainsi le haut de la fiche, à sa largeur
+const tFenetre = r => `translate(${r.x}px, ${r.y}px) scale(${r.w / innerWidth}, ${r.h / innerHeight})`;
+const tDedans = r => `scale(1, ${(r.w / innerWidth) / (r.h / innerHeight)})`;
+const lerpR = (a, b, t) => ({x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, w: a.w + (b.w - a.w) * t, h: a.h + (b.h - a.h) * t});
+const doux = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2;
+// Images clés calculées (l'adoucissement est dans les valeurs, l'animation est linéaire) : la compensation reste exacte
+const cles = (n, f) => Array.from({length: n + 1}, (x, i) => ({...f(i / n), offset: i / n}));
 // Couverture de la carte du livre, si elle est visible à l'écran (sinon : pas de point de départ)
 function couvertureCarte(id) {
   const c = [...document.querySelectorAll('#list .card, #list .gcard')].find(x => x.dataset.id === id), ph = c && c.querySelector('.ph');
@@ -1636,11 +1648,10 @@ function couvertureCarte(id) {
   const r = rectDe(ph);
   return r.w > 0 && r.y + r.h > 0 && r.y < innerHeight ? ph : null;
 }
-// Le calque : une page (couleur du carnet) et un livre qui contient une copie de la couverture (image ou initiale)
+// Le calque : un livre qui contient une copie de la couverture (image ou initiale) ; sa page intérieure est la vraie fiche (#livreOv)
 function monterLivre(modele, ce) {
   const calque = document.createElement('div'); calque.id = 'ouverture'; calque.setAttribute('aria-hidden', 'true');
   const place = d => Object.assign(d.style, {left: ce.x + 'px', top: ce.y + 'px', width: ce.w + 'px', height: ce.h + 'px'});
-  const page = document.createElement('div'); page.className = 'ouv-page'; place(page);
   const livre = document.createElement('div'); livre.className = 'ouv-livre'; place(livre);
   // (la copie garde l'image ou la couverture générée, mais pas la taille fixe de la carte : « cover », « big »…)
   const couv = document.createElement('div'); couv.className = 'ouv-couv';
@@ -1650,22 +1661,25 @@ function monterLivre(modele, ce) {
   // (le revers de la couverture : une garde de couleur, celle de la couverture générée s'il y en a une)
   const revers = document.createElement('div'); revers.className = 'ouv-revers ' + ([...modele.classList].find(c => c.startsWith('cg-f-')) || '');
   // (lot O1 : l'objet en relief — ombre portée, tranche des feuilles, ombre de la couverture sur la page, voiles de lumière ;
-  // la bibliothèque s'assombrit derrière)
+  // la bibliothèque s'assombrit derrière, sous la fiche : un calque à part)
   const div = c => { const d = document.createElement('div'); d.className = c; return d; };
-  const fond = div('ouv-fond'), objet = div('ouv-objet'), ombre = div('ouv-ombre'), ombrePage = div('ouv-ombre-page');
+  const fond = div('ouv-fond'); fond.id = 'ouvertureFond'; fond.setAttribute('aria-hidden', 'true');
+  const objet = div('ouv-objet'), ombre = div('ouv-ombre'), ombrePage = div('ouv-ombre-page');
   const voileFace = div('ouv-voile'), voileRevers = div('ouv-voile');
   face.appendChild(voileFace); revers.appendChild(voileRevers);
   couv.append(face, revers);
   objet.append(ombre, div('ouv-tranche3d'), ombrePage, couv);
-  livre.appendChild(objet); calque.append(fond, page, livre); document.body.appendChild(calque); Ouverture.calque = calque;
-  return {calque, page, livre, couv, fond, objet, ombre, ombrePage, voileFace, voileRevers};
+  livre.appendChild(objet); calque.append(livre); document.body.append(fond, calque); Ouverture.calque = calque; Ouverture.fond = fond;
+  return {calque, livre, couv, fond, objet, ombre, ombrePage, voileFace, voileRevers};
 }
 function nettoyerAnimation() {
   Ouverture.animations.forEach(a => { try { a.cancel(); } catch (e) {} });
   Ouverture.animations = [];
   if (Ouverture.calque) Ouverture.calque.remove();
-  Ouverture.calque = null;
-  $('#livreOv').classList.remove('masque');
+  if (Ouverture.fond) Ouverture.fond.remove();
+  if (Ouverture.tete) Ouverture.tete.style.opacity = '';
+  Ouverture.calque = Ouverture.fond = Ouverture.tete = null;
+  const ov = $('#livreOv'); ov.classList.remove('masque', 'fermeture'); ov.inert = false; ov.style.visibility = ''; $('#livre').style.transformOrigin = '';
 }
 // Toucher, touche, retour, écran redimensionné : tout s'arrête tout de suite (rien ne reste à l'écran, la fiche est visible)
 function interrompreAnimation() {
@@ -1695,7 +1709,7 @@ function creerCouverture(id) {
   const t = document.createElement('template'); t.innerHTML = coverHtml(b, 'big'); return t.content.firstElementChild;
 }
 async function animerOuverture(id) {
-  const mode = modeAnimation(), ov = $('#livreOv');
+  const mode = modeAnimation(), ov = $('#livreOv'), dedans = $('#livre');
   if (mode === 'aucune') return;
   interrompreAnimation(); const jeton = ++Ouverture.jeton;
   if (mode === 'fondu') {
@@ -1703,31 +1717,37 @@ async function animerOuverture(id) {
     return;
   }
   const src = couvertureCarte(id), modele = src || $('#livre .ph') || creerCouverture(id); if (!modele) return;
-  const d3 = mode === 'complete', ce = rectCentre(mode), ouvert = versRect(rectOuvert(ce, mode), ce), o = monterLivre(modele, ce), {page, livre, couv} = o;
+  const d3 = mode === 'complete', ce = rectCentre(mode), P = rectOuvert(ce, mode), ouvert = versRect(P, ce), o = monterLivre(modele, ce), {livre, couv} = o;
   if (d3) o.objet.style.transform = 'perspective(1000px)';
-  ov.classList.add('masque');
+  // (la fiche est dessinée ; elle reste cachée pendant la prise, la barre du haut viendra en dernier)
+  ov.classList.add('masque'); ov.style.visibility = 'hidden'; dedans.style.transformOrigin = '0 0';
+  const tete = $('#livre .livre-tete'); if (tete) { tete.style.opacity = '0'; Ouverture.tete = tete; }
   const images = mode === 'complete' || mode === 'simple' ? mesurerImages(jeton) : null, t0 = performance.now();
   // 1. On prend le livre : de la carte au centre (sans carte visible : il apparaît au centre) ; il se soulève (ombre),
   // pivote un peu dans la main (on voit la tranche des feuilles) et la bibliothèque s'assombrit
   const venue = src ? [{transform: versRect(rectDe(src), ce), opacity: 1}, {transform: 'none', opacity: 1}] : [{transform: versRect(reduire(ce, .6), ce), opacity: 0}, {transform: 'none', opacity: 1}];
-  const prise = [page.animate(venue, anim(DUREES.prendre, 'ease-out')), livre.animate(venue, anim(DUREES.prendre, 'ease-out')),
+  const prise = [livre.animate(venue, anim(DUREES.prendre, 'ease-out')),
     o.ombre.animate([{opacity: 0}, {opacity: 1}], anim(DUREES.prendre, 'ease-out')), o.fond.animate([{opacity: 0}, {opacity: 1}], anim(DUREES.prendre, 'linear'))];
   if (d3) prise.push(o.objet.animate([{transform: 'perspective(1000px) rotateY(0deg)'}, {transform: 'perspective(1000px) rotateY(-14deg)'}, {transform: 'perspective(1000px) rotateY(0deg)'}], anim(DUREES.prendre)));
   if (!(await etape(jeton, prise))) return;
   // 2. On l'ouvre : la couverture pivote sur sa reliure (3D) pendant que le livre glisse d'une demi-largeur (la double page
-  // finit centrée), ou se replie à plat (Simple) ; la face s'assombrit en s'éloignant de la lumière, la garde s'éclaire,
-  // l'ombre de la couverture quitte la page
+  // finit centrée), ou se replie à plat (Simple) ; dessous, la page de droite est déjà la fiche (son haut, à sa largeur) ;
+  // la face s'assombrit en s'éloignant de la lumière, la garde s'éclaire, l'ombre de la couverture quitte la page
+  ov.style.visibility = '';
   const duree = d3 ? DUREES.ouvrir : DUREES.ouvrir2d, courbe = d3 ? 'cubic-bezier(.45,.05,.3,1)' : 'ease-in-out';
   const pivot = d3 ? [{transform: 'rotateY(0deg)'}, {transform: 'rotateY(-180deg)'}] : [{transform: 'scaleX(1)'}, {transform: 'scaleX(0)'}];
-  if (!(await etape(jeton, [couv.animate(pivot, anim(duree, courbe)),
-    page.animate([{transform: 'none'}, {transform: ouvert}], anim(duree, courbe)), livre.animate([{transform: 'none'}, {transform: ouvert}], anim(duree, courbe)),
+  if (!(await etape(jeton, [couv.animate(pivot, anim(duree, courbe)), livre.animate([{transform: 'none'}, {transform: ouvert}], anim(duree, courbe)),
+    ov.animate([{transform: tFenetre(ce)}, {transform: tFenetre(P)}], anim(duree, courbe)), dedans.animate([{transform: tDedans(P)}, {transform: tDedans(P)}], anim(duree, 'linear')),
     o.voileFace.animate([{opacity: 0}, {opacity: .45, offset: .5}, {opacity: .45}], anim(duree, courbe)),
     o.voileRevers.animate([{opacity: .4}, {opacity: .4, offset: .5}, {opacity: 0}], anim(duree, courbe)),
     o.ombrePage.animate([{opacity: .9, transform: 'translateZ(-1px) scaleX(1)'}, {opacity: 0, transform: 'translateZ(-1px) scaleX(.25)', offset: .8}, {opacity: 0, transform: 'translateZ(-1px) scaleX(.25)'}], anim(duree, courbe))]))) return;
-  // 3. La page devient le carnet ; le livre s'approche (même proportion) et s'efface
-  if (!(await etape(jeton, [page.animate([{transform: ouvert}, {transform: versRect(rectEcran(), ce)}], anim(DUREES.page)),
-    livre.animate([{transform: ouvert, opacity: 1}, {transform: versRect(rectZoom(rectOuvert(ce, mode)), ce), opacity: 0}], anim(DUREES.page)),
-    ov.animate([{opacity: 0}, {opacity: 0, offset: .4}, {opacity: 1}], anim(DUREES.page, 'linear'))]))) return;
+  // 3. La page devient la fiche : elle s'agrandit jusqu'à l'écran (pas de fondu) ; le livre s'approche et s'efface ;
+  // la barre du haut apparaît en dernier
+  const Z = rectZoom(P), E = rectEcran(), lin = anim(DUREES.page, 'linear');
+  const entree = [ov.animate(cles(12, t => ({transform: tFenetre(lerpR(P, E, doux(t)))})), lin), dedans.animate(cles(12, t => ({transform: tDedans(lerpR(P, E, doux(t)))})), lin),
+    livre.animate(cles(12, t => ({transform: versRect(lerpR(P, Z, doux(t)), ce), opacity: t < .25 ? 1 : 1 - (t - .25) / .75})), lin)];
+  if (tete) entree.push(tete.animate([{opacity: 0}, {opacity: 0, offset: .5}, {opacity: 1}], lin));
+  if (!(await etape(jeton, entree))) return;
   nettoyerAnimation();
   if (images) {
     const l = images.arreter(), fluide = jugerFluidite(l), med = [...l].sort((x, y) => x - y)[Math.floor(l.length / 2)];
@@ -1735,35 +1755,41 @@ async function animerOuverture(id) {
     noterFluidite(fluide, mode === 'complete' ? '3d' : '2d');
   }
 }
-// Fermeture : la fiche est déjà fermée ; le calque refait le chemin (page qui rétrécit, couverture qui se referme en revenant
-// au centre, livre qui rentre dans sa carte — ou qui s'efface au centre si la carte n'est plus là)
-async function animerFermeture(id, modele) {
+// Fermeture : la fiche est déjà fermée (plus de focus ni de toucher) ; elle reste visible le temps du chemin inverse,
+// là où on lisait (« defile ») : elle redevient la page de droite, la couverture se referme en revenant au centre, le livre
+// rentre dans sa carte — ou s'efface au centre si la carte n'est plus là
+async function animerFermeture(id, modele, defile) {
   const mode = modeAnimation(); if (mode === 'aucune' || !modele) return;
-  interrompreAnimation(); const jeton = ++Ouverture.jeton, ce = rectCentre(mode), ecran = versRect(rectEcran(), ce);
-  const o = monterLivre(modele, ce), {page, livre, couv} = o;
+  interrompreAnimation(); const jeton = ++Ouverture.jeton, ov = $('#livreOv'), dedans = $('#livre');
+  ov.classList.add('fermeture'); ov.inert = true; ov.scrollTop = defile || 0;
+  dedans.style.transformOrigin = `0 ${ov.scrollTop}px`;   // (la compensation garde en place le haut de ce qu'on lisait)
   if (mode === 'fondu') {
-    livre.remove();
-    if (await etape(jeton, [page.animate([{transform: ecran, opacity: 1}, {transform: ecran, opacity: 0}], {duration: DUREES.fondu, easing: 'linear', fill: 'both'})])) nettoyerAnimation();
+    if (await etape(jeton, [ov.animate([{opacity: 1}, {opacity: 0}], {duration: DUREES.fondu, easing: 'linear', fill: 'both'})])) nettoyerAnimation();
     return;
   }
-  const d3 = mode === 'complete', ouvert = versRect(rectOuvert(ce, mode), ce);
+  const d3 = mode === 'complete', ce = rectCentre(mode), P = rectOuvert(ce, mode), ouvert = versRect(P, ce), Z = rectZoom(P), E = rectEcran();
+  const o = monterLivre(modele, ce), {livre, couv} = o;
   const ouverte = d3 ? 'rotateY(-180deg)' : 'scaleX(0)', fermee = d3 ? 'rotateY(0deg)' : 'scaleX(1)';
   if (d3) o.objet.style.transform = 'perspective(1000px)';
   couv.style.transform = ouverte; o.voileFace.style.opacity = .45; o.ombre.style.opacity = 1; o.fond.style.opacity = 1;
-  // 1. La page redevient la page du livre ouvert, qui revient vers soi
-  if (!(await etape(jeton, [page.animate([{transform: ecran}, {transform: ouvert}], anim(DUREES.reduire)),
-    livre.animate([{transform: versRect(rectZoom(rectOuvert(ce, mode)), ce), opacity: 0}, {transform: ouvert, opacity: 1}], anim(DUREES.reduire))]))) return;
+  // 1. La fiche redevient la page de droite du livre ouvert, qui revient autour d'elle ; la barre du haut part la première
+  const lin = anim(DUREES.reduire, 'linear'), tete = $('#livre .livre-tete'), sortie = [
+    ov.animate(cles(12, t => ({transform: tFenetre(lerpR(E, P, doux(t)))})), lin), dedans.animate(cles(12, t => ({transform: tDedans(lerpR(E, P, doux(t)))})), lin),
+    livre.animate(cles(12, t => ({transform: versRect(lerpR(Z, P, doux(t)), ce), opacity: t > .75 ? 1 : t / .75})), lin)];
+  if (tete) sortie.push(tete.animate([{opacity: 1}, {opacity: 0, offset: .4}, {opacity: 0}], lin));
+  if (!(await etape(jeton, sortie))) return;
   // 2. La couverture se referme pendant que la double page revient au centre
   const duree = d3 ? DUREES.fermer : DUREES.fermer2d, courbe = d3 ? 'cubic-bezier(.55,0,.6,.95)' : 'ease-in-out';
-  if (!(await etape(jeton, [couv.animate([{transform: ouverte}, {transform: fermee}], anim(duree, courbe)),
-    page.animate([{transform: ouvert}, {transform: 'none'}], anim(duree, courbe)), livre.animate([{transform: ouvert}, {transform: 'none'}], anim(duree, courbe)),
+  if (!(await etape(jeton, [couv.animate([{transform: ouverte}, {transform: fermee}], anim(duree, courbe)), livre.animate([{transform: ouvert}, {transform: 'none'}], anim(duree, courbe)),
+    ov.animate([{transform: tFenetre(P)}, {transform: tFenetre(ce)}], anim(duree, courbe)), dedans.animate([{transform: tDedans(P)}, {transform: tDedans(P)}], anim(duree, 'linear')),
     o.voileFace.animate([{opacity: .45}, {opacity: .45, offset: .5}, {opacity: 0}], anim(duree, courbe)),
     o.voileRevers.animate([{opacity: 0}, {opacity: .4, offset: .5}, {opacity: .4}], anim(duree, courbe)),
     o.ombrePage.animate([{opacity: 0, transform: 'translateZ(-1px) scaleX(.25)'}, {opacity: 0, transform: 'translateZ(-1px) scaleX(.25)', offset: .2}, {opacity: .9, transform: 'translateZ(-1px) scaleX(1)'}], anim(duree, courbe))]))) return;
-  // 3. Le livre rentre dans sa carte (il se repose : l'ombre disparaît, la bibliothèque s'éclaire)
+  // 3. Le livre fermé rentre dans sa carte (il se repose : l'ombre disparaît, la bibliothèque s'éclaire) ; la fiche n'est plus là
+  ov.classList.remove('fermeture');
   const src = couvertureCarte(id);
   const retour = src ? [{transform: 'none', opacity: 1}, {transform: versRect(rectDe(src), ce), opacity: 1}] : [{transform: 'none', opacity: 1}, {transform: versRect(reduire(ce, .6), ce), opacity: 0}];
-  const rangement = [page.animate(retour, anim(DUREES.rentrer, 'ease-in')), livre.animate(retour, anim(DUREES.rentrer, 'ease-in')),
+  const rangement = [livre.animate(retour, anim(DUREES.rentrer, 'ease-in')),
     o.ombre.animate([{opacity: 1}, {opacity: 0}], anim(DUREES.rentrer, 'ease-in')), o.fond.animate([{opacity: 1}, {opacity: 0}], anim(DUREES.rentrer, 'linear'))];
   if (d3) rangement.push(o.objet.animate([{transform: 'perspective(1000px) rotateY(0deg)'}, {transform: 'perspective(1000px) rotateY(-14deg)'}, {transform: 'perspective(1000px) rotateY(0deg)'}], anim(DUREES.rentrer)));
   if (!(await etape(jeton, rangement))) return;
@@ -2106,6 +2132,7 @@ function ouvrirFiche(id, section) {
   if (fiche.id && fiche.id !== id && fiche.edition && fiche.edition.texte.trim()) { toast('Termine d\'abord ce que tu écris'); return false; }
   // (un livre est déjà ouvert — le même, ou un autre par « Voir » : on change de contenu sans animation)
   const dejaOuverte = $('#livreOv').classList.contains('show'), memeLivre = fiche.id === id;
+  if ($('#livreOv').classList.contains('fermeture')) interrompreAnimation();   // (fermeture animée encore en cours : elle s'arrête net)
   Object.assign(fiche, {id, edition: memeLivre ? fiche.edition : null, dernier: b, toutHisto: false,
     mode: memeLivre ? fiche.mode : (prefs.consultation === 'livre' ? 'carnet' : 'fiche')});
   $('#livreOv').classList.add('show'); $('#livreOv').scrollTop = 0; peindreFiche();
@@ -2123,6 +2150,7 @@ async function fermerFiche() {
   // (fermer pendant l'ouverture, ou juste après une interruption : tout de suite, sans animation de fermeture)
   finirFeuille();
   const coupee = interrompreAnimation() || Ouverture.gesteCoupe || performance.now() - Ouverture.coupeeA < 80, modele = $('#livre .ph') || creerCouverture(fiche.id);
+  const defile = $('#livreOv').scrollTop;   // (la fermeture animée repart de là où on lisait)
   Ouverture.gesteCoupe = false;
   const id = fiche.id; fiche.id = ''; fiche.edition = null;
   // (refermé sur la couverture ou la page de garde, là où le livre s'ouvre de lui-même : le marque-page ne bouge pas)
@@ -2133,7 +2161,7 @@ async function fermerFiche() {
   const c = [...document.querySelectorAll('#list .card, #list .gcard')];
   const cible = c.find(x => x.dataset.id === id) || c[0];
   if (cible) cible.focus({preventScroll: false});
-  if (!coupee) animerFermeture(id, modele);
+  if (!coupee) animerFermeture(id, modele, defile);
   return true;
 }
 const ligneSi = (cond, html) => cond ? html : '';

@@ -2913,10 +2913,10 @@
   await test('Lot 3 : textes courts ; le détail est derrière « Comment ça marche ? », replié', 'tirage replié|recherche replié|titre simple', () => avecDecouvrir(async () => {
     prefs.selection = selectionTest(5); prefs.tirage = 'perso'; render();
     const c = s => { const d = $(s + ' details.comment'); return d && !d.open && /\S/.test(d.textContent) ? 'replié' : d ? 'ouvert' : 'absent'; };
-    const tirageCourt = !/restent sur ton téléphone/.test(($('.discover-random .sous-titre') || {textContent: ''}).textContent) || ($('.discover-random details.comment') || {textContent: ''}).textContent.includes('restent sur ton téléphone');
+    const tirageCourt = !/restent sur ton téléphone/.test(($('.discover-envies .sous-titre') || {textContent: ''}).textContent) || ($('.discover-envies details.comment') || {textContent: ''}).textContent.includes('restent sur ton téléphone');
     // (le titre de « Comment ça marche ? » ne reprend pas le « Ouvrir / Réduire » du titre de la recherche)
     const apres = getComputedStyle($('#rechPanel details.comment summary'), '::after').content;
-    return ['tirage ' + (tirageCourt ? c('.discover-random') : 'texte long visible'), 'recherche ' + c('#rechPanel'), /Ouvrir|Réduire/.test(apres) ? 'titre : ' + apres : 'titre simple'].join('|');
+    return ['tirage ' + (tirageCourt ? c('.discover-envies') : 'texte long visible'), 'recherche ' + c('#rechPanel'), /Ouvrir|Réduire/.test(apres) ? 'titre : ' + apres : 'titre simple'].join('|');
   }));
   await test('Lot 3 : sélection impossible ou partielle → un message clair', 'aucune : catalogues|partielle : 3 pistes sur 5', () => avecDecouvrir(async () => {
     const vrai = Recherche.selection, r = [];
@@ -3006,11 +3006,12 @@
     await avecStyle('carnet', 'light', () => avecStats(async () => { const e = emojisVisibles($('#main .defis')); r.push(e.length >= 3 ? 'Carnet : émojis' : `Carnet : ${e.length} émoji`); }));
     return r.join('|');
   });
-  await test('Lot 5 : Découvrir — puces « Thème » et « Source » sans émoji en Éditorial ; le Carnet les garde', 'Éditorial : aucun|Carnet : 📖🏆', async () => {
+  // (Découvrir A : les puces deviennent l'étiquette « mois · source » et la ligne « thème · pages »)
+  await test('Lot 5 : Découvrir — étiquette et ligne de la carte sans émoji en Éditorial ; le Carnet les garde', 'Éditorial : aucun|Carnet : 🏆📖', async () => {
     const r = [];
     for (const [s, nom] of [['editorial', 'Éditorial'], ['carnet', 'Carnet']]) await avecStyle(s, 'light', () => avecDecouvrir(async () => {
       prefs.selection = {...selectionTest(1), items: [piste('Puce', {themeE: '📖', sourceNom: '🏆 Primé'})]}; render();
-      r.push(nom + ' : ' + ([...new Set(emojisVisibles($('.discover-selection .meta')))].join('') || 'aucun'));
+      r.push(nom + ' : ' + ([...new Set([...emojisVisibles($('.discover-lead .sug-kicker')), ...emojisVisibles($('.discover-lead .sug-ligne'))])].join('') || 'aucun'));
     }));
     return r.join('|');
   });
@@ -3035,6 +3036,16 @@
       return (lettres || 'aucun signet') + '|' + (s.length && s.every(x => /^\S.{2,}, page \d+$/.test(x.getAttribute('aria-label') || '')) ? 'noms complets' : 'noms manquants');
     } finally { await fermerFiche(); books = b0; render(); }
   });
+  // (correctif du 31/10 : le lot 5 réduisait le titre par un style écrit dans la page, interdit par la règle des écrans)
+  await test('Lot 5 : couvertures générées — un mot long réduit le titre sans style écrit dans la page', 'sans style|réduit', () => avecStyle('editorial', 'light', async () => {
+    const d = document.createElement('div'); document.body.appendChild(d);
+    try {
+      const taille = t => { const g = couvGeneree({titre: t, auteur: 'Auteur'}); d.innerHTML = `<div style="width:92px;aspect-ratio:2/3;position:relative" class="ph ${g.classes}">${g.html}</div>`;
+        const el = d.querySelector('.cg-titre'); return [el.hasAttribute('style'), parseFloat(getComputedStyle(el).fontSize)]; };
+      const [styleLong, long] = taille('Anticonstitutionnellement'), [, court] = taille('Le Lys');
+      return [styleLong ? 'style en ligne' : 'sans style', long < court ? 'réduit' : `pas réduit (${long} / ${court})`].join('|');
+    } finally { d.remove(); }
+  }));
   await test('Lot 5 : couvertures générées — aucun mot du titre coupé en deux (92 et 130 px de large)', [], () => avecStyle('editorial', 'light', async () => {
     const fautes = [], titres = ['Le Consentement', 'Les Bienveillantes', 'Réparer les vivants', 'Extension du domaine de la lutte', 'L’Insoutenable Légèreté de l’être', 'Les Furtifs'];
     const d = document.createElement('div'); document.body.appendChild(d);
@@ -3070,11 +3081,102 @@
     return r.join('|');
   }));
   await test('Lot 5 : la touche retour ferme les Réglages (pas l’appli)', 'fermés', async () => {
-    // (isolement : les tests qui ouvrent et ferment des fenêtres en rafale par programme — audits « sur 5 écrans »,
-    // réponses simulées — laissent des « retours » de l'appli en attente ; à la main, rien de tel : on repart d'un état propre)
-    await pause(400); retourIgnore = 0; retourPose = false;
+    await pause(1200);   // (les « retours » laissés en route par les tests précédents sont faits)
     openSettings(); await pause(50); history.back(); await pause(250); return $('#ov').classList.contains('show') ? 'encore ouverts' : 'fermés';
   });
+  // (stabilisation, 31/10/2026 : touche retour quand une fenêtre se rouvre aussitôt ; fondu de fermeture juste après une ouverture)
+  await test('Stabilité : fermer une fenêtre puis en rouvrir une aussitôt — la nouvelle garde son étape « retour », et le retour la ferme', 'étape gardée|fermée', async () => {
+    await pause(1200);   // (les « retours » laissés en route par les tests précédents sont faits)
+    history.replaceState({repere: 'avant'}, '');
+    openSettings(); await pause(300); closeM(); await Promise.resolve(); openSettings(); await pause(500);
+    const st = history.state || {};
+    // (sans étape, un « retour » sortirait de la page de tests : on ne l'essaie pas)
+    if (!st.fenetre) { retourPose = false; closeM(); await pause(300); return 'étape perdue (état ' + JSON.stringify(history.state) + ', en attente ' + retourIgnore + ')'; }
+    history.back(); await pause(500);
+    return 'étape gardée|' + ($('#ov').classList.contains('show') ? 'encore ouverte' : (history.state || {}).repere === 'avant' ? 'fermée' : 'fermée, mais état ' + JSON.stringify(history.state));
+  });
+  await test('Stabilité : fermer la fiche pile quand l’ouverture (moins d’animations) vient de finir garde le fondu de fermeture', 'fondu', () => avecAnim('complete', async () => {
+    carteAnim().querySelector('.t').click(); await attendre(() => effets().length, 500);
+    effets().forEach(a => a.finish());   // (l'ouverture vient de finir ; son rangement n'est pas encore passé)
+    fermerFiche(); const f = effets();
+    const ok = f.length === 1 && f[0].effect.target.id === 'livreOv' && +f[0].effect.getKeyframes()[0].opacity === 1;
+    await attendre(() => !effets().length, 1000); return ok ? 'fondu' : `pas de fondu (${f.length} effet)`;
+  }, true));
+  // (Découvrir, direction A, 31/10/2026 : recherche en haut, carte éditoriale, envies, pile, autre sélection, Vus récemment, hors ligne)
+  const horsLigneSimule = async fn => {
+    Object.defineProperty(navigator, 'onLine', {get: () => false, configurable: true}); dispatchEvent(new Event('offline'));
+    try { return await fn(); } finally { delete navigator.onLine; dispatchEvent(new Event('online')); }
+  };
+  const avecVus = async fn => { const v0 = prefs.vus, p0 = prefs.proposes; try { prefs.vus = []; return await fn(); } finally { prefs.vus = v0; prefs.proposes = p0; savePrefs(); } };
+  const textes = s => [...document.querySelectorAll(s)].map(e => e.textContent.replace(/\s+/g, ' ').trim()).join(',');
+  // (le champ suit le mode choisi — sujet, auteur ou titre — comme la recherche détaillée : les catalogues les cherchent séparément)
+  await test('Découvrir A : le champ de recherche, en haut, lance la recherche (sujet, ou auteur au choix) et ouvre la recherche détaillée', '{"cat":"","texte":"lumière du nord"}|{"auteur":"Annie Ernaux"}|ouverte|en haut', () => avecDecouvrir(async () => {
+    const recu = []; Recherche.parTheme = async o => { recu.push(JSON.stringify({cat: o.cat, texte: o.texte, auteur: o.auteur})); return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+    prefs.selection = selectionTest(5); Object.assign(rech, {cat: '', sous: '', texte: '', classif: [], etat: '', par: 'theme'}); ui.rechOuvert = false; render();
+    const f = $('#dq'); if (!f) return 'pas de champ';
+    f.value = 'lumière du nord'; f.form.requestSubmit(); await pause(30); const r = [recu.pop() || 'rien envoyé'];
+    const a = $('.discover-q [data-dqpar="auteur"]'); if (!a) return r[0] + '|pas de choix « auteur »';
+    a.click(); $('#dq').value = 'Annie Ernaux'; $('#dq').form.requestSubmit(); await pause(30); r.push(recu.pop() || 'rien envoyé');
+    const haut = $('#dq').compareDocumentPosition($('.discover-selection')) & Node.DOCUMENT_POSITION_FOLLOWING;
+    rech.par = 'theme'; prefs.rechPar = 'theme'; savePrefs();
+    return [...r, $('.discover-search').open ? 'ouverte' : 'fermée', haut ? 'en haut' : 'plus bas'].join('|');
+  }));
+  await test('Découvrir A : « Ce soir » montre tout de suite les livres de la pile de 100 pages au plus, même hors ligne ; chacun ouvre sa fiche', 'Le Petit Prince,La Place|hors ligne : Le Petit Prince,La Place|ouvre la fiche', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); rech.max = 0;
+    books = [fiche('Guerre et Paix', {pagesTotal: 1600}), fiche('La Place', {pagesTotal: 100}), fiche('Le Petit Prince', {pagesTotal: 96}), fiche('Sans pages', {pagesTotal: 0}), fiche('Lu court', {statut: 'lu', pagesTotal: 50})];
+    render(); const b = $('[data-temps="100"]'); if (!b) return 'pas de tuile'; b.click(); await pause(20);
+    const r = [textes('.discover-pile .mini-t') || 'rien'];
+    await horsLigneSimule(async () => { render(); r.push('hors ligne : ' + (textes('.discover-pile .mini-t') || 'rien')); });
+    const m = $('.discover-pile .mini'); r.push(m && m.dataset.open === 't-Le Petit Prince' ? 'ouvre la fiche' : 'pas de lien vers la fiche');
+    rech.max = 0; prefs.rechMax = 0; savePrefs(); return r.join('|');
+  }));
+  await test('Découvrir A : « Surprends-moi » lance le tirage choisi (d’après mes lectures ou au hasard)', 'perso|hasard', () => avecDecouvrir(async () => {
+    const t0 = prefs.tirage, vp = drawPerso, vo = drawOnline, appels = [];
+    drawPerso = async () => { appels.push('perso'); }; drawOnline = async () => { appels.push('hasard'); };
+    try {
+      prefs.selection = selectionTest(5);
+      for (const mode of ['perso', 'hasard']) { prefs.tirage = mode; render(); const b = $('[data-envie="surprise"]'); if (!b) return 'pas de tuile'; b.click(); await pause(10); }
+      return appels.join('|');
+    } finally { drawPerso = vp; drawOnline = vo; prefs.tirage = t0; savePrefs(); }
+  }));
+  const nomMois = (m => m[0].toUpperCase() + m.slice(1))(new Date().toLocaleDateString('fr-FR', {month: 'long'}));
+  await test('Découvrir A : carte de la sélection — étiquette « mois · source », ligne « thème · pages », plus de puces « Thème · » ni « Source · »', `${nomMois} · Primé|Roman · 200 p.|sans puces`, () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); render();
+    const k = $('.discover-lead .sug-kicker'), l = $('.discover-lead .sug-ligne');
+    return [k ? k.innerText.replace(/\s+/g, ' ').trim() : 'pas d’étiquette', l ? l.innerText.replace(/\s+/g, ' ').trim() : 'pas de ligne',
+      /Thème ·|Source ·/.test($('.discover-selection').textContent) ? 'puces encore là' : 'sans puces'].join('|');
+  }));
+  await test('Découvrir A : « Une autre sélection » en prépare une nouvelle ; les livres remplacés restent dans Vus récemment', 'bouton|Nouveau 1|vus : La Mer des Sargasses,Le Consentement', () => avecDecouvrir(() => avecVus(async () => {
+    const vrai = Recherche.selection;
+    try {
+      prefs.selection = selectionTest(2); render();
+      const b = $('#selautre'); if (!b) return 'pas de bouton';
+      Recherche.selection = async () => [piste('Nouveau 1'), piste('Nouveau 2')];
+      b.click(); await pause(60);
+      return ['bouton', (prefs.selection.items[0] || {}).titre, 'vus : ' + (textes('.discover-vus .mini-t') || 'rien')].join('|');
+    } finally { Recherche.selection = vrai; }
+  })));
+  await test('Découvrir A : Vus récemment — 20 au plus, les plus récents d’abord ; toucher ouvre la carte avec ses actions', '20|Vu 25,Vu 24|carte : Vu 25|actions', () => avecDecouvrir(() => avecVus(async () => {
+    for (let k = 1; k <= 25; k++) retenir(piste('Vu ' + k));
+    prefs.selection = null; lastTirage = []; render();
+    const minis = [...document.querySelectorAll('.discover-vus .mini')], r = [String((prefs.vus || []).length), minis.slice(0, 2).map(m => m.querySelector('.mini-t').textContent.trim()).join(',') || 'rien'];
+    if (minis[0]) minis[0].click(); const d = $('.discover-vus .sug');
+    r.push(d ? 'carte : ' + d.querySelector('.t').textContent.trim() : 'pas de carte', d && d.querySelector('[data-sug="add"]') && d.querySelector('a.btn') ? 'actions' : 'actions manquantes');
+    return r.join('|');
+  })));
+  await test('Découvrir A : hors ligne — bandeau, boutons des catalogues grisés, durées actives ; le réseau revient → tout revient', 'bandeau|grisés|durées actives|revenu', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); render(); const r = [];
+    await horsLigneSimule(async () => {
+      await pause(10);   // (la page se met à jour d'elle-même)
+      r.push($('.discover-horsligne') ? 'bandeau' : 'pas de bandeau');
+      const g = [['selautre', $('#selautre')], ['surprise', $('[data-envie="surprise"]')], ['rayons', $('[data-rayon]')], ['recherche', $('#dq')]].filter(([, e]) => !e || !e.disabled).map(([n]) => n);
+      r.push(g.length ? 'actifs : ' + g.join(',') : 'grisés');
+      r.push([...document.querySelectorAll('[data-temps]')].some(b => b.disabled) ? 'durées grisées' : 'durées actives');
+    });
+    await pause(10);
+    r.push(!$('.discover-horsligne') && $('#selautre') && !$('#selautre').disabled && !$('[data-rayon]').disabled ? 'revenu' : 'encore grisé');
+    return r.join('|');
+  }));
   /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
   await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {
     books = [enCours('Lecture')]; ui.tab = 'en_cours'; render();
@@ -3101,7 +3203,7 @@
       {titre: 'Piste principale', auteur: 'Autrice', themeE: '✦', themeNom: 'Roman', sourceNom: 'Sélection', raison: 'Pour le test'},
       {titre: 'Autre piste', auteur: 'Auteur', themeE: '✦', themeNom: 'Roman', sourceNom: 'Sélection', raison: 'Pour le test'}
     ]};
-    try { renderDecouvrir(); return [document.querySelector('.discover-lead .sug') ? 'centrale' : '?', !$('.discover-search').open ? 'fermée' : '?', $('.discover-random #dc_go') ? 'tirage' : '?'].join('|'); }
+    try { renderDecouvrir(); return [document.querySelector('.discover-lead .sug') ? 'centrale' : '?', !$('.discover-search').open ? 'fermée' : '?', $('.discover-envies #dc_go') ? 'tirage' : '?'].join('|'); }
     finally { prefs.selection = ancien; }
   });
   await test('Onboarding : premier livre, exploration et restauration restent proposés sans compte', 'ajouter|découvrir|restaurer|local', () => {

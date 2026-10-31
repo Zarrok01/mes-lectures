@@ -80,6 +80,8 @@
 .cg-long .cg-titre{font-size:clamp(10px,10cqw,20px)}
 /* (lot 5) un mot trop long pour la largeur : le titre rapetisse (jusqu'à 8 px) au lieu de couper le mot en deux */
 .cg-titre.cg-mot-long{font-size:clamp(8px,var(--cg-t),26px)}
+/* (taille du titre selon la longueur du mot le plus long, 10 à 30 lettres : 77 % de la largeur ÷ 0,62 par lettre) */
+.cg-m10{--cg-t:12.4cqw}.cg-m11{--cg-t:11.3cqw}.cg-m12{--cg-t:10.3cqw}.cg-m13{--cg-t:9.6cqw}.cg-m14{--cg-t:8.9cqw}.cg-m15{--cg-t:8.3cqw}.cg-m16{--cg-t:7.8cqw}.cg-m17{--cg-t:7.3cqw}.cg-m18{--cg-t:6.9cqw}.cg-m19{--cg-t:6.5cqw}.cg-m20{--cg-t:6.2cqw}.cg-m21{--cg-t:5.9cqw}.cg-m22{--cg-t:5.6cqw}.cg-m23{--cg-t:5.4cqw}.cg-m24{--cg-t:5.2cqw}.cg-m25{--cg-t:5.0cqw}.cg-m26{--cg-t:4.8cqw}.cg-m27{--cg-t:4.6cqw}.cg-m28{--cg-t:4.4cqw}.cg-m29{--cg-t:4.3cqw}.cg-m30{--cg-t:4.1cqw}
 .cg-auteur{font:italic 400 clamp(9px,8cqw,14px)/1.3 var(--livre-police);margin-top:auto}
 .cg-genre{font:400 clamp(8px,6.5cqw,11px)/1 var(--livre-police);letter-spacing:.16em;text-transform:uppercase;color:var(--cg-or);margin-bottom:6cqw}
 .cg-minimaliste .cg-titre::after{content:"";display:block;width:100%;height:1px;background:currentColor;margin-top:8cqw}
@@ -357,7 +359,6 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:var(--t-s);
 .mini[aria-expanded=true] .mini-couv{outline:2px solid var(--accent);outline-offset:2px}
 .discover-tuiles{margin:var(--e-5) 0 0}.discover-tuiles h3{margin:var(--e-4) 0 var(--e-2);font:500 var(--t-m)/1.2 var(--police-titres)}
 .tuiles{display:grid;gap:var(--e-2)}
-.tuiles-temps{grid-template-columns:repeat(3,1fr)}
 .tuiles-rayons{grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(140px,44%);overflow-x:auto;scrollbar-width:none;padding-bottom:var(--e-1)}
 .tuiles-rayons::-webkit-scrollbar{display:none}
 .tuile{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;height:auto;min-height:var(--toucher);padding:var(--e-2) var(--e-3);border:1px solid var(--trait);border-radius:var(--r-m);background:var(--surface);color:var(--texte);font:inherit;text-align:left;cursor:pointer}
@@ -369,7 +370,20 @@ details.comment p{margin:0 0 var(--e-2)}
 .discover-search > summary{display:flex;align-items:center;justify-content:space-between;padding:var(--e-3) 0;font:500 var(--t-m)/1.2 var(--police-titres);color:var(--texte);cursor:pointer}
 .discover-search > summary::after{content:'Ouvrir';font:600 var(--t-xs)/1.4 var(--police-texte);color:var(--accent)}.discover-search[open] > summary::after{content:'Réduire'}
 .discover-search .panel{padding:0 0 var(--e-4);border:0;background:transparent;box-shadow:none}.discover-search .panel>h3{display:none}
-.discover-random{padding-top:var(--e-4);border-top:1px solid var(--trait)}.discover-random h3{font-family:var(--police-titres)}
+.discover-q{margin:0 0 var(--e-5)}.discover-q .search input{min-width:0}
+.discover-q-par{display:flex;flex-wrap:wrap;gap:var(--e-2);margin-top:var(--e-2)}.discover-q-par .chipb.on{border-color:transparent;background:var(--accent-doux);color:var(--sur-accent-doux)}
+.discover-autre{margin-top:var(--e-3)}
+.discover-horsligne{display:flex;align-items:center;gap:var(--e-2);margin:0 0 var(--e-4);padding:var(--e-2) var(--e-3);border-radius:var(--r-s);background:var(--surface-2);font-size:var(--t-s);color:var(--texte)}
+.discover-lead{padding:var(--e-4);border-radius:var(--r-l);background:var(--surface-2)}
+.sug-kicker{margin:0 0 var(--e-1);font:600 var(--t-xs)/1.4 var(--police-texte);letter-spacing:.04em;color:var(--accent)}
+.sug-raison{margin:var(--e-2) 0 0;font-size:var(--t-s);font-style:italic;color:var(--texte)}
+.sug-ligne{margin:var(--e-1) 0 0;font-size:var(--t-xs);color:var(--texte-doux)}
+.discover-envies,.discover-vus{margin:var(--e-5) 0 0}.discover-envies h3,.discover-vus h3{margin:var(--e-4) 0 var(--e-2);font:500 var(--t-m)/1.2 var(--police-titres)}
+.tuiles-envies{grid-template-columns:repeat(2,1fr)}
+.tuile:disabled{opacity:.5;cursor:default}
+.discover-pile{margin-top:var(--e-3)}.discover-pile p{margin:0 0 var(--e-2);font-size:var(--t-s);color:var(--texte-doux)}
+.discover-surprise{margin-top:var(--e-3)}.discover-surprise > summary{min-height:var(--toucher);display:flex;align-items:center;justify-content:space-between;gap:var(--e-3);font-size:var(--t-s);font-weight:600;color:var(--texte);cursor:pointer}
+.discover-surprise > summary::after{content:'Changer';font:600 var(--t-xs)/1.4 var(--police-texte);color:var(--accent)}.discover-surprise[open] > summary::after{content:'Réduire'}
 .onboarding{max-width:560px;margin:var(--e-5) auto var(--e-3);padding:var(--e-5) 0;text-align:left}.onboarding .eyebrow{margin:0 0 var(--e-2);font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .onboarding h2{margin:0;font:500 var(--t-xl)/1.12 var(--police-titres)}.onboarding .onboarding-lead{margin:var(--e-3) 0 var(--e-4);color:var(--texte-doux);max-width:42ch}
 .onboarding-steps{display:grid;gap:var(--e-3);margin:0 0 var(--e-5);counter-reset:premier-pas}.onboarding-steps li{list-style:none;position:relative;padding-left:38px;min-height:30px;color:var(--texte-doux);font-size:var(--t-s)}
@@ -761,7 +775,7 @@ button{-webkit-touch-callout:none}
 [data-style=editorial] .resume-lecture .meta{margin:calc(var(--e-1) / 2) 0}[data-style=editorial] .resume-lecture .reste{margin-top:calc(var(--e-1) / 2)}
 @media(max-width:359.98px){[data-style=editorial] .library-nav{padding-top:var(--e-1);padding-bottom:var(--e-1)}[data-style=editorial] .resume-lecture{gap:var(--e-2) var(--e-3)}[data-style=editorial] .filtres{margin-bottom:var(--e-1)}[data-style=editorial] .resume-lecture .resume-titre{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 [data-style=editorial] .resume-lecture .ph{box-shadow:none}
-[data-style=editorial] :is(.discover-random,.discover-search) .seg button.on{background:var(--accent-doux);color:var(--sur-accent-doux)}
+[data-style=editorial] :is(.discover-envies,.discover-search) .seg button.on{background:var(--accent-doux);color:var(--sur-accent-doux)}
 [data-style=editorial] .ruban{display:block;position:absolute;top:-3px;right:14%;width:14%;min-width:8px;height:26%;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
 [data-style=editorial] .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
 [data-style=editorial] .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
@@ -848,7 +862,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-5';
+const VERSION = '2026.10.31-7';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1066,7 +1080,7 @@ function couvGeneree(b) {
     : famille === 'classique' ? '<i class="cg-cadre"></i>' : '';
   // (largeur utile : 77 % de la couverture ; un caractère du titre ≈ 0,62 de sa taille)
   const mot = Math.max(...titre.split(/\s+/).map(m => m.length)), taille = Math.min(titre.length > 40 ? 10 : 13, 77 / (0.62 * mot));
-  const html = `${decor}<span class="cg-ini" aria-hidden="true">${esc(initiales(titre))}</span><span class="cg-texte" aria-hidden="true">${genre ? `<span class="cg-genre">${esc(genre.nom)}</span>` : ''}<span class="cg-titre${taille < (titre.length > 40 ? 10 : 13) ? ` cg-mot-long" style="--cg-t:${taille.toFixed(1)}cqw` : ''}">${esc(titre)}</span>${auteur ? `<span class="cg-auteur">${esc(auteur)}</span>` : ''}</span>`;
+  const html = `${decor}<span class="cg-ini" aria-hidden="true">${esc(initiales(titre))}</span><span class="cg-texte" aria-hidden="true">${genre ? `<span class="cg-genre">${esc(genre.nom)}</span>` : ''}<span class="cg-titre${taille < (titre.length > 40 ? 10 : 13) ? ` cg-mot-long cg-m${Math.min(mot, 30)}` : ''}">${esc(titre)}</span>${auteur ? `<span class="cg-auteur">${esc(auteur)}</span>` : ''}</span>`;
   return {famille, fond, classes: `cg cg-${famille} cg-f-${fond}${titre.length > 40 ? ' cg-long' : ''}`, html};
 }
 function coverHtml(b, cls) {
@@ -1830,7 +1844,11 @@ function nettoyerAnimation() {
 // Toucher, touche, retour, écran redimensionné : tout s'arrête tout de suite (rien ne reste à l'écran, la fiche est visible)
 function interrompreAnimation() {
   if (!Ouverture.calque && !Ouverture.animations.length) return false;
-  Ouverture.jeton++; nettoyerAnimation(); Ouverture.coupeeA = performance.now();
+  // (stabilisation, 31/10/2026) fondu d'ouverture déjà fini, rangement pas encore passé : on range, sans parler d'interruption
+  // (sinon une fermeture à cet instant perdait son fondu)
+  const fini = !Ouverture.calque && Ouverture.animations.every(a => a.playState === 'finished');
+  Ouverture.jeton++; nettoyerAnimation(); if (fini) return false;
+  Ouverture.coupeeA = performance.now();
   return true;
 }
 // Une étape : ses animations se jouent ensemble ; renvoie faux si une interruption est passée entre-temps
@@ -2986,22 +3004,35 @@ async function drawNext() {
 let selEnCours = false, selProgress = '', selEchec = false;
 const moisCle = () => today().slice(0, 7);
 // « de mars », mais « d'octobre », « d'avril », « d'août »
+const nomMois = cle => { const [a, m] = String(cle || '').split('-').map(Number), n = a && m ? new Date(a, m - 1, 1).toLocaleDateString('fr-FR', {month: 'long'}) : ''; return n ? n[0].toUpperCase() + n.slice(1) : ''; };
 const moisNom = () => { const m = new Date().toLocaleDateString('fr-FR', {month: 'long'}); return (/^[aeiouéè]/i.test(m) ? 'd\'' : 'de ') + m; };
 // À ne pas proposer : déjà dans ma liste, refusé (« pas pour moi ») ou déjà proposé
 function dejaVu(x) {
   const n = Recherche.norm(x.titre);
   return !!findOwned(x) || (prefs.nonMerci || []).includes(n) || (prefs.proposes || []).includes(n);
 }
-function retenir(x) { prefs.proposes = [...(prefs.proposes || []), Recherche.norm(x.titre)].slice(-500); savePrefs(); }
+function retenir(x) { prefs.proposes = [...(prefs.proposes || []), Recherche.norm(x.titre)].slice(-500); garderVu(x); savePrefs(); }
+// Vus récemment : les 20 derniers livres proposés, réduits à ce qu'il faut pour les montrer (préférence de ce téléphone,
+// comme les titres déjà proposés : pas dans la sauvegarde)
+const MAX_VUS = 20, CHAMPS_VU = ['titre', 'auteur', 'couverture', 'isbn', 'pagesTotal', 'pagesEnviron', 'pagesSource', 'sourceNom', 'themeNom', 'themeE', 'theme', 'raison'];
+function garderVu(x) {
+  const v = {}, n = Recherche.norm(x.titre);
+  CHAMPS_VU.forEach(k => { if (x[k] != null && x[k] !== '') v[k] = x[k]; });
+  if ((x.covers || []).length) v.covers = x.covers.slice(0, 3);
+  if (x.resume) v.resume = String(x.resume).slice(0, 600);
+  prefs.vus = [v, ...(prefs.vus || []).filter(z => Recherche.norm(z.titre) !== n)].slice(0, MAX_VUS);
+}
 const libraireUrl = x => 'https://www.leslibraires.fr/recherche/?q=' + encodeURIComponent(x.isbn || (x.titre + ' ' + (x.auteur || '')));
 function sugCard(x, ctx, i, rose) {
   const own = findOwned(x);
   const pagesApproximatives = !!(x.pagesEnviron || x.pagesSource === 'estimation');
+  // (la recommandation principale porte le mois de sa sélection : « Novembre · Primé »)
+  const mois = rose && ctx === 'sel' && prefs.selection ? nomMois(prefs.selection.mois) : '';
   return `<article class="sug" data-ctx="${ctx}" data-i="${i}">
     <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
-      <div class="min0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
-        <div class="meta mt-1"><span class="chip">Thème · ${emo(x.themeE)}${esc(x.themeNom)}</span><span class="chip">Source · ${avecEmo(x.sourceNom)}</span></div>
-        <div class="a petit mt-1">${esc(x.raison || '')}${x.pagesTotal ? ` · ${pagesApproximatives ? '≈ ' : ''}${+x.pagesTotal || 0} p.` : ' · pagination non indiquée'}</div></div></div>
+      <div class="min0">${x.sourceNom || mois ? `<p class="sug-kicker">${[mois ? esc(mois) : '', x.sourceNom ? avecEmo(x.sourceNom) : ''].filter(Boolean).join(' · ')}</p>` : ''}<div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
+        ${x.raison ? `<p class="sug-raison">${esc(x.raison)}</p>` : ''}
+        <p class="sug-ligne">${[x.themeNom ? emo(x.themeE) + esc(x.themeNom) : '', x.pagesTotal ? `${pagesApproximatives ? '≈ ' : ''}${+x.pagesTotal || 0} p.` : 'pagination non indiquée'].filter(Boolean).join(' · ')}</p></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
     <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : `<button class="btn ${rose ? 'pri ' : ''}small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>`}
       <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener"><span class="ico i-panier" aria-hidden="true">🛒</span> En librairie</a>
@@ -3238,6 +3269,9 @@ async function genSelection(force) {
   }).catch(() => []);
   selEnCours = false; selEchec = !items.length;
   if (items.length) {
+    // (« Une autre sélection » : les livres remplacés restent dans « Vus récemment », dans leur ordre)
+    const avant = prefs.selection && prefs.selection.mois === m ? prefs.selection.items || [] : [];
+    [...avant].reverse().forEach(garderVu);
     items.forEach(retenir); ui.pisteOuverte = 0;
     prefs.selection = {mois: m, items, vu: ui.tab === 'decouvrir'}; savePrefs();
     if (ui.tab !== 'decouvrir') toastLater(`📬 Ta sélection ${moisNom()} est prête : 5 livres à découvrir !`, 400);
@@ -3247,49 +3281,83 @@ async function genSelection(force) {
 function renderDecouvrir() {
   const s = prefs.selection, actuelle = s && s.mois === moisCle() && (s.items || []).length;
   if (actuelle && !s.vu) { s.vu = true; savePrefs(); return render(); }
+  // Sans réseau : ce qui demande les catalogues est grisé ; la sélection prête, la pile et « Vus récemment » restent
+  const hors = navigator.onLine === false, grise = hors ? ' disabled aria-describedby="dcHors"' : '';
   const items = actuelle ? s.items : [], ouverte = ui.pisteOuverte > 0 && ui.pisteOuverte < items.length ? ui.pisteOuverte : 0;
   // (pistes : couverture, titre, source et pages ; le détail et ses actions s'ouvrent au toucher)
   const sansEmoji = t => String(t || '').replace(/^[^\p{L}\p{N}]+/u, '');
   const pistes = items.length > 1 ? `<div class="discover-more"><p>Encore ${plural(items.length - 1, 'piste')}</p><div class="rangee-livres" id="selRow">${items.slice(1).map((x, k) => `<button class="mini" type="button" data-piste="${k + 1}" aria-expanded="${ouverte === k + 1}">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'mini-couv')}<span class="mini-t">${esc(x.titre)}</span><span class="mini-p">${esc([sansEmoji(x.sourceNom), x.pagesTotal ? (x.pagesEnviron || x.pagesSource === 'estimation' ? '≈ ' : '') + (+x.pagesTotal || 0) + ' p.' : ''].filter(Boolean).join(' · '))}</span></button>`).join('')}</div>
       ${ouverte ? `<div class="discover-piste">${sugCard(items[ouverte], 'sel', ouverte)}</div>` : ''}</div>` : '';
   const partiel = actuelle && items.length < 5 ? `<p class="discover-partiel" role="status">Seulement ${plural(items.length, 'piste')} sur 5 ce mois-ci : certains catalogues n’ont pas répondu ou n’avaient rien de nouveau.</p>` : '';
-  // Selon le temps que tu as, et par rayon : chaque tuile prépare la recherche existante (une tuile de rayon la lance)
+  const echecAutre = actuelle && selEchec ? '<p class="discover-partiel" role="status">Les catalogues n’ont pas répondu : ta sélection actuelle est gardée. Réessaie dans un instant.</p>' : '';
+  // Une durée choisie : les livres de ma pile « À lire » qui tiennent dans ce temps (tout de suite, même sans réseau)
+  const duree = TEMPS_LECTURE.find(([v]) => v === rech.max);
+  const pile = duree ? books.filter(b => b.statut === 'a_lire' && +b.pagesTotal > 0 && +b.pagesTotal <= duree[0]).sort((u, v) => (+u.pagesTotal) - (+v.pagesTotal)) : [];
+  const pileHtml = duree ? `<div class="discover-pile"><p>${pile.length ? `Dans ta pile : ${plural(pile.length, 'livre')} de ${duree[0]} pages au plus` : `Rien dans ta pile de ${duree[0]} pages au plus`}${hors ? '' : ' · touche un rayon pour en trouver d’autres'}</p>
+      ${pile.length ? `<div class="rangee-livres">${pile.map(b => `<button class="mini" type="button" data-open="${esc(b.id)}">${coverHtml(b, 'mini-couv')}<span class="mini-t">${esc(b.titre)}</span><span class="mini-p">${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} p.</span></button>`).join('')}</div>` : ''}</div>` : '';
+  // Selon ton envie : une durée (ta pile, puis les rayons dans cette limite) ou « Surprends-moi » (le tirage)
+  const envies = `<section class="discover-envies" aria-labelledby="enviesTitre"><h3 id="enviesTitre">Selon ton envie</h3>
+      <div class="tuiles tuiles-envies" role="group" aria-labelledby="enviesTitre">${TEMPS_LECTURE.map(([v, t]) => `<button type="button" class="tuile" data-temps="${v}" aria-pressed="${rech.max === v}"><b>${t}</b><span>${v} p. au plus</span></button>`).join('')}<button type="button" class="tuile" id="dc_go" data-envie="surprise"${grise}><b>Surprends-moi</b><span>5 livres nouveaux</span></button></div>
+      ${pileHtml}
+      <details class="discover-surprise"${ui.surpriseOuvert ? ' open' : ''}><summary>Surprends-moi : ${inspiration() === 'perso' ? 'd’après tes lectures' : 'au hasard'}</summary>${inspiHtml('dc_inspi')}${inspiration() === 'hasard' ? themeChips('dc_theme', pick.theme) : ''}</details>
+      <div id="dc_res">${lastTirage.length ? tirageHtml(lastTirage) : ''}</div></section>`;
+  // Par rayon (catalogues) ; par ambiance (mes livres)
   const ambiancesALire = new Map();
   books.filter(b => b.statut === 'a_lire').forEach(b => ((b.classif || {}).ambiances || []).forEach(a => ambiancesALire.set(a, (ambiancesALire.get(a) || 0) + 1)));
-  const tuiles = `<section class="discover-tuiles" aria-labelledby="tempsTitre"><h3 id="tempsTitre">Selon le temps que tu as</h3>
-      <div class="tuiles tuiles-temps" role="group" aria-labelledby="tempsTitre">${TEMPS_LECTURE.map(([v, t]) => `<button type="button" class="tuile" data-temps="${v}" aria-pressed="${rech.max === v}"><b>${t}</b><span>${v} p. au plus</span></button>`).join('')}</div>
-      <h3 id="rayonsTitre">Par rayon</h3>
-      <div class="tuiles tuiles-rayons" role="group" aria-labelledby="rayonsTitre">${Recherche.THEMES_RECHERCHE.map(c => { const n = Recherche.SOUS_RAYONS.filter(z => z.rayon === c.id && z.rech).length; return `<button type="button" class="tuile" data-rayon="${c.id}" aria-pressed="${rech.cat === c.id}"><b>${esc(c.nom)}</b>${n ? `<span>${plural(n, 'sous-rayon')}</span>` : ''}</button>`; }).join('')}</div>
+  const tuiles = `<section class="discover-tuiles" aria-labelledby="rayonsTitre"><h3 id="rayonsTitre">Par rayon</h3>
+      <div class="tuiles tuiles-rayons" role="group" aria-labelledby="rayonsTitre">${Recherche.THEMES_RECHERCHE.map(c => { const n = Recherche.SOUS_RAYONS.filter(z => z.rayon === c.id && z.rech).length; return `<button type="button" class="tuile" data-rayon="${c.id}" aria-pressed="${rech.cat === c.id}"${grise}><b>${esc(c.nom)}</b>${n ? `<span>${plural(n, 'sous-rayon')}</span>` : ''}</button>`; }).join('')}</div>
       ${ambiancesALire.size ? `<h3 id="ambiancesTitre">Dans mes livres, par ambiance</h3><p class="a petit">Parmi tes livres à lire : les catalogues ne connaissent pas les ambiances.</p>
       <div class="chips" role="group" aria-labelledby="ambiancesTitre">${[...ambiancesALire].sort((a, b) => b[1] - a[1]).map(([id, n]) => `<button type="button" class="chipb" data-ambiance="${esc(id)}">${esc(Taxonomie.nom('ambiances', id))} (${n})</button>`).join('')}</div>` : ''}</section>`;
+  // Vus récemment : les derniers livres proposés, sauf ceux déjà affichés plus haut (la carte s'ouvre au toucher)
+  const affiches = new Set([...items, ...lastTirage].map(x => Recherche.norm(x.titre)));
+  const vus = (prefs.vus || []).filter(x => !affiches.has(Recherche.norm(x.titre)));
+  const vuOuvert = vus.find(x => Recherche.norm(x.titre) === ui.vuOuvert);
+  const vusHtml = vus.length ? `<section class="discover-vus" aria-labelledby="vusTitre"><h3 id="vusTitre">Vus récemment</h3>
+      <div class="rangee-livres" id="vusRow">${vus.map(x => `<button class="mini" type="button" data-vu="${esc(Recherche.norm(x.titre))}" aria-expanded="${x === vuOuvert}">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'mini-couv')}<span class="mini-t">${esc(x.titre)}</span>${x.auteur ? `<span class="mini-p">${esc(x.auteur)}</span>` : ''}</button>`).join('')}</div>
+      ${vuOuvert ? `<div class="discover-piste">${sugCard(vuOuvert, 'vu', prefs.vus.indexOf(vuOuvert))}</div>` : ''}</section>` : '';
+  const dq = CHAMP_DQ[rech.par] || CHAMP_DQ.theme;
   $('#main').innerHTML = `
-    <div class="discover-intro"><div><p>Découvrir</p><h2>Une piste pour ce soir</h2></div><p>Selon tes envies</p></div>
+    <div class="discover-intro"><div><p>Découvrir</p><h2>Une piste pour ce soir</h2></div></div>
+    ${hors ? `<p class="discover-horsligne" id="dcHors" role="status">${ico('horsligne', '📵')} Pas de connexion : ta sélection déjà prête, ta pile et Vus récemment restent disponibles.</p>` : ''}
+    <form class="discover-q" id="dqForm" role="search"><div class="search"><input id="dq" type="search" enterkeyhint="search" placeholder="${esc(dq[1])}" aria-label="Chercher un livre par ${esc(dq[0].toLowerCase())}"${grise}><button class="btn" type="submit"${grise}>Chercher</button></div>
+      <div class="discover-q-par" role="group" aria-label="Chercher par">${Object.entries(CHAMP_DQ).map(([k, [nom]]) => `<button type="button" class="chipb${rech.par === k ? ' on' : ''}" data-dqpar="${k}" aria-pressed="${rech.par === k}">${nom}</button>`).join('')}</div></form>
     <section class="discover-selection" aria-labelledby="selectionTitre"><div class="discover-selection-head"><div><h3 id="selectionTitre">Sélection ${moisNom()}</h3><p>Une recommandation à la fois, renouvelée chaque mois.</p></div></div>
       ${selEnCours ? etatChargement(selProgress, 'selprog')
-        : actuelle ? `<div class="discover-lead">${sugCard(s.items[0], 'sel', 0, true)}</div>${partiel}${pistes}`
-        : `${selEchec ? '<p class="discover-partiel" role="status">Les catalogues n’ont pas répondu : ta sélection n’a pas pu être préparée. Réessaie dans un instant.</p>' : ''}<p class="a sous-titre">Cinq livres choisis dans des sources variées : prix, nouveautés, incontournables et coups de cœur.</p><button class="btn pri" id="selgo" type="button"><span class="ico i-courrier" aria-hidden="true">📬</span> Préparer ma sélection</button>`}
+        : actuelle ? `<div class="discover-lead">${sugCard(s.items[0], 'sel', 0, true)}</div>${echecAutre}${partiel}${pistes}<div class="acts discover-autre"><button class="btn small" id="selautre" type="button"${grise}>${ico('relire', '🔁')} Une autre sélection</button></div>`
+        : `${selEchec ? '<p class="discover-partiel" role="status">Les catalogues n’ont pas répondu : ta sélection n’a pas pu être préparée. Réessaie dans un instant.</p>' : ''}<p class="a sous-titre">Cinq livres choisis dans des sources variées : prix, nouveautés, incontournables et coups de cœur.</p><button class="btn pri" id="selgo" type="button"${grise}><span class="ico i-courrier" aria-hidden="true">📬</span> Préparer ma sélection</button>`}
     </section>
+    ${envies}
     ${tuiles}
-    <details class="discover-search" ${ui.rechOuvert ? 'open' : ''}><summary>Chercher un livre par titre, auteur ou thème</summary>${rechPanel()}</details>
-    <section class="discover-random"><h3>Un détour inattendu</h3>
-      <div class="a sous-titre">Je te trouve un livre que tu n'as pas encore : d'après tes lectures, ou au hasard dans le thème de ton choix.</div>
-      ${inspiHtml('dc_inspi')}
-      ${inspiration() === 'hasard' ? themeChips('dc_theme', pick.theme) : ''}
-      <div class="acts mb-2"><button class="btn" id="dc_go" type="button"><span class="ico i-de" aria-hidden="true">🎲</span> Tirer au sort</button></div>
-      <div id="dc_res">${lastTirage.length ? tirageHtml(lastTirage) : ''}</div></section>`;
+    <details class="discover-search" ${ui.rechOuvert ? 'open' : ''}><summary>Recherche détaillée</summary>${rechPanel()}</details>
+    ${vusHtml}`;
   const ch = $('#dc_theme');
   if (ch) ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
   wireInspi('dc_inspi', renderDecouvrir);
+  $('.discover-surprise').ontoggle = e => { if (e.target.isConnected) ui.surpriseOuvert = e.target.open; };
   $('#dc_go').onclick = () => inspiration() === 'perso' ? drawPerso($('#dc_res'), $('#dc_go')) : drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
   const go = $('#selgo'); if (go) go.onclick = () => genSelection(true);
+  const autre = $('#selautre'); if (autre) autre.onclick = () => genSelection(true);
+  // Champ du haut : la recherche existante (sujet, auteur ou titre), lancée tout de suite, résultats dans la recherche détaillée
+  $('#dqForm').onsubmit = e => {
+    e.preventDefault(); const v = $('#dq').value.trim(); if (!v) return $('#dq').focus();
+    Object.assign(rech, {texte: v}, rech.par === 'theme' ? {cat: '', sous: '', classif: []} : {}); prefs.rechPar = rech.par; savePrefs();
+    ui.rechOuvert = true; renderDecouvrir(); lancerRech();
+    const p = $('.discover-search'); if (p && p.scrollIntoView) p.scrollIntoView({block: 'start'});
+  };
+  $('#dqForm .discover-q-par').onclick = e => {
+    const b = e.target.closest('[data-dqpar]'); if (!b) return;
+    const v = $('#dq').value; rech.par = b.dataset.dqpar; prefs.rechPar = rech.par; savePrefs(); renderDecouvrir(); $('#dq').value = v;
+  };
   // (un panneau déjà remplacé par un nouvel affichage peut encore signaler son ouverture : on l'ignore)
   $('.discover-search').ontoggle = e => { if (e.target.isConnected) ui.rechOuvert = e.target.open; };
   const rangee = $('#selRow');
   if (rangee) rangee.onclick = e => { const b = e.target.closest('[data-piste]'); if (!b) return; const k = +b.dataset.piste; ui.pisteOuverte = ui.pisteOuverte === k ? 0 : k; renderDecouvrir(); };
-  // Durée : choisie seule, elle attend un rayon ; après une recherche, elle la relance
+  const vusRow = $('#vusRow');
+  if (vusRow) vusRow.onclick = e => { const b = e.target.closest('[data-vu]'); if (!b) return; ui.vuOuvert = ui.vuOuvert === b.dataset.vu ? '' : b.dataset.vu; renderDecouvrir(); };
+  // Durée : elle montre ma pile tout de suite ; après une recherche, elle la relance
   $('#main').querySelectorAll('[data-temps]').forEach(b => b.onclick = () => {
     const v = +b.dataset.temps; rech.max = rech.max === v ? 0 : v; prefs.rechMax = rech.max; savePrefs();
-    const relancer = !!(rech.etat && rech.lastPar === 'theme' && (rech.lastCat || rech.lastTexte || (rech.lastCriteres || []).length));
+    const relancer = !hors && !!(rech.etat && rech.lastPar === 'theme' && (rech.lastCat || rech.lastTexte || (rech.lastCriteres || []).length));
     if (relancer) ui.rechOuvert = true;
     renderDecouvrir(); if (relancer) lancerRech();
   });
@@ -3306,7 +3374,12 @@ function renderDecouvrir() {
   });
   wireRechPanel();
 }
-const TEMPS_LECTURE = [[100, 'Une soirée'], [200, 'Un week-end'], [300, 'Une semaine']];
+// Le réseau part ou revient : Découvrir grise ou rend ses boutons de catalogue
+addEventListener('offline', () => { if (ui.tab === 'decouvrir') renderDecouvrir(); });
+addEventListener('online', () => { if (ui.tab === 'decouvrir') renderDecouvrir(); });
+const TEMPS_LECTURE = [[100, 'Ce soir'], [200, 'Ce week-end'], [300, 'Cette semaine']];
+// Champ du haut de Découvrir : les modes de la recherche détaillée, avec des exemples courts (le champ est étroit)
+const CHAMP_DQ = {theme: ['Sujet', 'Un sujet : écologie, deuil…'], auteur: ['Auteur', 'Un auteur : Annie Ernaux…'], titre: ['Titre', 'Un titre : Dune…']};
 /* ---------- 🔎 Chercher par thème, avec une longueur maximale ---------- */
 // (les livres dont le nombre de pages n'est pas connu ne sont jamais mêlés aux résultats quand il y a une limite)
 // Dernier thème cherché (rayon, ou « rayon/sous-rayon ») ; un ancien nom est converti : « philo » → Sciences humaines › Philosophie
@@ -3570,7 +3643,7 @@ async function onSuggestion(e) {
   const more = e.target.closest('[data-more]'); if (more) { more.classList.toggle('open'); return true; }
   const a = e.target.closest('[data-sug]'); if (!a) return false;
   const card = a.closest('.sug'), ctx = card.dataset.ctx, i = +card.dataset.i;
-  const items = ctx === 'sel' ? prefs.selection.items : ctx === 'rech' ? rech.res : ctx === 'rechx' ? rech.inconnus : lastTirage;
+  const items = ctx === 'sel' ? prefs.selection.items : ctx === 'vu' ? prefs.vus || [] : ctx === 'rech' ? rech.res : ctx === 'rechx' ? rech.inconnus : lastTirage;
   const x = items[i]; if (!x) return true;
   const carte = ctx === 'rech' || ctx === 'rechx' ? rechCard : sugCard;
   if (a.dataset.sug === 'fiche') { ficheDepuis(x); return true; }
@@ -5127,12 +5200,19 @@ document.addEventListener('keydown', e => {
 /* ---------- Touche « retour » d'Android : ferme la fenêtre ouverte (et non toute l'appli) ---------- */
 // Quand une fenêtre s'ouvre, on ajoute une étape dans l'historique : « retour » la consomme et ferme la fenêtre.
 const FENETRES = ['#askOv', '#scanOv', '#bulkOv', '#timerOv', '#ov', '#livreOv'];
-let modalModifie = false, retourPose = false, retourIgnore = 0;
+let modalModifie = false, retourPose = false, retourIgnore = 0, retourDepuis = 0, retourAttente = 0;
 const fenetreOuverte = () => FENETRES.find(sel => $(sel).classList.contains('show'));
 function syncRetour() {
+  // (stabilisation, 31/10/2026) Un « retour » posé par l'appli n'est pas encore fait : une étape ajoutée maintenant serait
+  // emportée par lui (la fenêtre rouverte resterait sans étape, et le retour suivant sortirait de l'appli). On attend
+  // qu'il soit fait (popstate rappelle syncRetour), au plus 1 s : au-delà, il n'arrivera plus.
+  if (retourIgnore) {
+    if (performance.now() - retourDepuis < 1000) { clearTimeout(retourAttente); retourAttente = setTimeout(syncRetour, 100); return; }
+    retourIgnore = 0;
+  }
   const o = !!fenetreOuverte();
   if (o && !retourPose) { history.pushState({fenetre: true}, ''); retourPose = true; }
-  else if (!o && retourPose) { retourPose = false; retourIgnore++; history.back(); }
+  else if (!o && retourPose) { retourPose = false; retourIgnore++; retourDepuis = performance.now(); history.back(); }
 }
 // Question « Oui / Non » posée dans l'appli (les fenêtres du navigateur détonnent et ne suivent pas le thème) ;
 // répond false si on touche « Non », le fond, ou la touche retour
@@ -5163,7 +5243,7 @@ function fermerDessus() {
   return true;
 }
 window.addEventListener('popstate', () => {
-  if (retourIgnore) { retourIgnore--; return; }
+  if (retourIgnore) { retourIgnore--; return syncRetour(); }
   retourPose = false;
   fermerDessus();
   syncRetour();   // une fenêtre reste ouverte (ou la fermeture a été refusée) : on remet l'étape

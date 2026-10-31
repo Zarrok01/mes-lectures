@@ -2958,6 +2958,123 @@
     r.push(st.overflowX === 'visible' && st.flexWrap === 'wrap' && st.paddingTop === '0px' ? 'bilan intact' : `bilan : ${st.overflowX}, ${st.flexWrap}, ${st.paddingTop}`); h.remove();
     return r.join('|');
   }));
+  // (lot 5 de la refonte, 31/10/2026 : finitions — défis résumés, icônes dessinées, styles en cartes, signets étiquetés, couvertures, accessibilité)
+  const emojisVisibles = root => { const out = []; if (!root) return out; const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n;
+    while ((n = w.nextNode())) { const el = n.parentElement; if (!el || !el.checkVisibility() || parseFloat(getComputedStyle(el).fontSize) < 1) continue;
+      const m = n.textContent.match(/\p{Extended_Pictographic}/gu); if (m) out.push(...m); } return out; };
+  const lecturesStats = () => ['Un', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit'].map((t, i) => fiche('Stat ' + t, {statut: 'lu', note: 4, pagesTotal: i ? 250 : 600,
+    dateDebut: addDays(-30 * i - 9), dateFin: addDays(-30 * i - 2), classements: i % 2 ? [B('686', '320')] : []}));
+  const avecStats = async fn => { const b0 = books, g0 = goal; try { books = lecturesStats(); ui.tab = 'stats'; render(); scrollTo(0, 0); return await fn(); } finally { books = b0; goal = g0; ui.tab = 'en_cours'; render(); } };
+  await test('Lot 5 : défis résumés — « N sur M réussis », les 3 prochains (les plus avancés, sans les réussis), tous derrière « Voir tous les défis » replié', 'résumé|3 prochains|replié|tous', () => avecStats(async () => {
+    const y = new Date().getFullYear(), d = defis(y), ok = d.filter(x => x.ok).length;
+    const attendus = d.filter(x => !x.ok).sort((a, b) => b.n / b.but - a.n / a.but).slice(0, 3).map(x => x.id).join(',');
+    const p = $('#main .defis'); if (!p) return 'pas de panneau .defis';
+    const r = [p.textContent.includes(`${ok} sur ${d.length} réussis`) ? 'résumé' : 'résumé absent'];
+    const prochains = [...p.querySelectorAll('.defis-prochains [data-defi]')].map(x => x.dataset.defi).join(',');
+    r.push(prochains === attendus ? '3 prochains' : `prochains ${prochains} au lieu de ${attendus}`);
+    const tous = p.querySelector('details.defis-tous');
+    r.push(tous && !tous.open ? 'replié' : tous ? 'ouvert' : 'pas de « Voir tous »');
+    r.push(tous && tous.querySelectorAll('[data-defi]').length === d.length && /Voir tous les défis/.test(tous.querySelector('summary').textContent) ? 'tous' : 'défis manquants');
+    return r.join('|');
+  }));
+  await test('Lot 5 : Stats — « Voir tous les défis » arrive avant 2 écrans, avec le rappel de sauvegarde', 'avant 2 écrans', () => avecStats(async () => {
+    const l0 = prefs.lastBackup;
+    try {
+      prefs.lastBackup = undefined; paintNotice(); render(); scrollTo(0, 0);
+      const s = $('#main .defis-tous > summary'); if (!s) return 'pas de « Voir tous »';
+      const ecran = innerWidth < 340 ? 640 : 780, bas = s.getBoundingClientRect().bottom + scrollY;
+      return $('#notice').hidden ? 'pas de rappel' : bas <= 2 * ecran ? 'avant 2 écrans' : `bas à ${Math.round(bas)}, limite ${2 * ecran}`;
+    } finally { prefs.lastBackup = l0; paintNotice(); }
+  }));
+  await test('Lot 5 : Éditorial — aucun émoji visible dans Stats, dans Réglages ni dans le rappel de sauvegarde', 'Stats : aucun|Réglages : aucun|rappel : aucun', () => avecStyle('editorial', 'light', () => avecStats(async () => {
+    const l0 = prefs.lastBackup;
+    try {
+      prefs.lastBackup = undefined; paintNotice();
+      const r = ['Stats : ' + (emojisVisibles($('#main')).join('') || 'aucun')];
+      openSettings(); await pause(30); r.push('Réglages : ' + (emojisVisibles($('#modal')).join('') || 'aucun')); closeM(); await pause(30);
+      r.push('rappel : ' + (emojisVisibles($('#notice')).join('') || 'aucun'));
+      return r.join('|');
+    } finally { prefs.lastBackup = l0; paintNotice(); }
+  })));
+  await test('Lot 5 : chaque défi a une icône dessinée (hors Carnet) ; le style Carnet garde ses émojis', 'dessinées|Carnet : émojis', async () => {
+    const r = [];
+    await avecStyle('editorial', 'light', () => avecStats(async () => {
+      const n = document.querySelectorAll('#main .defis [data-defi]').length, ic = [...document.querySelectorAll('#main .defis [data-defi] .ico')];
+      const sans = ic.filter(i => !getComputedStyle(i).getPropertyValue('--ico').includes('svg')).map(i => i.className);
+      r.push(n && ic.length === n && !sans.length ? 'dessinées' : `${ic.length} icônes pour ${n} défis, sans dessin : ${sans.join(' ')}`);
+    }));
+    await avecStyle('carnet', 'light', () => avecStats(async () => { const e = emojisVisibles($('#main .defis')); r.push(e.length >= 3 ? 'Carnet : émojis' : `Carnet : ${e.length} émoji`); }));
+    return r.join('|');
+  });
+  await test('Lot 5 : Découvrir — puces « Thème » et « Source » sans émoji en Éditorial ; le Carnet les garde', 'Éditorial : aucun|Carnet : 📖🏆', async () => {
+    const r = [];
+    for (const [s, nom] of [['editorial', 'Éditorial'], ['carnet', 'Carnet']]) await avecStyle(s, 'light', () => avecDecouvrir(async () => {
+      prefs.selection = {...selectionTest(1), items: [piste('Puce', {themeE: '📖', sourceNom: '🏆 Primé'})]}; render();
+      r.push(nom + ' : ' + ([...new Set(emojisVisibles($('.discover-selection .meta')))].join('') || 'aucun'));
+    }));
+    return r.join('|');
+  });
+  await test('Lot 5 : Réglages — 4 cartes de style séparées, arrondies, le choix actif annoncé ; choisir change le style', 'séparées|arrondies|annoncé|change', () => avecStyle('editorial', 'light', async () => {
+    openSettings(); await pause(30);
+    const b = [...document.querySelectorAll('#st_style [data-st]')], R = b.map(x => x.getBoundingClientRect()), r = [];
+    const ecart = (a, c) => Math.max(c.left - a.right, a.left - c.right, c.top - a.bottom, a.top - c.bottom);
+    r.push(b.length === 4 && R.every((a, i) => R.every((c, j) => i === j || ecart(a, c) >= 4)) ? 'séparées' : 'collées');
+    r.push(b.length && b.every(x => parseFloat(getComputedStyle(x).borderTopLeftRadius) >= 8 && parseFloat(getComputedStyle(x).borderBottomRightRadius) >= 8) ? 'arrondies' : 'angles droits');
+    const p = b.map(x => x.getAttribute('aria-pressed')).join(',');
+    r.push(p === b.map(x => String(x.dataset.st === 'editorial')).join(',') ? 'annoncé' : 'aria-pressed : ' + p);
+    b.find(x => x.dataset.st === 'actuel').click(); await pause(20);
+    r.push(document.documentElement.dataset.style === 'actuel' && $('#st_style [data-st="actuel"]').getAttribute('aria-pressed') === 'true' ? 'change' : 'style ' + document.documentElement.dataset.style);
+    closeM(); await pause(30); return r.join('|');
+  }));
+  await test('Lot 5 : Feuilleter — chaque signet porte une lettre visible ; son nom complet reste pour le lecteur d’écran', 'P,N,C,H,I|noms complets', async () => {
+    const b0 = books; books = [fiche('Signets', {statut: 'lu', dateFin: addDays(-2), note: 4, notes: [{texte: 'Une note', date: addDays(-2)}], citations: [{texte: 'Une citation', page: 3, date: addDays(-2)}]})];
+    try {
+      ouvrirFiche(books[0].id); await pause(80); $('#livre [data-fiche="ouvrir-carnet"]').click(); await pause(200);
+      const s = [...document.querySelectorAll('.lv-signets button')];
+      const lettres = s.map(x => { const l = x.querySelector('.lettre'); return l && l.checkVisibility() && l.getBoundingClientRect().right <= innerWidth ? l.textContent.trim() : '?'; }).join(',');
+      return (lettres || 'aucun signet') + '|' + (s.length && s.every(x => /^\S.{2,}, page \d+$/.test(x.getAttribute('aria-label') || '')) ? 'noms complets' : 'noms manquants');
+    } finally { await fermerFiche(); books = b0; render(); }
+  });
+  await test('Lot 5 : couvertures générées — aucun mot du titre coupé en deux (92 et 130 px de large)', [], () => avecStyle('editorial', 'light', async () => {
+    const fautes = [], titres = ['Le Consentement', 'Les Bienveillantes', 'Réparer les vivants', 'Extension du domaine de la lutte', 'L’Insoutenable Légèreté de l’être', 'Les Furtifs'];
+    const d = document.createElement('div'); document.body.appendChild(d);
+    try {
+      for (const l of [92, 130]) for (const t of titres) {
+        const g = couvGeneree({titre: t, auteur: 'Auteur'});
+        d.innerHTML = `<div style="width:${l}px;aspect-ratio:2/3;position:relative" class="ph ${g.classes}">${g.html}</div>`;
+        const el = d.querySelector('.cg-titre'), txt = el && el.firstChild;
+        if (!txt || !el.checkVisibility()) { fautes.push(`${l} px : titre absent`); continue; }
+        for (const m of t.matchAll(/\S+/g)) {
+          const rg = document.createRange(); rg.setStart(txt, m.index); rg.setEnd(txt, m.index + m[0].length);
+          if (new Set([...rg.getClientRects()].map(x => Math.round(x.top))).size > 1) fautes.push(`${l} px : « ${m[0]} » coupé`);
+        }
+      }
+    } finally { d.remove(); }
+    return fautes;
+  }));
+  await test('Lot 5 : texte agrandi de 30 % — Stats et Réglages sans débordement ni bouton coupé', 'Stats : rien ne dépasse|Réglages : rien ne dépasse', () => avecStyle('editorial', 'light', () => avecStats(async () => {
+    const html = document.documentElement, f0 = html.style.fontSize, r = [];
+    const coupes = root => [...root.querySelectorAll('button, .tile, h3, summary')].filter(e => e.checkVisibility() && e.scrollWidth > e.clientWidth + 1 && !['auto', 'scroll'].includes(getComputedStyle(e).overflowX)).map(e => e.textContent.trim().slice(0, 24));
+    try {
+      html.style.fontSize = '130%'; render(); await pause(30);
+      const c1 = coupes($('#main')); r.push(html.scrollWidth <= innerWidth && !c1.length ? 'Stats : rien ne dépasse' : `Stats : page ${html.scrollWidth}, coupés ${c1.join(' / ')}`);
+      openSettings(); await pause(30); const m = $('#modal'), c2 = coupes(m);
+      r.push(m.scrollWidth <= m.clientWidth + 1 && !c2.length ? 'Réglages : rien ne dépasse' : `Réglages : ${m.scrollWidth}/${m.clientWidth}, coupés ${c2.join(' / ')}`); closeM(); await pause(30);
+    } finally { html.style.fontSize = f0; render(); }
+    return r.join('|');
+  })));
+  await test('Lot 5 : lecteur d’écran — chaque bouton, champ ou volet visible de Stats et de Réglages a un nom', 'Stats : tous nommés|Réglages : tous nommés', () => avecStats(async () => {
+    const sansNom = root => [...root.querySelectorAll('button, summary, select, input')].filter(e => e.checkVisibility() && !((e.getAttribute('aria-label') || '').trim() || e.textContent.trim() || e.getAttribute('title') || (e.labels && e.labels.length) || e.getAttribute('placeholder'))).map(e => e.outerHTML.slice(0, 70));
+    const r = [], s = sansNom($('#main')); r.push(s.length ? 'Stats : ' + s.join(' / ') : 'Stats : tous nommés');
+    openSettings(); await pause(30); const g = sansNom($('#modal')); r.push(g.length ? 'Réglages : ' + g.join(' / ') : 'Réglages : tous nommés'); closeM(); await pause(30);
+    return r.join('|');
+  }));
+  await test('Lot 5 : la touche retour ferme les Réglages (pas l’appli)', 'fermés', async () => {
+    // (isolement : les tests qui ouvrent et ferment des fenêtres en rafale par programme — audits « sur 5 écrans »,
+    // réponses simulées — laissent des « retours » de l'appli en attente ; à la main, rien de tel : on repart d'un état propre)
+    await pause(400); retourIgnore = 0; retourPose = false;
+    openSettings(); await pause(50); history.back(); await pause(250); return $('#ov').classList.contains('show') ? 'encore ouverts' : 'fermés';
+  });
   /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
   await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {
     books = [enCours('Lecture')]; ui.tab = 'en_cours'; render();

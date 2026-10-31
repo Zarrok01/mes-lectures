@@ -78,6 +78,8 @@
 }
 .cg-titre{font:500 clamp(11px,13cqw,26px)/1.15 var(--livre-police);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .cg-long .cg-titre{font-size:clamp(10px,10cqw,20px)}
+/* (lot 5) un mot trop long pour la largeur : le titre rapetisse (jusqu'à 8 px) au lieu de couper le mot en deux */
+.cg-titre.cg-mot-long{font-size:clamp(8px,var(--cg-t),26px)}
 .cg-auteur{font:italic 400 clamp(9px,8cqw,14px)/1.3 var(--livre-police);margin-top:auto}
 .cg-genre{font:400 clamp(8px,6.5cqw,11px)/1 var(--livre-police);letter-spacing:.16em;text-transform:uppercase;color:var(--cg-or);margin-bottom:6cqw}
 .cg-minimaliste .cg-titre::after{content:"";display:block;width:100%;height:1px;background:currentColor;margin-top:8cqw}
@@ -96,6 +98,10 @@
 .cg-classique .cg-auteur{margin:0}
 .seg.styles{display:grid;grid-template-columns:1fr 1fr;border-radius:var(--r-m)}
 .styles button{display:flex;flex-direction:column;align-items:center;gap:var(--e-1);padding:var(--e-2) var(--e-1)}
+/* (lot 5) Éditorial : 4 cartes de style séparées et arrondies, le choix actif en rose doux */
+[data-style=editorial] .seg.styles{gap:var(--e-2);border:0;background:none;overflow:visible}
+[data-style=editorial] .seg.styles button{border:1px solid var(--trait);border-radius:var(--r-m);background:var(--carte);height:auto;min-height:var(--toucher)}
+[data-style=editorial] .seg.styles button.on{border-color:var(--accent);background:var(--accent-doux);color:var(--sur-accent-doux)}
 .apercu{display:flex;width:52px;height:30px;border-radius:var(--r-s);background:var(--fond);border:1px solid var(--trait);overflow:hidden;padding:4px;gap:4px}
 .apercu i{flex:1;background:var(--accent);border-radius:var(--r-s)}
 .apercu b{flex:2;background:var(--carte);border-radius:var(--r-s)}
@@ -249,7 +255,7 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 @media(min-width:600px){.tiles{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-3)}
 .tile b{display:block;font-size:var(--t-xxl);font-weight:800}
-.tile span{font-size:var(--t-xs);color:var(--texte-doux)}
+.tile > span{font-size:var(--t-xs);color:var(--texte-doux)}
 .chart{display:flex;gap:var(--e-1);height:140px}
 .chart>div{flex:1;display:flex;flex-direction:column;align-items:center;font-size:var(--t-xs);color:var(--texte-doux);min-width:0}
 .chart .col{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
@@ -269,6 +275,15 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .badge .be{font-size:1.7rem;filter:grayscale(1);opacity:.55}.badge.ok .be{filter:none;opacity:1}
 .badge span{color:var(--texte-doux)}.badge.ok span,.badge.ok .won{color:var(--sur-accent-doux)}
 .badge .won{color:var(--accent);font-weight:700}
+/* (lot 5) Défis résumés : les 3 plus proches en lignes, tous les défis derrière « Voir tous les défis » */
+.badge .be .ico{width:28px;height:28px}
+.defis-prochains{list-style:none;margin:0 0 var(--e-2);padding:0;display:grid;gap:var(--e-2)}
+.defis-prochains li{display:flex;align-items:center;gap:var(--e-3);min-height:var(--toucher)}
+.defis-prochains .be{flex:none;color:var(--texte-doux)}.defis-prochains .be .ico{width:24px;height:24px}
+.dp-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.dp-txt > span{font-size:var(--t-xs);color:var(--texte-doux)}
+.dp-n{flex:none;font-size:var(--t-s);color:var(--texte-doux);font-variant-numeric:tabular-nums}
+.defis-tous > summary{padding:var(--e-3) 0;font-weight:700;cursor:pointer}
+.defis-tous[open] > summary{margin-bottom:var(--e-2)}
 .cal{overflow-x:auto;padding-bottom:var(--e-2)}
 .calm,.calg{display:grid;grid-auto-columns:12px;gap:2px}
 .calm{grid-template-rows:18px;grid-auto-flow:column;font-size:var(--t-xs);color:var(--texte-doux);white-space:nowrap}
@@ -408,6 +423,7 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .etat{text-align:center;padding:var(--e-6) var(--e-4);grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:var(--e-2)}
 .etat-icone{width:64px;height:64px;border-radius:50%;background:var(--surface-2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:var(--t-xxl)}
 .etat-icone .ico{width:32px;height:32px}
+.emo{display:none}[data-style=carnet] .emo{display:inline}
 .etat-titre{margin:0;font-size:var(--t-l);font-weight:700;font-family:var(--police-titres);color:var(--texte)}
 .etat-texte{margin:0;font-size:var(--t-s);color:var(--texte-doux);max-width:420px}
 .etat.erreur .etat-icone{color:var(--danger)}
@@ -673,6 +689,9 @@ button{-webkit-touch-callout:none}
 .lv-signets button{width:var(--toucher);height:var(--toucher);border:0;background:none;padding:0;position:relative}
 .lv-signets button::before{content:"";position:absolute;left:20px;top:7px;width:12px;height:34px;border-radius:0 3px 3px 0;background:var(--livre-tranche)}
 .lv-signets button.on::before{background:var(--accent);width:16px}
+/* (lot 5) la lettre de la section, sur la languette */
+.lv-signets .lettre{position:absolute;left:20px;top:7px;width:12px;height:34px;display:grid;place-items:center;z-index:1;font-size:var(--t-xs);font-weight:700;line-height:1;color:var(--texte-doux)}
+.lv-signets button.on .lettre{width:16px;color:var(--sur-accent)}
 .lv-ruban{position:absolute;top:0;right:28px;width:9px;height:52px;background:var(--livre-bordeaux);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%);z-index:4;pointer-events:none}
 .lv-pied{display:flex;justify-content:space-between;align-items:center;padding:0 0 calc(env(safe-area-inset-bottom) + var(--e-1))}
 .lv-pied .icon{font:var(--t-xl)/1 var(--livre-police)}
@@ -829,7 +848,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-4';
+const VERSION = '2026.10.31-5';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -956,8 +975,22 @@ const ICONES = {
   pause: "<path d='M9 5v14M15 5v14'/>", lecture: "<path d='M7 4.5v15L19 12z'/>",
   soleil: "<circle cx='12' cy='12' r='4'/><path d='M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/>",
   lune: "<path d='M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z'/>",
-  citation: "<path d='M10 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3M20 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3'/>"
+  citation: "<path d='M10 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3M20 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3'/>",
+  // (lot 5 de la refonte, 31/10/2026 : défis, titres de Stats et de Réglages)
+  pousse: "<path d='M12 21v-9'/><path d='M12 12c0-4 3-7 8-7 0 5-3 7-8 7zM12 14c0-3-2-5-7-5 0 4 2 5 7 5z'/>",
+  livres: "<rect x='3' y='4' width='4.5' height='16' rx='1'/><rect x='9.5' y='4' width='4.5' height='16' rx='1'/><path d='m16 5.2 3-.8 3 14.8-3 .8z'/>",
+  colonnes: "<path d='M3 9 12 4l9 5M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18'/>", couronne: "<path d='M4 19h16M5 16 3 7l5 4 4-6 4 6 5-4-2 9z'/>",
+  arc: "<path d='M3 18a9 9 0 0 1 18 0M7 18a5 5 0 0 1 10 0'/>", brique: "<rect x='3' y='6' width='18' height='12' rx='1'/><path d='M3 12h18M9 6v6M15 12v6'/>",
+  eclair: "<path d='M13 3 5 14h6l-1 7 8-11h-6z'/>", flamme: "<path d='M12 21a6 6 0 0 0 6-6c0-4-3-6-4-11-2 2-3 4-3 7-1-1-2-2-2-4-2 2-3 5-3 8a6 6 0 0 0 6 6z'/>",
+  calendrier: "<rect x='4' y='5' width='16' height='15' rx='2'/><path d='M4 10h16M9 3v4M15 3v4'/>", maison: "<path d='M4 21V10l8-6 8 6v11z'/><path d='M10 21v-6h4v6'/>",
+  casque: "<path d='M4 15v-3a8 8 0 0 1 16 0v3'/><rect x='3' y='14' width='4' height='6' rx='1.5'/><rect x='17' y='14' width='4' height='6' rx='1.5'/>",
+  trophee: "<path d='M8 4h8v5a4 4 0 0 1-8 0z'/><path d='M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4'/>",
+  question: "<circle cx='12' cy='12' r='9'/><path d='M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01'/>",
+  fete: "<path d='M4 20 9 7l8 8z'/><path d='M14 4v2M19 9h2M17 5l-1.5 1.5M12 2.5l.5 1'/>"
 };
+// Émoji décoratif d'une catégorie (rayon, thème, source) : gardé dans le style Carnet, masqué ailleurs (lot 5)
+const emo = e => e ? `<span class="emo" aria-hidden="true">${e} </span>` : '';
+const avecEmo = s => { const m = String(s || '').match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u); return m ? emo(m[1]) + esc(m[2]) : esc(s); };
 // Les masques sont produits ici une fois (aucune couleur : un masque ne garde que la forme ; la couleur est celle du texte)
 document.head.insertAdjacentHTML('beforeend', '<style id="icones">' + Object.entries(ICONES).map(([n, d]) =>
   `.i-${n}{--ico:url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${d}</svg>`)}")}`).join('') + '</style>');
@@ -1031,7 +1064,9 @@ function couvGeneree(b) {
   const decor = famille === 'geometrique' ? '<i class="cg-disque"></i><i class="cg-bande"></i>'
     : famille === 'illustree' ? `<svg class="cg-motif" viewBox="0 0 104 90" aria-hidden="true">${MOTIFS_COUV[(h >>> 12) % MOTIFS_COUV.length]}</svg>`
     : famille === 'classique' ? '<i class="cg-cadre"></i>' : '';
-  const html = `${decor}<span class="cg-ini" aria-hidden="true">${esc(initiales(titre))}</span><span class="cg-texte" aria-hidden="true">${genre ? `<span class="cg-genre">${esc(genre.nom)}</span>` : ''}<span class="cg-titre">${esc(titre)}</span>${auteur ? `<span class="cg-auteur">${esc(auteur)}</span>` : ''}</span>`;
+  // (largeur utile : 77 % de la couverture ; un caractère du titre ≈ 0,62 de sa taille)
+  const mot = Math.max(...titre.split(/\s+/).map(m => m.length)), taille = Math.min(titre.length > 40 ? 10 : 13, 77 / (0.62 * mot));
+  const html = `${decor}<span class="cg-ini" aria-hidden="true">${esc(initiales(titre))}</span><span class="cg-texte" aria-hidden="true">${genre ? `<span class="cg-genre">${esc(genre.nom)}</span>` : ''}<span class="cg-titre${taille < (titre.length > 40 ? 10 : 13) ? ` cg-mot-long" style="--cg-t:${taille.toFixed(1)}cqw` : ''}">${esc(titre)}</span>${auteur ? `<span class="cg-auteur">${esc(auteur)}</span>` : ''}</span>`;
   return {famille, fond, classes: `cg cg-${famille} cg-f-${fond}${titre.length > 40 ? ' cg-long' : ''}`, html};
 }
 function coverHtml(b, cls) {
@@ -1959,6 +1994,7 @@ function evenementsLivre(b) {
 const TITRES_LIVRE = {couverture: 'Couverture', garde: 'Page de garde', resume: 'Résumé', sommaire: 'Sommaire', progression: 'Progression', avis: 'Mon avis', notes: 'Mes notes',
   citations: 'Citations', historique: 'Historique', infos: 'Infos', colophon: 'Fin'};
 const SIGNETS = ['progression', 'notes', 'citations', 'historique', 'infos'];
+const LETTRE_SIGNET = {progression: 'P', notes: 'N', citations: 'C', historique: 'H', infos: 'I'};
 // Informations bibliographiques (partagées avec la vue continue)
 function infosLivre(b) {
   const pret = b.possession === 'prete' || b.possession === 'emprunte' ? [b.pretNom, b.pretRetour ? 'retour prévu le ' + fdate(b.pretRetour) : ''].filter(Boolean).join(' · ') : '';
@@ -2134,7 +2170,7 @@ function montrerPage(n, opts) {
   const lv = $('#lv'), reste = Math.round(6 * (pages.length - 1 - n) / Math.max(1, pages.length - 1));
   lv.className = lv.className.replace(/\s*lv-reste-\d/g, '') + ' lv-reste-' + reste;
   const d = debutsSections(pages);
-  lv.querySelector('.lv-signets').innerHTML = SIGNETS.filter(s => s in d).map(s => `<button type="button" data-fiche="signet" data-section="${s}" aria-label="${TITRES_LIVRE[s]}, page ${d[s] + 1}"${pages[n].section === s ? ' class="on" aria-current="true"' : ''}></button>`).join('');
+  lv.querySelector('.lv-signets').innerHTML = SIGNETS.filter(s => s in d).map(s => `<button type="button" data-fiche="signet" data-section="${s}" aria-label="${TITRES_LIVRE[s]}, page ${d[s] + 1}"${pages[n].section === s ? ' class="on" aria-current="true"' : ''}><span class="lettre" aria-hidden="true">${LETTRE_SIGNET[s]}</span></button>`).join('');
   const m = Marques.de(b.id), ruban = lv.querySelector('.lv-ruban'); if (ruban) ruban.remove();
   // (ni sur la couverture ni sur la page de garde : le livre s'y ouvre de lui-même ; en double-page, sur l'une des deux pages)
   const avecRuban = i => i < pages.length && !['couverture', 'garde'].includes(pages[i].section) && pageDe(pages, m) === i;
@@ -2547,7 +2583,7 @@ function paintNotice() {
     bar.innerHTML = `<span class="notice-txt">📥 «&nbsp;<span class="notice-titre">${esc(due.titre)}</span>&nbsp;» : ${lateRet ? 'en retard depuis le' : 'à rendre le'} <b>${fdate(due.pretRetour)}</b></span><button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
     bar.className = 'notice alerte court'; bar.hidden = false;
   } else if (late) {
-    bar.innerHTML = `<span class="rappel-txt">💾 <span class="long">${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'}</span><span class="bref">${last ? 'Sauvegarde à refaire.' : 'Pense à sauvegarder.'}</span></span> <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
+    bar.innerHTML = `<span class="rappel-txt">${ico('sauver', '💾')} <span class="long">${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'}</span><span class="bref">${last ? 'Sauvegarde à refaire.' : 'Pense à sauvegarder.'}</span></span> <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.className = 'notice rappel'; bar.hidden = false;
   } else bar.hidden = true;
 }
@@ -2636,7 +2672,7 @@ function renderStatsTout() {
       <div class="tile"><b>${ly.length}</b><span>livre${s} lu${s} en ${y}</span></div>
       <div class="tile"><b>${pages.toLocaleString('fr-FR')}</b><span>pages des lectures terminées · ${pagesConnues}/${ly.length} renseignées${pagesEstimees ? ` · ${pagesEstimees} estimée${pagesEstimees > 1 ? 's' : ''}` : ''}</span></div>
       <div class="tile"><b>${moy ? moy.toFixed(1).replace('.', ',') : '–'}</b><span>note moyenne des livres notés · / 5</span></div>
-      <div class="tile"><b>🔥 ${st.cur}</b><span>jour${st.cur > 1 ? 's consécutifs' : ' consécutif'} · record historique ${st.best}</span></div>
+      <div class="tile"><b>${ico('flamme', '🔥')} ${st.cur}</b><span>jour${st.cur > 1 ? 's consécutifs' : ' consécutif'} · record historique ${st.best}</span></div>
       <div class="tile"><b>${minY ? fdur(minY) : '–'}</b><span>temps des séances chronométrées en ${y}</span></div>
       <div class="tile"><b>${v ? Math.round(v) : '–'}</b><span>pages/heure en séance chronométrée${v ? '' : ' · données insuffisantes'}</span></div>
     </div>
@@ -2653,7 +2689,7 @@ function renderStatsTout() {
     <div class="panel"><h3>Pages lues par semaine</h3>
       <div class="a sous-titre">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
       <div class="chart green">${weeks.map(w => `<div><div class="col"><em>${w.n || ''}</em><i style="height:${w.n / wmax * 100}%"></i></div>${w.start.getDate()}/${w.start.getMonth() + 1}</div>`).join('')}</div>
-      <div class="a petit mt-2">Compté avec « Où j'en suis » et « ⏱️ Lire ».</div></div>
+      <div class="a petit mt-2">Compté avec « Où j'en suis » et « ${ico('chrono', '⏱️')} Lire ».</div></div>
     ${calendarPanel(y)}
     <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
       `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
@@ -2668,7 +2704,7 @@ function renderStatsTout() {
     ${bilan(y, ly)}
     <div class="panel"><h3>Exporter ma liste</h3><div class="a mb-3">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
       <div class="acts"><button class="btn pri" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn pri" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
-    <div class="panel"><h3>💾 Sauvegarde</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
+    <div class="panel"><h3>${ico('sauver', '💾')} Sauvegarde</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
       (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
       <div class="acts"><button class="btn pri" data-export="backup"><span class="ico i-sauver" aria-hidden="true">💾</span> Sauvegarder</button><button class="btn" data-export="restore"><span class="ico i-restaurer" aria-hidden="true">📂</span> Restaurer</button></div></div>`;
   // Calendrier : on fait défiler jusqu'à aujourd'hui
@@ -2692,11 +2728,11 @@ function categoriesPanel() {
   const l = Recherche.RAYONS.filter(c => n[c.id]).sort((a, b) => n[b.id] - n[a.id]);
   const total = l.reduce((s, c) => s + n[c.id], 0), classes = books.length - sans, top = Math.max(1, ...l.map(c => n[c.id]));
   const aChercher = sansClassement().length;
-  return `<div class="panel"><h3>🏷️ Mes livres par rayon</h3>
+  return `<div class="panel"><h3>${ico('etiquette', '🏷️')} Mes livres par rayon</h3>
     <div class="a sous-titre">D'après les classements des catalogues (BnF, Sudoc…). Touche un rayon pour voir ses livres.</div>
-    ${l.map(c => `<button type="button" class="hb catrow" data-cat="${c.id}"><span>${c.e} ${esc(c.nom)}</span><div class="bar"><i style="width:${n[c.id] / top * 100}%"></i></div><span>${n[c.id]}${lus[c.id] ? ` <small class="a">(${lus[c.id]} lu${lus[c.id] > 1 ? 's' : ''})</small>` : ''}</span></button>`).join('')
+    ${l.map(c => `<button type="button" class="hb catrow" data-cat="${c.id}"><span>${emo(c.e)}${esc(c.nom)}</span><div class="bar"><i style="width:${n[c.id] / top * 100}%"></i></div><span>${n[c.id]}${lus[c.id] ? ` <small class="a">(${lus[c.id]} lu${lus[c.id] > 1 ? 's' : ''})</small>` : ''}</span></button>`).join('')
       || '<div class="a">Aucun livre rangé pour l\'instant.</div>'}
-    ${sans ? `<button type="button" class="hb catrow" data-cat="_aucune"><span>❔ Sans rayon</span><div class="bar"></div><span>${sans}</span></button>` : ''}
+    ${sans ? `<button type="button" class="hb catrow" data-cat="_aucune"><span>${ico('question', '❔')} Sans rayon</span><div class="bar"></div><span>${sans}</span></button>` : ''}
     ${total > classes ? `<div class="a petit mt-2">Un livre peut être dans plusieurs rayons : le total (${total}) dépasse le nombre de livres rangés (${classes}).</div>` : ''}
     ${aChercher ? `<div class="acts mt-2"><button class="btn small" type="button" id="catfill"><span class="ico i-relire" aria-hidden="true">🔄</span> Chercher les rayons de ${plural(aChercher, 'livre')}</button></div><div class="a petit" id="catfillres"></div>` : ''}</div>`;
 }
@@ -2773,7 +2809,7 @@ function calendarPanel(y) {
     cells.push(`<i class="l${lvl}${k > t ? ' f' : ''}${k === t ? ' now' : ''}" data-day="${k}"></i>`);
   }
   const months = MOIS_COURT.map((m, i) => `<span style="grid-column:${Math.floor((offset + Math.round((new Date(y, i, 1) - start) / 864e5)) / 7) + 1}">${m}</span>`).join('');
-  return `<div class="panel"><h3>🗓️ Mon année de lecture</h3>
+  return `<div class="panel"><h3>${ico('calendrier', '🗓️')} Mon année de lecture</h3>
     <div class="a sous-titre">${plural(jours, 'jour')} de lecture en ${y}</div>
     <div class="cal" id="cal"><div class="calm">${months}</div><div class="calg">${cells.join('')}</div></div>
     <div class="calleg"><span class="a petit" id="calinfo">Touche un jour pour voir le détail.</span><span class="sp"></span>
@@ -2824,11 +2860,20 @@ function defis(y) {
     ...(goal ? [['objectif', '🎯', 'Objectif atteint', 'Lire ' + goal + ' livres dans l\'année', ly.length, goal]] : [])
   ].map(([id, e, nom, desc, n, but]) => ({id, e, nom, desc, n: Math.min(n, but), but, ok: n >= but}));
 }
+// (lot 5) Icône dessinée de chaque défi (l'émoji reste dans le style Carnet et dans les messages)
+const ICONE_DEFI = {premier: 'pousse', dix: 'livres', vingtcinq: 'colonnes', cinquante: 'couronne', genres: 'arc', pave: 'brique', sprint: 'eclair', serie: 'lien',
+  semaine: 'flamme', mois: 'lune', constant: 'calendrier', citations: 'citation', chrono: 'chrono', mediatheque: 'maison', format: 'casque', relecture: 'relire', objectif: 'cible'};
+const icoDefi = x => ico(ICONE_DEFI[x.id] || 'cible', x.e);
+// (lot 5) Résumé : le compte, puis les 3 défis les plus avancés ; tous les défis restent derrière « Voir tous les défis »
 function defisPanel(y) {
   const d = defis(y), ok = d.filter(x => x.ok).length;
-  return `<div class="panel"><h3>🏆 Mes défis ${y}</h3><div class="a sous-titre">${ok} / ${d.length} réussis</div>
-    <div class="badges">${d.map(x => `<div class="badge ${x.ok ? 'ok' : ''}"><div class="be">${x.e}</div><b>${esc(x.nom)}</b><span>${esc(x.desc)}</span>
-      ${x.ok ? '<span class="won">Réussi ✓</span>' : `<div class="bar"><i style="width:${Math.round(x.n / x.but * 100)}%"></i></div><span>${x.n} / ${x.but}</span>`}</div>`).join('')}</div></div>`;
+  const prochains = d.filter(x => !x.ok).sort((a, b) => b.n / b.but - a.n / a.but).slice(0, 3);
+  const barre = x => `<div class="bar"><i style="width:${Math.round(x.n / x.but * 100)}%"></i></div>`;
+  return `<div class="panel defis"><h3>${ico('trophee', '🏆')} Mes défis ${y}</h3><div class="a sous-titre">${ok} sur ${d.length} réussis${prochains.length ? ' · les plus proches :' : ''}</div>
+    ${prochains.length ? `<ul class="defis-prochains">${prochains.map(x => `<li data-defi="${x.id}"><span class="be">${icoDefi(x)}</span><span class="dp-txt"><b>${esc(x.nom)}</b><span>${esc(x.desc)}</span>${barre(x)}</span><span class="dp-n">${x.n} / ${x.but}</span></li>`).join('')}</ul>` : ''}
+    <details class="defis-tous"><summary>Voir tous les défis (${d.length})</summary>
+    <div class="badges">${d.map(x => `<div class="badge ${x.ok ? 'ok' : ''}" data-defi="${x.id}"><div class="be">${icoDefi(x)}</div><b>${esc(x.nom)}</b><span>${esc(x.desc)}</span>
+      ${x.ok ? '<span class="won">Réussi ✓</span>' : `${barre(x)}<span>${x.n} / ${x.but}</span>`}</div>`).join('')}</div></details></div>`;
 }
 // Félicite quand un nouveau défi est réussi (une fois par défi et par année)
 function checkBadges(silent) {
@@ -2848,7 +2893,7 @@ function toastLater(msg, delay) {
 const pick = {len: '', genre: '', genreConfirme: '', cat: '', dispo: false, last: '', mode: 'liste', theme: '', sousGenre: '', themeLivre: '', ambiance: ''};
 function themeChips(id, current) {
   return `<div class="chips" id="${id}"><button type="button" data-v="" class="chipb ${!current ? 'on' : ''}">🎁 Surprise</button>${Recherche.THEMES_TIRAGE.map(t =>
-    `<button type="button" data-v="${t.id}" class="chipb ${current === t.id ? 'on' : ''}">${t.e} ${esc(t.nom)}</button>`).join('')}</div>`;
+    `<button type="button" data-v="${t.id}" class="chipb ${current === t.id ? 'on' : ''}">${emo(t.e)}${esc(t.nom)}</button>`).join('')}</div>`;
 }
 function openNext() {
   const pool = books.filter(b => b.statut === 'a_lire');
@@ -2879,7 +2924,7 @@ function openNext() {
       ${sousGenres.length ? `<div class="lbl mb-1">Sous-genre confirmé</div><div class="chips" id="nx_sousGenre"><button type="button" data-v="" class="chipb ${!pick.sousGenre ? 'on' : ''}">Peu importe</button>${sousGenres.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.sousGenre === g ? 'on' : ''}">${esc(Taxonomie.nom('sousGenres', g))}</button>`).join('')}</div>` : ''}
       ${themesLivre.length ? `<div class="lbl mb-1">Thème confirmé</div><div class="chips" id="nx_themeLivre"><button type="button" data-v="" class="chipb ${!pick.themeLivre ? 'on' : ''}">Peu importe</button>${themesLivre.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.themeLivre === g ? 'on' : ''}">${esc(Taxonomie.nom('themes', g))}</button>`).join('')}</div>` : ''}
       ${ambiances.length ? `<div class="lbl mb-1">Ambiance confirmée</div><div class="chips" id="nx_ambiance"><button type="button" data-v="" class="chipb ${!pick.ambiance ? 'on' : ''}">Peu importe</button>${ambiances.map(g => `<button type="button" data-v="${esc(g)}" class="chipb ${pick.ambiance === g ? 'on' : ''}">${esc(Taxonomie.nom('ambiances', g))}</button>`).join('')}</div>` : ''}
-      ${cats.length ? `<div class="lbl mb-1">Rayon</div><div class="chips" id="nx_cat"><button type="button" data-v="" class="chipb ${!pick.cat ? 'on' : ''}">Peu importe</button>${cats.map(c => `<button type="button" data-v="${c.id}" class="chipb ${pick.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)} (${nCat[c.id]})</button>`).join('')}</div>` : ''}
+      ${cats.length ? `<div class="lbl mb-1">Rayon</div><div class="chips" id="nx_cat"><button type="button" data-v="" class="chipb ${!pick.cat ? 'on' : ''}">Peu importe</button>${cats.map(c => `<button type="button" data-v="${c.id}" class="chipb ${pick.cat === c.id ? 'on' : ''}">${emo(c.e)}${esc(c.nom)} (${nCat[c.id]})</button>`).join('')}</div>` : ''}
       <label class="check"><input type="checkbox" id="nx_dispo" ${pick.dispo ? 'checked' : ''}> Seulement ceux que j'ai sous la main</label>`}
     <div id="nx_res"></div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button><button class="btn pri" id="nx_go" type="button"><span class="ico i-de" aria-hidden="true">🎲</span> Tirer au sort</button></div>`;
@@ -2955,7 +3000,7 @@ function sugCard(x, ctx, i, rose) {
   return `<article class="sug" data-ctx="${ctx}" data-i="${i}">
     <div class="sugtop">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'big')}
       <div class="min0"><div class="t">${esc(x.titre)}</div><div class="a">${esc(x.auteur || '')}</div>
-        <div class="meta mt-1"><span class="chip">Thème · ${x.themeE} ${esc(x.themeNom)}</span><span class="chip">Source · ${esc(x.sourceNom)}</span></div>
+        <div class="meta mt-1"><span class="chip">Thème · ${emo(x.themeE)}${esc(x.themeNom)}</span><span class="chip">Source · ${avecEmo(x.sourceNom)}</span></div>
         <div class="a petit mt-1">${esc(x.raison || '')}${x.pagesTotal ? ` · ${pagesApproximatives ? '≈ ' : ''}${+x.pagesTotal || 0} p.` : ' · pagination non indiquée'}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
     <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : `<button class="btn ${rose ? 'pri ' : ''}small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>`}
@@ -2990,7 +3035,7 @@ async function drawOnline(themeId, box, btn) {
   const deja = b => dejaVu(b) || items.some(z => Recherche.norm(z.titre) === Recherche.norm(b.titre));
   for (let k = 0; k < PAR_TIRAGE + 3 && items.length < PAR_TIRAGE; k++) {
     if (lastTirage !== items) return;   // (un autre tirage a été lancé entre-temps)
-    box.innerHTML = tirageHtml(items, `🌍 Je cherche le livre ${items.length + 1} sur ${PAR_TIRAGE}${t ? ' · ' + t.e + ' ' + t.nom : ''}…`);
+    box.innerHTML = tirageHtml(items, `Je cherche le livre ${items.length + 1} sur ${PAR_TIRAGE}${t ? ' · ' + t.nom : ''}…`);
     const x = await Recherche.decouvrir(themeId || '', {exclude: deja}).catch(() => null);
     if (x && !deja(x)) { retenir(x); items.push(x); }
   }
@@ -3188,7 +3233,7 @@ async function genSelection(force) {
   selEnCours = true; selProgress = 'Préparation de ta sélection…';
   if (ui.tab === 'decouvrir') renderDecouvrir();
   const items = await Recherche.selection(themesFavoris(), dejaVu, (n, t) => {
-    selProgress = `Recherche du livre ${n + 1} sur 5${t ? ' (' + t.e + ' ' + t.nom + ')' : ''}…`;
+    selProgress = `Recherche du livre ${n + 1} sur 5${t ? ' (' + t.nom + ')' : ''}…`;
     const p = $('#selprog'); if (p) p.textContent = selProgress;
   }).catch(() => []);
   selEnCours = false; selEchec = !items.length;
@@ -3288,7 +3333,7 @@ function rechSousChips() {
 function rechChips() {
   const n = Recherche.norm(rech.texte), l = Recherche.THEMES_RECHERCHE;
   const vis = n && !rech.cat ? l.filter(c => Recherche.norm(c.nom + ' ' + c.mots.join(' ')).includes(n)) : l;
-  return vis.map(c => `<button type="button" data-v="${c.id}" aria-pressed="${rech.cat === c.id}" class="chipb ${rech.cat === c.id ? 'on' : ''}">${c.e} ${esc(c.nom)}</button>`).join('')
+  return vis.map(c => `<button type="button" data-v="${c.id}" aria-pressed="${rech.cat === c.id}" class="chipb ${rech.cat === c.id ? 'on' : ''}">${emo(c.e)}${esc(c.nom)}</button>`).join('')
     || '<span class="a moyen">Pas de thème de la liste à ce nom : je chercherai ce sujet dans le catalogue de la BnF.</span>';
 }
 function rechClassementsPerso() {
@@ -3325,7 +3370,7 @@ function explorateurClassementHtml() {
 }
 function rechPanel() {
   const filtres = rech.cat || rech.sous || rech.texte || rech.max || rech.classif.length, m = RECH_PAR[rech.par] || RECH_PAR.theme, classes = rech.par === 'theme' ? rechClassementsPerso() : [];
-  return `<div class="panel" id="rechPanel"><h3>🔎 Chercher des livres</h3>
+  return `<div class="panel" id="rechPanel"><h3>${ico('chercher', '🔎')} Chercher des livres</h3>
     <div class="lbl mb-1">Chercher par</div>
     <div class="seg" id="rq_par">${Object.entries(RECH_PAR).map(([k, v]) => `<button type="button" data-v="${k}" class="${rech.par === k ? 'on' : ''}">${v.nom}</button>`).join('')}</div>
     <div class="a sous-titre">${m.aide}</div>
@@ -3372,7 +3417,7 @@ function rechResultats() {
   if (rech.note === 'bnf' && rech.etat !== 'busy') h += '<div class="hint">⏸️ La BnF ne répond pas pour l’instant : voici les livres trouvés sur Apple Books (sans nombre de pages). Réessaie plus tard pour avoir aussi ceux de la BnF.</div>';
   h += rech.res.map((x, i) => rechCard(x, 'rech', i)).join('');
   if (rech.etat === 'busy') {
-    h += squelettes(2) + `<div class="nxspin" id="rq_prog">🔎 Je cherche${vus ? ` (${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''})` : ''}…</div>
+    h += squelettes(2) + `<div class="nxspin" id="rq_prog">Je cherche${vus ? ` (${plural(vus, 'livre')} regardé${vus > 1 ? 's' : ''})` : ''}…</div>
       <div class="acts"><button class="btn small" id="rq_stop" type="button">Arrêter</button></div>`;
   } else if (rech.erreur) {
     const hors = rech.erreur === 'hors', pause = rech.erreur === 'pause', requete = rech.erreur === 'requete';
@@ -3390,7 +3435,7 @@ function rechResultats() {
     h += `<div class="a petit my-2">${plural(rech.res.length, 'livre')}${lim}${rech.trop ? ` · ${plural(rech.trop, 'livre')} plus long${rech.trop > 1 ? 's' : ''} écarté${rech.trop > 1 ? 's' : ''}` : ''} · les doublons entre éditions sont regroupés.</div>
       ${!rech.fin ? '<div class="acts"><button class="btn" type="button" id="rq_more">Plus de résultats</button></div>' : ''}`;
   }
-  if (rech.inconnus.length) h += `<details class="inconnus"><summary>❔ ${plural(rech.inconnus.length, 'livre')} dont le nombre de pages n'est pas connu (ou seulement approximatif)</summary>
+  if (rech.inconnus.length) h += `<details class="inconnus"><summary>${ico('question', '❔')} ${plural(rech.inconnus.length, 'livre')} dont le nombre de pages n'est pas connu (ou seulement approximatif)</summary>
     <div class="a petit my-2">Le catalogue n'indique pas leur nombre de pages, ou seulement « environ » : ils ne sont pas comptés dans la limite.</div>
     ${rech.inconnus.map((x, i) => rechCard(x, 'rechx', i)).join('')}</details>`;
   return h;
@@ -3445,7 +3490,7 @@ async function lancerRech(suite) {
   const r = await Recherche.parTheme({...crit, max: rech.lastMax, stop: () => rech.stop || tok !== rech.tok}, rech.cur, o => {
     if (tok !== rech.tok) return;
     if (absorbe(o)) paintRech();
-    else { const p = $('#rq_prog'); if (p) p.textContent = `🔎 Je cherche (${plural(rech.examines + o.examines, 'livre')} regardé${rech.examines + o.examines > 1 ? 's' : ''})…`; }
+    else { const p = $('#rq_prog'); if (p) p.textContent = `Je cherche (${plural(rech.examines + o.examines, 'livre')} regardé${rech.examines + o.examines > 1 ? 's' : ''})…`; }
   });
   if (tok !== rech.tok) return;
   absorbe(r);
@@ -3633,7 +3678,7 @@ function seriesPanel() {
   books.filter(b => b.serie).forEach(b => { const k = Recherche.norm(b.serie); (m[k] = m[k] || {nom: b.serie, l: []}).l.push(b); });
   const list = Object.values(m).filter(x => x.l.length >= 1).sort((a, b) => b.l.length - a.l.length);
   if (!list.length) return '';
-  return `<div class="panel"><h3>📚 Mes séries</h3><div class="lines">${list.slice(0, 15).map(x => {
+  return `<div class="panel"><h3>${ico('livres', '📚')} Mes séries</h3><div class="lines">${list.slice(0, 15).map(x => {
     const tomes = x.l.map(b => +b.tome).filter(Boolean).sort((a, b) => a - b);
     const lus = x.l.filter(b => b.statut === 'lu').length;
     const maxT = tomes.length ? tomes[tomes.length - 1] : 0;
@@ -3663,7 +3708,7 @@ function bilan(y, ly) {
   const aband = books.filter(b => b.statut === 'abandon' && (b.dateFin || '').startsWith(String(y))).length;
   const fact = (k, v) => v ? `<div class="fact"><span class="k">${k}</span><span>${v}</span></div>` : '';
   const bk = r => `<b>${esc(r.b.titre)}</b>`;
-  return `<div class="panel"><h3 class="rangee">🎉 Mon bilan ${y}<span class="etire"></span><button class="btn pri small" data-share="${y}"><span class="ico i-partager" aria-hidden="true">📤</span> Partager</button></h3>
+  return `<div class="panel"><h3 class="rangee">${ico('fete', '🎉')} Mon bilan ${y}<span class="etire"></span><button class="btn pri small" data-share="${y}"><span class="ico i-partager" aria-hidden="true">📤</span> Partager</button></h3>
     <div class="lbl mb-2">Mon top ${top.length}</div>
     <div class="top5">${top.map((r, i) => `<div><span class="rk">${i + 1}</span>${coverHtml(r.b, 'mini')}<span>${bk(r)}${r.note ? ` <span class="stars">${stars(r.note)}</span>` : ''}</span></div>`).join('')}</div>
     <div class="facts">
@@ -4740,9 +4785,9 @@ $('#timerPill').onclick = openTimer;
 
 /* ---------- Réglages ---------- */
 function openSettings() {
-  $('#modal').innerHTML = `<h2>⚙️ Réglages</h2>
+  $('#modal').innerHTML = `<h2>${ico('reglages', '⚙️')} Réglages</h2>
     <div class="f"><label>Style</label><div class="seg styles" id="st_style">${Object.entries(STYLES).map(([k, v]) =>
-      `<button type="button" data-st="${k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${v}</button>`).join('')}</div></div>
+      `<button type="button" data-st="${k}" aria-pressed="${document.documentElement.dataset.style === k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${v}</button>`).join('')}</div></div>
     <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', ico('soleil', '☀️') + ' Clair'], ['dark', ico('lune', '🌙') + ' Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
     <div class="f"><label>Densité</label><div class="seg" id="st_density">${Object.entries(DENSITES).map(([k, v]) => `<button data-density="${k}" class="${prefs.density === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="a petit">Confortable laisse respirer la bibliothèque. Compact montre plus de livres. Concentration simplifie le cadre pendant la consultation d’un livre, sans retirer ses actions.</p></div>
@@ -4752,7 +4797,7 @@ function openSettings() {
       <p class="a petit">La fiche de lecture est recommandée : elle aide à reprendre où tu en es. Le carnet feuilletable reste accessible à tout moment depuis « Feuilleter comme un livre ».</p></div>
     <div class="f"><label>Apparence des pages · mode « Feuilleter »</label><div class="page-styles" id="st_pages" role="group" aria-label="Apparence des pages du livre">${Object.entries(PAGE_STYLES).map(([k, v]) => `<button type="button" class="page-style-choice ${stylePageLivre() === k ? 'on' : ''}" data-page-style="${k}" aria-pressed="${stylePageLivre() === k}"><span class="page-style-preview ${k}" aria-hidden="true"><i></i><b></b></span><strong>${v}</strong></button>`).join('')}</div>
       <p class="a petit">Classique suit le thème clair ou sombre de l’appli ; Ivoire garde un papier crème aux détails bordeaux ; Nuit propose un papier anthracite et une encre claire. La couverture reste celle du livre. « Vue continue » garde le thème de l’application.</p></div>
-    <div class="panel encadre"><h3>🔎 Recherche de livres</h3>
+    <div class="panel encadre"><h3>${ico('chercher', '🔎')} Recherche de livres</h3>
       <div class="a moyen">L'appli fouille en même temps la <b>BnF</b>, le <b>Sudoc</b> (bibliothèques universitaires), <b>Open Library</b>, <b>Apple Books</b> et <b>Google Books</b>.
       Google Books est souvent saturé quand on l'utilise sans clé. Avec ta propre clé (gratuite), il répond toujours et ajoute encore plus de livres.</div>
       <div class="f mt-3"><label for="st_key">Clé Google Books (facultatif)</label><input id="st_key" value="${esc(prefs.googleKey)}" placeholder="AIza…" autocomplete="off"></div>
@@ -4763,11 +4808,11 @@ function openSettings() {
         <li>Menu ☰ → <b>API et services → Identifiants → Créer des identifiants → Clé API</b>.</li>
         <li>Copie la clé (elle commence par AIza) et colle-la ici. C'est gratuit (1 000 recherches par jour).</li></ol></details>
       <div class="acts"><button class="btn" id="st_test">Tester la recherche</button></div><div class="srcs" id="st_res"></div></div>
-    <div class="panel encadre"><h3>✨ Compléter mes livres</h3>
+    <div class="panel encadre"><h3>${ico('etincelle', '✨')} Compléter mes livres</h3>
       <div class="a moyen">Retrouve automatiquement ce qui manque à tes livres déjà enregistrés : couverture, nombre de pages, série et tome, ISBN, éditeur.
       Seules les cases vides sont remplies, et seulement si le titre et l'auteur correspondent bien.</div>
       <div class="acts"><button class="btn pri" id="st_fill"><span class="ico i-etincelle" aria-hidden="true">✨</span> Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a moyen mt-2" id="st_fillres"></div></div>
-    <div class="panel encadre"><h3>💾 Sauvegarde</h3><div class="a moyen mb-2">${backupInfo()}</div>
+    <div class="panel encadre"><h3>${ico('sauver', '💾')} Sauvegarde</h3><div class="a moyen mb-2">${backupInfo()}</div>
       <div class="acts"><button class="btn pri" data-export="backup"><span class="ico i-sauver" aria-hidden="true">💾</span> Sauvegarder</button><button class="btn" data-export="restore"><span class="ico i-restaurer" aria-hidden="true">📂</span> Restaurer</button></div></div>
     <div class="a petit">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn pri" id="st_ok">Fermer</button></div>`;
@@ -4781,7 +4826,7 @@ function openSettings() {
   $('#st_style').onclick = e => {
     const b = e.target.closest('[data-st]'); if (!b) return;
     prefs.style = b.dataset.st; savePrefs(); applyTheme();
-    document.querySelectorAll('#st_style button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('#st_style button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
   };
   $('#st_density').onclick = e => {
     const b = e.target.closest('[data-density]'); if (!b) return;

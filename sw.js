@@ -1,6 +1,6 @@
 // Permet à l'appli de s'ouvrir même sans internet, et garde les couvertures en mémoire.
 // Change ce numéro à chaque mise à jour de l'appli pour forcer le rafraîchissement.
-const CACHE = 'mes-lectures-v45';   // appli 2026.10.31-1
+const CACHE = 'mes-lectures-v46';   // appli 2026.10.31-2
 // Couvertures : deux réserves. Chrome compte une image « opaque » (site qui n'autorise pas la lecture) pour
 // 10 à 14 Mo de place (mesuré), contre sa vraie taille (20 à 60 Ko) quand le site l'autorise (« CORS »).
 // (l'ancienne réserve « mes-lectures-couvertures », pleine d'images opaques, est supprimée à l'activation)

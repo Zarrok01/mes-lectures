@@ -1083,6 +1083,57 @@
       r.push(($('#st_consult').parentElement.textContent || '').includes('« Feuilleter comme un livre »') ? 'réglage expliqué' : '?'); closeM(); await pause(250); return r.join('|');
     } finally { prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
   });
+  // (lot 1 de la refonte, 31/10/2026 : design system — icônes sans couleur d'émoji, couvertures générées lisibles en petit, Noto Serif, ＋)
+  const enStyle = async (style, fn) => { const s0 = prefs.style; prefs.style = style; applyTheme(); try { return await fn(); } finally { prefs.style = s0; applyTheme(); } };
+  await test('Lot 1 : icônes de la barre du bas sans couleur d’émoji, espace actif en rose (Éditorial) ; émojis gardés en Carnet', '0px|rose|neutre|émoji en Carnet', async () => {
+    ui.tab = 'en_cours'; render();
+    const r = await enStyle('editorial', () => {
+      const a = $('#tabs .tab.on .ico'), b = $('#tabs .tab:not(.on) .ico'), rose = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      const enRgb = c => { const x = document.createElement('i'); x.style.color = c; document.body.appendChild(x); const v = getComputedStyle(x).color; x.remove(); return v; };
+      return [getComputedStyle(b).fontSize, getComputedStyle(a).backgroundColor === enRgb(rose) ? 'rose' : 'actif ' + getComputedStyle(a).backgroundColor, getComputedStyle(b).backgroundColor !== enRgb(rose) ? 'neutre' : 'rose aussi'];
+    });
+    r.push(await enStyle('carnet', () => parseFloat(getComputedStyle($('#tabs .tab .ico')).fontSize) > 0 ? 'émoji en Carnet' : 'émoji perdu en Carnet'));
+    return r.join('|');
+  });
+  await test('Lot 1 : en-tête sans émoji coloré (icône dessinée, émoji gardé en Carnet)', 'icône dessinée|émoji en Carnet', async () => {
+    const r = [await enStyle('editorial', () => { const i = $('header h1 .ico'); return i && getComputedStyle(i).fontSize === '0px' && !$('header h1').firstChild.nodeValue ? 'icône dessinée' : 'émoji : « ' + $('header h1').textContent.trim() + ' »'; })];
+    r.push(await enStyle('carnet', () => { const i = $('header h1 .ico'); return i && parseFloat(getComputedStyle(i).fontSize) > 0 ? 'émoji en Carnet' : '?'; }));
+    return r.join('|');
+  });
+  await test('Lot 1 : couverture générée en petit, aucun décor plein ne recouvre les initiales ; décor gardé en grand', 'aucun recouvrement|décor gardé en grand', () => {
+    const boite = document.createElement('div'); boite.style.cssText = 'position:fixed;left:0;top:0;display:flex;gap:4px;align-items:flex-start;z-index:99'; document.body.appendChild(boite);
+    try {
+      const vus = {}, gros = [], recouvre = [];
+      for (let k = 0; k < 400 && Object.keys(vus).length < 2; k++) {
+        const b = {titre: 'Essai ' + k, auteur: 'Auteur ' + k}, g = couvGeneree(b);
+        if (!['geometrique', 'illustree'].includes(g.famille) || vus[g.famille]) continue; vus[g.famille] = 1;
+        for (const [l, liste] of [[62, recouvre], [110, gros]]) {
+          const d = document.createElement('div'); d.innerHTML = coverHtml(b); const c = d.firstElementChild; c.style.width = l + 'px'; c.style.height = Math.round(l * 1.5) + 'px'; boite.appendChild(c);
+          const ini = c.querySelector('.cg-ini').getBoundingClientRect(), decor = [...c.querySelectorAll('.cg-disque, .cg-bande, .cg-motif')].filter(x => getComputedStyle(x).display !== 'none' && x.getBoundingClientRect().width > 0);
+          if (l === 62) decor.forEach(x => { const r = x.getBoundingClientRect(); if (ini.width && r.left < ini.right && r.right > ini.left && r.top < ini.bottom && r.bottom > ini.top) liste.push(g.famille + ' ' + x.getAttribute('class')); });
+          else if (decor.length) liste.push(g.famille);
+        }
+      }
+      return [recouvre.length ? 'recouvre : ' + recouvre.join(', ') : 'aucun recouvrement', gros.length === 2 ? 'décor gardé en grand' : 'décor en grand : ' + gros.join(',')].join('|');
+    } finally { boite.remove(); }
+  });
+  await test('Lot 1 : police des titres — Noto Serif en premier (celle d’Android, pour un rendu fidèle partout)', 'Noto Serif', () => {
+    const p = getComputedStyle(document.documentElement).getPropertyValue('--police-titres').trim();
+    return /^"?Noto Serif"?\s*,/.test(p) ? 'Noto Serif' : p;
+  });
+  await test('Lot 1 : le ＋ ne cache jamais la fin de la liste (liste et grille)', 'liste visible|grille visible', async () => {
+    const v0 = prefs.view, r = [];
+    try {
+      books = Array.from({length: 12}, (_, k) => fiche('Pile ' + k, {statut: 'a_lire', pagesTotal: 200}));
+      for (const vue of ['liste', 'grille']) {
+        ui.tab = 'a_lire'; prefs.view = vue; render(); scrollTo(0, document.documentElement.scrollHeight); await pause(60);
+        const l = [...document.querySelectorAll('#list .card, #list .gcard')].pop(), f = $('.fab');
+        const bas = Math.max(...[l, ...l.querySelectorAll('*')].map(x => x.getBoundingClientRect().bottom)), haut = f.getBoundingClientRect().top;
+        r.push(bas <= haut + 1 ? vue + ' visible' : vue + ' cachée (bas ' + Math.round(bas) + ', ＋ ' + Math.round(haut) + ')');
+      }
+      return r.join('|');
+    } finally { prefs.view = v0; scrollTo(0, 0); }
+  });
   await test('M6 : aucun effet de survol hors des appareils à souris (pas de contour collant au toucher)', [], () => {
     const feuille = [...document.styleSheets].find(s => s.ownerNode === document.head.querySelector('style')), fautes = [];
     const parcourir = (regles, dansSurvol) => [...regles].forEach(r => {

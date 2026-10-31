@@ -27,7 +27,7 @@
    ===================================================================== */
 :root{--t-xs:.8125rem;--t-s:.875rem;--t-m:1rem;--t-l:1.125rem;--t-xl:1.375rem;--t-xxl:1.75rem;
   --e-1:4px;--e-2:8px;--e-3:12px;--e-4:16px;--e-5:24px;--e-6:32px;--toucher:48px;--toucher-puce:40px;
-  --police-texte:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--police-titres:"Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
+  --police-texte:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--police-titres:"Noto Serif","Iowan Old Style","Palatino Linotype",Georgia,"Times New Roman",serif;
   --n1:#c0392b;--n2:#b4530b;--n3:#8a6100;--n4:#2e7d32;--n5:#0b7f45;--sur-note:#ffffff;--voile:rgba(12,12,12,.55);--trait-champ:var(--trait)}
 /* Formes de chaque style */
 :root,[data-style=editorial]{--r-s:6px;--r-m:12px;--r-l:20px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 8px 24px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:30%;--couv-l:34%}
@@ -87,6 +87,8 @@
 .cg-geometrique .cg-bande{left:8%;right:0;top:36%;height:22%;background:var(--cg-encre);opacity:.16}
 .cg-geometrique .cg-texte,.cg-illustree .cg-texte{justify-content:flex-end}
 .cg-geometrique .cg-auteur,.cg-illustree .cg-auteur{margin-top:2cqw}
+/* (lot 1 de la refonte : en petit, seules les initiales restent — le disque, la bande ou le motif les recouvraient) */
+@container (max-width: 89.98px){.cg-geometrique :is(.cg-disque,.cg-bande),.cg-illustree .cg-motif{display:none}}
 .cg-illustree .cg-motif{left:0;top:0;width:100%;height:auto;fill:var(--cg-or);opacity:.8}
 .cg-classique .cg-cadre{inset:6% 6% 6% 14%;border:1px solid var(--cg-or);outline:1px solid var(--cg-or);outline-offset:-4px;opacity:.7}
 .cg-classique .cg-texte{align-items:center;justify-content:center;text-align:center;color:var(--cg-or);gap:5cqw}
@@ -132,7 +134,10 @@ h1{font-size:var(--t-xl);font-weight:800;margin:0;flex:1;letter-spacing:-.01em}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-around;background:var(--barre);border-top:1px solid var(--trait);
   padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 .tab{position:relative;flex:1 1 auto;min-width:0;min-height:var(--barre-bas);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-top:3px solid transparent;background:none;padding:var(--e-1) var(--e-1);font:inherit;font-size:var(--t-xs);font-weight:600;color:var(--texte-barre-doux);white-space:nowrap;cursor:pointer}
-.tab .ico{font-size:var(--t-xl)}
+/* (lot 1 de la refonte, 31/10/2026) l'émoji caché sous l'icône ne doit pas réapparaître (il la colorait) : grand émoji en Carnet
+   seulement ; en Éditorial, l'icône de l'espace actif est rose */
+[data-style=carnet] .tab .ico{font-size:var(--t-xl)}
+[data-style=editorial] .tab.on .ico{color:var(--accent)}
 .tab.on{color:var(--texte-barre);border-top-color:var(--accent)}
 /* (nouvelle sélection du mois dans Découvrir : une pastille, et le nombre dit aux lecteurs d'écran) */
 .tab .n.neuf{position:absolute;top:6px;left:calc(50% + 8px);min-width:10px;height:10px;padding:0;border-radius:50%;background:var(--accent);font-size:0;overflow:hidden}
@@ -729,7 +734,7 @@ button{-webkit-touch-callout:none}
 <div id="notice" class="notice" hidden></div>
 <header><div class="wrap">
   <div class="top">
-    <h1>📚 Mes lectures</h1>
+    <h1><span class="ico i-livre" aria-hidden="true">📚</span> Mes lectures</h1>
     <span class="flame" id="flame" hidden title="Jours de lecture d'affilée"></span>
     <button class="icon" id="settingsBtn" title="Réglages" aria-label="Réglages"><span class="ico i-reglages" aria-hidden="true">⚙️</span></button>
   </div>
@@ -788,7 +793,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-1';
+const VERSION = '2026.10.31-2';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};

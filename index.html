@@ -185,6 +185,9 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .row{display:flex;gap:var(--e-3)}.row>.f{flex:1}.row>.f.small{flex:0 0 96px}
 .search{display:flex;gap:var(--e-2);align-items:center}.search input{flex:1}
 .check{display:flex;gap:var(--e-2);align-items:center;font-size:var(--t-s);min-height:var(--toucher);cursor:pointer}
+.lr-livre{display:flex;gap:var(--e-3);align-items:flex-start;padding:var(--e-2) 0;border-top:1px solid var(--trait);cursor:pointer}.lr-livre input{flex:none;margin-top:2px}
+.lr-livre.deja{cursor:default}.lr-livre.deja b{color:var(--texte-doux)}
+.lr-txt{display:flex;flex-direction:column;gap:2px;min-width:0;overflow-wrap:anywhere}.lr-note{color:var(--accent)}
 #f_catadd{width:auto;max-width:100%}
 /* ---------- Boutons ---------- */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--e-2);min-height:var(--toucher);padding:0 var(--e-4);border-radius:var(--r-pilule);border:1px solid var(--trait);background:var(--surface);color:var(--texte);font:inherit;font-size:var(--t-s);font-weight:600;text-decoration:none;cursor:pointer}
@@ -853,6 +856,7 @@ button{-webkit-touch-callout:none}
 <!-- (aucun filtre de type : sur certains téléphones, une sauvegarde reçue par WhatsApp ou Drive apparaissait grisée ;
      l'appli vérifie elle-même que le fichier choisi est bien une sauvegarde) -->
 <input type="file" id="pick_backup" hidden>
+<input type="file" id="pick_liste" accept=".json,application/json" hidden>
 <div id="print"></div>
 
 <script src="recherche.js"></script>
@@ -862,7 +866,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-8';
+const VERSION = '2026.10.31-9';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -2722,9 +2726,9 @@ function renderStatsTout() {
     ${bilan(y, ly)}
     <div class="panel"><h3>Exporter ma liste</h3><div class="a mb-3">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
       <div class="acts"><button class="btn pri" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn pri" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
-    <div class="panel"><h3>${ico('sauver', '💾')} Sauvegarde</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
+    <div class="panel"><h3>${ico('sauver', '💾')} Sauvegarde et partage</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
       (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
-      <div class="acts"><button class="btn pri" data-export="backup"><span class="ico i-sauver" aria-hidden="true">💾</span> Sauvegarder</button><button class="btn" data-export="restore"><span class="ico i-restaurer" aria-hidden="true">📂</span> Restaurer</button></div></div>`;
+      ${sauvegardeEtPartage()}</div>`;
   // Calendrier : on fait défiler jusqu'à aujourd'hui
   const cal = $('#cal'), now = $('#cal .now');
   if (cal && now) cal.scrollLeft = now.offsetLeft - cal.clientWidth + 60;
@@ -3845,8 +3849,7 @@ function doExport(kind) {
       (quotes.length ? `<h2>Citations (${quotes.length})</h2>${quotes.map(x => `<blockquote>« ${esc(x.q.texte)} » — ${esc(x.b.titre)}${x.q.page ? ', p. ' + esc(x.q.page) : ''}</blockquote>`).join('')}` : '');
     window.print();
   } else if (kind === 'backup') {
-    const data = {app: 'mes-lectures', version: 3, schema: SCHEMA, date: new Date().toISOString(), goal, resume: resumeDe(books), books};
-    const texte = JSON.stringify(data);
+    const texte = texteSauvegarde();
     download(`mes-lectures-sauvegarde-${today()}.json`, texte, 'application/json');
     prefs.lastBackup = new Date().toISOString(); savePrefs(); paintNotice();
     if (ui.tab === 'stats') renderStats();
@@ -3854,7 +3857,9 @@ function doExport(kind) {
     toast(verifierSauvegarde(texte) ? 'Sauvegarde téléchargée 💾' : '⚠️ La sauvegarde semble incomplète : réessaie, et garde aussi l\'ancienne.');
   } else if (kind === 'restore') {
     $('#pick_backup').value = ''; $('#pick_backup').click();
-  }
+  } else if (kind === 'envoyer') return envoyerSauvegarde();
+  else if (kind === 'liste') fenetreListe();
+  else if (kind === 'recevoir') { $('#pick_liste').value = ''; $('#pick_liste').click(); }
 }
 $('#pick_backup').onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
@@ -3896,6 +3901,138 @@ $('#pick_backup').onchange = async e => {
     toast(ok ? 'Livres restaurés ✓' : '⚠️ Restauration peut-être incomplète : vérifie tes livres', prefs.avantRestauration ? {label: 'Annuler', fn: annulerRestauration} : null);
   };
 };
+/* ---------- Partager : envoyer ma sauvegarde, partager une liste à un ami, ajouter une liste reçue ----------
+   Rien ne part ailleurs que vers l'application choisie dans le menu de partage du téléphone ; une liste ne contient
+   jamais les notes, citations, dates, prêts ni étiquettes. Une liste reçue ne fait qu'ajouter des livres à « À lire ». */
+const texteSauvegarde = () => JSON.stringify({app: 'mes-lectures', version: 3, schema: SCHEMA, date: new Date().toISOString(), goal, resume: resumeDe(books), books});
+const sauvegardeEtPartage = () => `<div class="acts"><button class="btn pri" data-export="backup">${ico('sauver', '💾')} Sauvegarder</button><button class="btn" data-export="envoyer">${ico('partager', '📤')} Envoyer ma sauvegarde</button><button class="btn" data-export="restore">${ico('restaurer', '📂')} Restaurer</button></div>
+      <div class="lbl mt-3">Avec un ami</div><div class="a moyen">Partage une liste de livres (sans tes notes, citations ni dates), ou ajoute à « À lire » celle qu'un ami t'a envoyée.</div>
+      <div class="acts"><button class="btn" data-export="liste">${ico('livres', '📚')} Partager une liste</button><button class="btn" data-export="recevoir">${ico('courrier', '📬')} Ajouter une liste reçue</button></div>`;
+// Passe un fichier au menu de partage du téléphone ; sans menu de partage, il est téléchargé.
+// Renvoie « partage », « annule » (menu fermé sans choisir) ou « telecharge »
+async function partagerFichier(nom, texte, type, titre, message) {
+  const fichier = new File([texte], nom, {type});
+  if (navigator.canShare && navigator.share && navigator.canShare({files: [fichier]})) {
+    try { await navigator.share({files: [fichier], title: titre, text: message}); return 'partage'; }
+    catch (e) { if (e.name === 'AbortError') return 'annule'; }
+  }
+  download(nom, texte, type); return 'telecharge';
+}
+// (Android ne dit pas si l'envoi est allé au bout : on dit seulement vers où il est parti)
+async function envoyerSauvegarde() {
+  const texte = texteSauvegarde();
+  const r = await partagerFichier(`mes-lectures-sauvegarde-${today()}.json`, texte, 'application/json', 'Sauvegarde de Mes lectures', 'Sauvegarde de Mes lectures du ' + fdate(today()));
+  if (r === 'annule') return toast('Envoi annulé');
+  prefs.lastBackup = new Date().toISOString(); savePrefs(); paintNotice();
+  if (ui.tab === 'stats') renderStats();
+  toast(!verifierSauvegarde(texte) ? '⚠️ La sauvegarde semble incomplète : réessaie, et garde aussi l\'ancienne.'
+    : r === 'partage' ? 'Sauvegarde envoyée vers l\'application choisie' : 'Partage impossible ici : sauvegarde téléchargée');
+}
+// Ce qu'une liste partagée garde de chaque livre (note et avis seulement si demandés)
+const CHAMPS_LISTE = ['titre', 'auteur', 'serie', 'tome', 'isbn', 'editeur', 'annee', 'pagesTotal', 'pagesSource', 'couverture', 'resume'];
+const MAX_LISTE = 2000;
+function listePartagee({statuts, aimes, note, avis, de}) {
+  const livres = sortedBooks().filter(b => !b.aCompleter && statuts.includes(b.statut) && (!aimes || b.note >= 4)).map(b => {
+    const l = {};
+    for (const k of CHAMPS_LISTE) if (b[k]) l[k] = b[k];
+    if (l.couverture && !/^https:\/\//i.test(l.couverture)) delete l.couverture;
+    if (note && b.note) l.note = b.note;
+    if (avis && b.avis) l.avis = b.avis;
+    return l;
+  });
+  return {app: 'mes-lectures', type: 'liste', version: 1, de: Array.from(txt(de).trim()).slice(0, 40).join(''), date: new Date().toISOString(), livres};
+}
+function fenetreListe() {
+  $('#modal').innerHTML = `<h2>${ico('livres', '📚')} Partager une liste</h2>
+    <div class="a moyen mb-3">Ton ami reçoit un fichier à ouvrir dans Mes lectures (« Ajouter une liste reçue »). Tes notes, citations, dates et prêts ne partent jamais.</div>
+    <div class="lbl mb-1">Quels livres ?</div>
+    <div class="chips" id="pl_statuts">${Object.keys(STATUTS).map(k => `<button type="button" class="chipb${k === 'lu' ? ' on' : ''}" data-v="${k}" aria-pressed="${k === 'lu'}">${STATUTS[k]}</button>`).join('')}</div>
+    <label class="check"><input type="checkbox" id="pl_aimes"> Seulement ceux que j'ai aimés (4 étoiles et plus)</label>
+    <label class="check"><input type="checkbox" id="pl_note" checked> Avec ma note</label>
+    <label class="check"><input type="checkbox" id="pl_avis" checked> Avec mon avis</label>
+    <div class="f mt-2"><label for="pl_de">Ton prénom (facultatif)</label><input id="pl_de" maxlength="40" autocomplete="given-name" value="${esc(prefs.prenomPartage || '')}"></div>
+    <p class="a moyen" id="pl_apercu" aria-live="polite"></p>
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="pl_go" type="button">${ico('partager', '📤')} Partager</button></div>`;
+  showM();
+  const choix = () => ({statuts: [...document.querySelectorAll('#pl_statuts [aria-pressed=true]')].map(b => b.dataset.v),
+    aimes: $('#pl_aimes').checked, note: $('#pl_note').checked, avis: $('#pl_avis').checked, de: $('#pl_de').value});
+  const apercu = () => {
+    const n = listePartagee(choix()).livres.length;
+    $('#pl_apercu').textContent = n ? `${plural(n, 'livre')} ${n > 1 ? 'seront partagés' : 'sera partagé'}.` : 'Aucun livre ne correspond.';
+    $('#pl_go').disabled = !n;
+  };
+  $('#pl_statuts').onclick = e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    const oui = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', oui); b.classList.toggle('on', oui); apercu();
+  };
+  $('#pl_aimes').onchange = $('#pl_note').onchange = $('#pl_avis').onchange = apercu;
+  apercu();
+  $('#pl_go').onclick = async () => {
+    const d = listePartagee(choix()), n = d.livres.length;
+    prefs.prenomPartage = d.de; savePrefs(); closeM();
+    const nom = Recherche.norm(d.de).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const r = await partagerFichier(`lectures${nom ? '-de-' + nom : ''}-${today()}.json`, JSON.stringify(d), 'application/json',
+      d.de ? 'Les lectures de ' + d.de : 'Mes lectures', `${plural(n, 'livre')} que je te conseille, à ouvrir avec Mes lectures`);
+    toast(r === 'annule' ? 'Partage annulé' : r === 'partage' ? 'Liste envoyée vers l\'application choisie' : 'Partage impossible ici : liste téléchargée');
+  };
+}
+// Relit une liste reçue (ou la sauvegarde complète d'un ami : seulement ses livres, sans sa note ni son avis).
+// Seuls les champs d'une liste sont gardés, en texte ; une couverture qui n'est pas en https est écartée.
+function lireListe(texte) {
+  let d; try { d = JSON.parse(texte); } catch (e) { return null; }
+  if (!d || typeof d !== 'object' || d.app !== 'mes-lectures') return null;
+  const liste = d.type === 'liste', brut = liste ? d.livres : d.books;
+  if (!Array.isArray(brut)) return null;
+  const livres = brut.filter(x => x && typeof x === 'object' && !Array.isArray(x) && txt(x.titre).trim()).slice(0, MAX_LISTE).map(x => {
+    const l = {};
+    for (const k of CHAMPS_LISTE) { const v = txt(x[k]).trim().slice(0, k === 'resume' ? 3000 : 300); if (v) l[k] = v; }
+    if (l.couverture && !/^https:\/\//i.test(l.couverture)) delete l.couverture;
+    if (liste) {
+      const n = Math.round(+x.note); if (n >= 1 && n <= 5) l.note = n;
+      const a = txt(x.avis).trim().slice(0, 3000); if (a) l.avis = a;
+    }
+    return l;
+  });
+  return {de: liste ? Array.from(txt(d.de).trim()).slice(0, 40).join('') : '', livres};
+}
+$('#pick_liste').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (f.size > 5e6) return toast('Fichier trop lourd : ce n\'est pas une liste de Mes lectures');
+  recevoirListe(await f.text());
+};
+// (pas de couverture dans cette fenêtre : ouvrir le fichier d'un ami ne contacte aucun site choisi par lui)
+async function recevoirListe(texte) {
+  const l = lireListe(texte);
+  if (!l) return toast('Ce fichier n\'est pas une liste de Mes lectures');
+  if (!l.livres.length) return toast('Cette liste ne contient aucun livre');
+  const deQui = l.de ? 'de ' + l.de : 'd\'un ami', etiquette = 'Conseillé par ' + (l.de || 'un ami');
+  const deja = l.livres.map(x => findOwned(x));
+  $('#modal').innerHTML = `<h2>${ico('courrier', '📬')} ${l.de ? 'Liste ' + esc(deQui) : 'Liste reçue'} · ${plural(l.livres.length, 'livre')}</h2>
+    <div class="a moyen mb-2">Les livres cochés iront dans « À lire », avec l'étiquette « ${esc(etiquette)} ». Rien de ce que tu as déjà ne change.</div>
+    <div class="lr-liste">${l.livres.map((x, i) => `<label class="lr-livre${deja[i] ? ' deja' : ''}"><input type="checkbox" data-i="${i}" ${deja[i] ? 'disabled' : 'checked'}>
+      <span class="lr-txt"><b>${esc(x.titre)}</b>${x.auteur ? `<span class="a">${esc(x.auteur)}</span>` : ''}${x.note ? `<span class="lr-note" aria-label="${x.note} sur 5">${'★'.repeat(x.note)}</span>` : ''}${x.avis ? `<span class="a moyen">« ${esc(x.avis)} »</span>` : ''}${deja[i] ? `<span class="a moyen">Déjà dans ta liste (${STATUT_UN[deja[i].statut]})</span>` : ''}</span></label>`).join('')}</div>
+    <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Annuler</button><button class="btn pri" id="lr_go" type="button"></button></div>`;
+  showM();
+  const coches = () => [...document.querySelectorAll('#modal input[data-i]:checked')];
+  const compte = () => { const n = coches().length; $('#lr_go').textContent = n ? `Ajouter ${plural(n, 'livre')} à « À lire »` : 'Aucun livre coché'; $('#lr_go').disabled = !n; };
+  $('#modal .lr-liste').onchange = compte; compte();
+  $('#lr_go').onclick = async () => {
+    if (Store.bloque) return toast('Ajout impossible pour l\'instant : la mémoire du téléphone ne répond pas. Ferme l\'appli, rouvre-la, puis réessaie.');
+    const ajoutes = coches().map(c => {
+      const {note, avis, ...champs} = l.livres[+c.dataset.i];
+      const etoiles = note ? ' ' + '★'.repeat(note) : '';
+      const mot = avis ? `Avis ${deQui}${etoiles} : ${avis}` : note ? `Note ${deQui} :${etoiles}` : '';
+      return norm({...blankBook('a_lire'), ...champs, id: newId(), ajoute: new Date().toISOString(), possession: 'non', etiquettes: [etiquette], notes: mot ? [{texte: mot, date: today()}] : []});
+    });
+    const ids = new Set(ajoutes.map(b => b.id)), n = ajoutes.length;
+    books = books.concat(ajoutes); closeM();
+    await Store.persist(); render();
+    toast(`${plural(n, 'livre')} ajouté${n > 1 ? 's' : ''} à « À lire »`, {label: 'Annuler', fn: async () => {
+      books = books.filter(b => !ids.has(b.id)); await Store.persist(); render(); toast('Ajout annulé');
+    }});
+  };
+}
 // Revenir à la bibliothèque d'avant la dernière restauration
 async function annulerRestauration() {
   let c = null;
@@ -4885,8 +5022,8 @@ function openSettings() {
       <div class="a moyen">Retrouve automatiquement ce qui manque à tes livres déjà enregistrés : couverture, nombre de pages, série et tome, ISBN, éditeur.
       Seules les cases vides sont remplies, et seulement si le titre et l'auteur correspondent bien.</div>
       <div class="acts"><button class="btn pri" id="st_fill"><span class="ico i-etincelle" aria-hidden="true">✨</span> Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a moyen mt-2" id="st_fillres"></div></div>
-    <div class="panel encadre"><h3>${ico('sauver', '💾')} Sauvegarde</h3><div class="a moyen mb-2">${backupInfo()}</div>
-      <div class="acts"><button class="btn pri" data-export="backup"><span class="ico i-sauver" aria-hidden="true">💾</span> Sauvegarder</button><button class="btn" data-export="restore"><span class="ico i-restaurer" aria-hidden="true">📂</span> Restaurer</button></div></div>
+    <div class="panel encadre"><h3>${ico('sauver', '💾')} Sauvegarde et partage</h3><div class="a moyen mb-2">${backupInfo()}</div>
+      ${sauvegardeEtPartage()}</div>
     <div class="a petit">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn pri" id="st_ok">Fermer</button></div>`;
   showM();

@@ -3190,6 +3190,99 @@
     r.push(!$('.discover-horsligne') && $('#selautre') && !$('#selautre').disabled && !$('[data-rayon]').disabled ? 'revenu' : 'encore grisé');
     return r.join('|');
   }));
+  // (Partager, 31/10/2026 : envoyer ma sauvegarde, partager une liste à un ami, ajouter une liste reçue)
+  const avecPartage = async (fn, partageOk = true) => {
+    const b0 = books, p0 = prefs.prenomPartage, l0 = prefs.lastBackup, d0 = window.download, envois = [], telecharges = [];
+    Object.defineProperty(navigator, 'canShare', {value: () => partageOk, configurable: true});
+    Object.defineProperty(navigator, 'share', {value: async d => { envois.push(d); }, configurable: true});
+    window.download = (nom, contenu, type) => telecharges.push({nom, contenu, type});
+    try { return await fn(envois, telecharges); }
+    finally {
+      delete navigator.canShare; delete navigator.share; window.download = d0;
+      books = b0; prefs.prenomPartage = p0; prefs.lastBackup = l0; savePrefs(); await Store.persist();
+      if ($('#ov').classList.contains('show')) { modalModifie = false; closeM(); await pause(250); }
+      render();
+    }
+  };
+  const livrePrive = () => fiche('Lu aimé', {statut: 'lu', note: 5, avis: 'Superbe', notes: [{texte: 'note privée'}], citations: [{texte: 'citation privée'}],
+    dateDebut: '2026-01-03', dateFin: '2026-02-04', pretNom: 'Paul', possession: 'prete', etiquettes: ['perso'], couverture: 'https://exemple.invalid/c.jpg'});
+  const PRIVE = /note privée|citation privée|Paul|2026-01-03|2026-02-04|perso|possession|pretNom|journal|classif/;
+  await test('Partage : « Envoyer ma sauvegarde » passe par le menu de partage, avec la sauvegarde complète et vérifiée ; la date est notée', 'partagée|mes-lectures-sauvegarde|vérifiée|date notée', () => avecPartage(async envois => {
+    books = [livrePrive()]; prefs.lastBackup = undefined;
+    await doExport('envoyer'); await pause(20);
+    const f = envois[0] && envois[0].files && envois[0].files[0]; if (!f) return 'rien partagé';
+    return ['partagée', f.name.startsWith('mes-lectures-sauvegarde') ? 'mes-lectures-sauvegarde' : f.name, verifierSauvegarde(await f.text()) ? 'vérifiée' : 'pas vérifiée', prefs.lastBackup ? 'date notée' : 'date pas notée'].join('|');
+  }));
+  await test('Partage : sans menu de partage, « Envoyer ma sauvegarde » la télécharge ; la date est notée', 'téléchargée|date notée', () => avecPartage(async (envois, telecharges) => {
+    books = [livrePrive()]; prefs.lastBackup = undefined;
+    await doExport('envoyer'); await pause(20);
+    return [telecharges.length === 1 && verifierSauvegarde(telecharges[0].contenu) && !envois.length ? 'téléchargée' : `${telecharges.length} téléchargé, ${envois.length} partagé`, prefs.lastBackup ? 'date notée' : 'date pas notée'].join('|');
+  }, false));
+  await test('Partage : une liste ne contient que les statuts choisis, jamais rien de privé ; note et avis par défaut', 'liste|Lu aimé,Lu bof|rien de privé|note et avis', () => avecPartage(async () => {
+    books = [livrePrive(), fiche('Lu bof', {statut: 'lu', note: 2}), fiche('À lire')];
+    const d = listePartagee({statuts: ['lu'], aimes: false, note: true, avis: true, de: 'Elias'}), t = JSON.stringify(d);
+    const x = d.livres.find(l => l.titre === 'Lu aimé') || {};
+    return [d.app === 'mes-lectures' && d.type === 'liste' && d.de === 'Elias' ? 'liste' : 'en-tête faux', d.livres.map(l => l.titre).join(','),
+      PRIVE.test(t) ? 'privé : ' + t.match(PRIVE)[0] : 'rien de privé', x.note === 5 && x.avis === 'Superbe' ? 'note et avis' : 'sans note ni avis'].join('|');
+  }));
+  await test('Partage : sans les cases, ni note ni avis ; « ceux que j’ai aimés » garde les 4 étoiles et plus', 'Lu aimé|sans note ni avis', () => avecPartage(async () => {
+    books = [livrePrive(), fiche('Lu bof', {statut: 'lu', note: 2}), fiche('À lire')];
+    const d = listePartagee({statuts: ['lu'], aimes: true, note: false, avis: false, de: ''});
+    return [d.livres.map(l => l.titre).join(','), d.livres.some(l => 'note' in l || 'avis' in l) ? 'note ou avis présents' : 'sans note ni avis'].join('|');
+  }));
+  await test('Partage : la fenêtre « Partager une liste » compte les livres et envoie le fichier ; le prénom est gardé', '2 livres|lectures-de-elias|N livres que je te conseille|prénom gardé', () => avecPartage(async envois => {
+    books = [livrePrive(), fiche('Lu bof', {statut: 'lu', note: 2}), fiche('À lire')]; prefs.prenomPartage = '';
+    await doExport('liste'); await pause(30);
+    const a = $('#pl_apercu'); if (!a) return 'pas de fenêtre';
+    const r = [/\b2 livres\b/.test(a.textContent) ? '2 livres' : a.textContent.trim()];
+    $('#pl_de').value = 'Élias'; $('#pl_de').dispatchEvent(new Event('input')); $('#pl_go').click(); await pause(60);
+    const e = envois[0] || {}, f = (e.files || [])[0];
+    r.push(f ? (f.name.startsWith('lectures-de-elias') ? 'lectures-de-elias' : f.name) : 'rien partagé', /^2 livres que je te conseille/.test(e.text || '') ? 'N livres que je te conseille' : e.text || 'pas de message', prefs.prenomPartage === 'Élias' ? 'prénom gardé' : 'prénom : ' + prefs.prenomPartage);
+    return r.join('|');
+  }));
+  const listeRecue = livres => JSON.stringify({app: 'mes-lectures', type: 'liste', version: 1, de: 'Marie', date: '2026-10-30T10:00:00.000Z', livres});
+  await test('Liste reçue : les livres cochés vont dans « À lire » avec l’étiquette et l’avis de l’ami en note ; ma note et mon avis restent vides ; rien d’existant ne change', 'déjà là : pas coché|À lire, pas à moi|Conseillé par Marie|Avis de Marie ★★★★ : Magnifique|ma note vide|déjà là intact|2 livres', () => avecPartage(async () => {
+    books = [fiche('Déjà là', {statut: 'lu', note: 3, avis: 'Mon avis'})]; const avant = JSON.stringify(books[0]);
+    await recevoirListe(listeRecue([{titre: 'Déjà là', auteur: 'Auteur Test'}, {titre: 'Nouveau', auteur: 'Ana', note: 4, avis: 'Magnifique', couverture: 'https://exemple.invalid/n.jpg', pagesTotal: 120}])); await pause(30);
+    const cases = [...document.querySelectorAll('#modal input[type=checkbox][data-i]')]; if (cases.length !== 2) return cases.length + ' cases';
+    const r = [!cases[0].checked && cases[0].disabled ? 'déjà là : pas coché' : 'déjà là : coché'];
+    $('#lr_go').click(); await pause(60);
+    const b = books.find(x => x.titre === 'Nouveau') || {};
+    r.push(b.statut === 'a_lire' && b.possession === 'non' ? 'À lire, pas à moi' : `${b.statut}, ${b.possession}`, (b.etiquettes || []).join(','), ((b.notes || [])[0] || {}).texte || 'pas de note',
+      !b.note && !b.avis ? 'ma note vide' : 'ma note remplie', JSON.stringify(books.find(x => x.titre === 'Déjà là')) === avant ? 'déjà là intact' : 'déjà là modifié', books.length + ' livres');
+    return r.join('|');
+  }));
+  await test('Liste reçue : « Annuler » retire les livres ajoutés', 'ajouté|retiré', () => avecPartage(async () => {
+    books = [fiche('Le mien')];
+    await recevoirListe(listeRecue([{titre: 'Conseil 1'}, {titre: 'Conseil 2'}])); await pause(30);
+    if (!$('#lr_go')) return 'pas de fenêtre'; $('#lr_go').click(); await pause(60);
+    const r = [books.length === 3 ? 'ajouté' : books.length + ' livres'];
+    const a = $('#toastBtn'); if (a) a.click(); await pause(30);
+    r.push(books.length === 1 && books[0].titre === 'Le mien' ? 'retiré' : books.map(x => x.titre).join(','));
+    return r.join('|');
+  }));
+  await test('Liste reçue : une sauvegarde complète d’un ami ne donne que les livres (sans ses notes, citations, prêts, dates, note ni avis)', 'Livre ami|rien de privé|Conseillé par un ami', () => avecPartage(async () => {
+    books = [];
+    await recevoirListe(JSON.stringify({app: 'mes-lectures', version: 3, books: [{titre: 'Livre ami', auteur: 'X', statut: 'lu', note: 5, avis: 'secret', notes: [{texte: 'note privée'}],
+      citations: [{texte: 'citation privée'}], pretNom: 'Paul', dateFin: '2026-02-04', etiquettes: ['perso']}]})); await pause(30);
+    if (!$('#lr_go')) return 'pas de fenêtre'; const vu = $('#modal').textContent; $('#lr_go').click(); await pause(60);
+    const b = books[0] || {};
+    return [b.titre, /secret|note privée|citation privée|Paul/.test(vu) || b.note || b.avis || (b.notes || []).length || (b.citations || []).length || b.pretNom || b.dateFin ? 'privé repris' : 'rien de privé', (b.etiquettes || []).join(',')].join('|');
+  }));
+  await test('Liste reçue : un fichier piégé n’exécute rien ; une couverture « javascript: » est écartée', 'pas exécuté|couverture écartée', () => avecPartage(async () => {
+    books = []; window.__piege = 0;
+    await recevoirListe(listeRecue([{titre: '<img src=x onerror="window.__piege=1">Piège', auteur: '<b>gras</b>', couverture: 'javascript:window.__piege=2'}])); await pause(80);
+    const m = $('#modal'), injecte = m.querySelector('img') || [...m.querySelectorAll('b')].some(x => x.textContent === 'gras');
+    const r = [window.__piege ? 'exécuté' : injecte ? 'balise injectée' : !m.textContent.includes('<b>gras</b>') ? 'texte absent' : 'pas exécuté'];
+    if ($('#lr_go')) { $('#lr_go').click(); await pause(60); }
+    r.push(books[0] && !books[0].couverture ? 'couverture écartée' : 'couverture : ' + (books[0] || {}).couverture);
+    delete window.__piege; return r.join('|');
+  }));
+  await test('Liste reçue : un fichier qui n’est pas une liste est refusé, avec un message', 'refusé|refusé|rien ajouté', () => avecPartage(async () => {
+    books = []; const r = [];
+    for (const texte of ['{"foo": 1}', 'pas du JSON']) { await recevoirListe(texte); await pause(20); r.push(/pas une liste/.test($('#toast').textContent) && !$('#ov').classList.contains('show') ? 'refusé' : 'accepté'); }
+    r.push(books.length ? 'ajouté' : 'rien ajouté'); return r.join('|');
+  }));
   /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
   await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {
     books = [enCours('Lecture')]; ui.tab = 'en_cours'; render();

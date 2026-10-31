@@ -12,6 +12,8 @@
   async function test(nom, attendu, fn) {
     if (filtreTest && !nom.includes(filtreTest)) return;
     let obtenu, ok; window.testEnCours = nom;
+    // (chaque test repart avec des catalogues disponibles ; les tests 🌐 gardent la pause, pour ménager la vraie BnF)
+    if (!nom.startsWith('🌐') && Recherche._reprendreCatalogues) Recherche._reprendreCatalogues();
     try { obtenu = await fn(); ok = egal(obtenu, attendu); }
     catch (e) { obtenu = 'ERREUR : ' + (e && e.message || e); ok = false; }
     resultats.push({nom, attendu, obtenu, ok});
@@ -725,6 +727,17 @@
     try { await fn(); } finally { window.fetch = vrai; Recherche._oublierBnf(); }
     return requetes;
   };
+  // (fiabilité du banc, 31/10/2026 : une panne simulée mettait la BnF en pause 5 minutes pour les tests suivants,
+  // qui échouaient par intermittence ; chaque test repart désormais avec des catalogues disponibles, sauf les tests 🌐)
+  await test('Banc de tests : une panne simulée de la BnF la met bien en pause…', 'en pause', async () => {
+    const vrai = window.fetch; window.fetch = url => String(url).includes('catalogue.bnf.fr') ? Promise.reject(new TypeError('panne simulée')) : vrai(url);
+    try { let e = ''; for (let k = 0; k < 3 && e !== 'pause'; k++) e = (await Recherche.parTheme({texte: 'panne ' + k + ' ' + Date.now(), max: 0}, {})).erreur; return e === 'pause' ? 'en pause' : 'pas de pause (' + e + ')'; }
+    finally { window.fetch = vrai; }
+  });
+  await test('Banc de tests : … mais le test suivant repart avec la BnF disponible', 'pas d’erreur|BnF interrogée', async () => {
+    const q = []; const e = await (async () => { let r; q.push(...await fauxBnf(async () => { r = await Recherche.parTheme({texte: 'reprise ' + Date.now(), max: 0}, {}); })); return r.erreur; })();
+    return (e || 'pas d’erreur') + '|' + (q.length ? 'BnF interrogée' : 'BnF pas interrogée');
+  });
   // (relecture du 23/10 : l'enchaînement exact « Policier Thriller Roman Deuil Sombre » ne correspond à presque aucune notice)
   await test('Recherche par critères (genre, thème…) : une condition par critère ; un rayon de fiction seul ne demande aucun sujet', 'par critère|rayon seul sans sujet', async () => {
     const q = await fauxBnf(() => Recherche.parTheme({cat: 'polar', criteres: ['Roman', 'Deuil'], max: 0}, {}));

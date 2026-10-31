@@ -1382,7 +1382,7 @@ const Recherche = (() => {
   }
 
   const api = {
-    VERSION: '2026.10.31-7',   // (le même numéro que dans index.html)
+    VERSION: '2026.10.31-8',   // (le même numéro que dans index.html)
     toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
     RAYONS, SOUS_RAYONS, classer, rayons, sousRayons, rayonPourTexte, convertirAncienId, deweyCibles,
     THEMES_RECHERCHE, requetesDuRayon, parTheme, classement, unirClassements,
@@ -1392,7 +1392,9 @@ const Recherche = (() => {
     dernierStatut: {},
     _rank: rank, _parseUnimarc: parseUnimarc, _candBnf: candBnf, _candPrix: candPrix,
     // (page de tests : oublier les réponses d'un faux catalogue, pour qu'elles ne servent jamais aux tests suivants)
-    _oublierBnf() { memoBnf.clear(); }
+    _oublierBnf() { memoBnf.clear(); },
+    // (page de tests : une panne simulée par un test ne met pas les catalogues en pause pour les tests suivants)
+    _reprendreCatalogues() { for (const h in pause) delete pause[h]; for (const h in echecs) delete echecs[h]; }
   };
   return api;
 })();

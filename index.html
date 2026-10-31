@@ -337,9 +337,22 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:var(--t-s);
 .discover-lead .sugres{border-left:2px solid var(--accent);padding-left:var(--e-3);margin:var(--e-3) 0}
 .discover-more{margin-top:var(--e-5)}.discover-more > p{margin:0 0 var(--e-2);font:500 var(--t-m)/1.2 var(--police-titres)}
 .discover-more .sugs .sug{background:var(--surface-2);border-color:transparent;box-shadow:none}.discover-more .sugs .cover{width:76px;flex-basis:76px}
-.discover-search{margin:var(--e-4) 0 var(--e-5);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)}
-.discover-search summary{display:flex;align-items:center;justify-content:space-between;padding:var(--e-3) 0;font:500 var(--t-m)/1.2 var(--police-titres);color:var(--texte);cursor:pointer}
-.discover-search summary::after{content:'Ouvrir';font:600 var(--t-xs)/1.4 var(--police-texte);color:var(--accent)}.discover-search[open] summary::after{content:'Réduire'}
+.discover-partiel{margin:var(--e-2) 0;padding:var(--e-2) var(--e-3);border-radius:var(--r-s);background:var(--surface-2);font-size:var(--t-s);color:var(--texte)}
+.discover-piste{margin-top:var(--e-2)}.discover-piste .sug{background:var(--surface-2);border-color:transparent;box-shadow:none}
+.mini[aria-expanded=true] .mini-couv{outline:2px solid var(--accent);outline-offset:2px}
+.discover-tuiles{margin:var(--e-5) 0 0}.discover-tuiles h3{margin:var(--e-4) 0 var(--e-2);font:500 var(--t-m)/1.2 var(--police-titres)}
+.tuiles{display:grid;gap:var(--e-2)}
+.tuiles-temps{grid-template-columns:repeat(3,1fr)}
+.tuiles-rayons{grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(140px,44%);overflow-x:auto;scrollbar-width:none;padding-bottom:var(--e-1)}
+.tuiles-rayons::-webkit-scrollbar{display:none}
+.tuile{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;height:auto;min-height:var(--toucher);padding:var(--e-2) var(--e-3);border:1px solid var(--trait);border-radius:var(--r-m);background:var(--surface);color:var(--texte);font:inherit;text-align:left;cursor:pointer}
+.tuile b{font-size:var(--t-s);font-weight:600;line-height:1.25}.tuile span{font-size:var(--t-xs);color:var(--texte-doux)}
+.tuile[aria-pressed=true]{border-color:var(--accent);background:var(--accent-doux);color:var(--sur-accent-doux)}.tuile[aria-pressed=true] span{color:inherit}
+details.comment{margin:var(--e-1) 0 var(--e-3);font-size:var(--t-s);color:var(--texte-doux)}details.comment summary{cursor:pointer;min-height:var(--toucher);display:flex;align-items:center;color:var(--texte);font-weight:600}
+details.comment p{margin:0 0 var(--e-2)}
+.discover-search{scroll-margin-top:72px;margin:var(--e-4) 0 var(--e-5);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)}
+.discover-search > summary{display:flex;align-items:center;justify-content:space-between;padding:var(--e-3) 0;font:500 var(--t-m)/1.2 var(--police-titres);color:var(--texte);cursor:pointer}
+.discover-search > summary::after{content:'Ouvrir';font:600 var(--t-xs)/1.4 var(--police-texte);color:var(--accent)}.discover-search[open] > summary::after{content:'Réduire'}
 .discover-search .panel{padding:0 0 var(--e-4);border:0;background:transparent;box-shadow:none}.discover-search .panel>h3{display:none}
 .discover-random{padding-top:var(--e-4);border-top:1px solid var(--trait)}.discover-random h3{font-family:var(--police-titres)}
 .onboarding{max-width:560px;margin:var(--e-5) auto var(--e-3);padding:var(--e-5) 0;text-align:left}.onboarding .eyebrow{margin:0 0 var(--e-2);font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
@@ -478,8 +491,9 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .epingles{grid-column:1/-1;margin:var(--e-4) 0 var(--e-2)}
 .epingles-tete{display:flex;align-items:center;justify-content:space-between;gap:var(--e-3);margin-bottom:var(--e-2)}
 .epingles h3{margin:0;font:600 var(--t-m)/1.2 var(--police-titres)}
-.rangee{display:flex;gap:var(--e-3);overflow-x:auto;scrollbar-width:none;padding:var(--e-1) 0 var(--e-2)}
-.rangee::-webkit-scrollbar{display:none}
+/* (rangée de livres qui défile ; « .rangee » est une autre mise en page, celle du titre « Mon bilan ») */
+.rangee-livres{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:var(--e-3);overflow-x:auto;scrollbar-width:none;padding:var(--e-1) 0 var(--e-2)}
+.rangee-livres::-webkit-scrollbar{display:none}
 .mini{flex:none;width:92px;height:auto;min-height:0;display:flex;flex-direction:column;gap:var(--e-1);padding:0;border:0;background:none;color:var(--texte);text-align:left;font:inherit;cursor:pointer}
 .mini .mini-couv{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);box-shadow:var(--ombre-1)}
 .mini-t{font-size:var(--t-xs);font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -728,6 +742,7 @@ button{-webkit-touch-callout:none}
 [data-style=editorial] .resume-lecture .meta{margin:calc(var(--e-1) / 2) 0}[data-style=editorial] .resume-lecture .reste{margin-top:calc(var(--e-1) / 2)}
 @media(max-width:359.98px){[data-style=editorial] .library-nav{padding-top:var(--e-1);padding-bottom:var(--e-1)}[data-style=editorial] .resume-lecture{gap:var(--e-2) var(--e-3)}[data-style=editorial] .filtres{margin-bottom:var(--e-1)}[data-style=editorial] .resume-lecture .resume-titre{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 [data-style=editorial] .resume-lecture .ph{box-shadow:none}
+[data-style=editorial] :is(.discover-random,.discover-search) .seg button.on{background:var(--accent-doux);color:var(--sur-accent-doux)}
 [data-style=editorial] .ruban{display:block;position:absolute;top:-3px;right:14%;width:14%;min-width:8px;height:26%;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
 [data-style=editorial] .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
 [data-style=editorial] .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
@@ -814,7 +829,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-3';
+const VERSION = '2026.10.31-4';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1604,7 +1619,7 @@ function renderCards() {
   const nALire = books.filter(b => b.statut === 'a_lire').length;
   const rangeeEpingles = epingles.length ? `<section class="epingles" aria-labelledby="epinglesTitre"><div class="epingles-tete"><h3 id="epinglesTitre">Épinglés pour la suite</h3>
       <button type="button" class="chipb" data-tab="a_lire" aria-label="Voir les ${plural(nALire, 'livre')} à lire">À lire · ${nALire}</button></div>
-      <div class="rangee">${epingles.map(b => `<button class="mini" type="button" data-open="${esc(b.id)}">${coverHtml(b, 'mini-couv')}<span class="mini-t">${esc(b.titre)}</span>${b.pagesTotal ? `<span class="mini-p">${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} p.</span>` : ''}</button>`).join('')}</div></section>` : '';
+      <div class="rangee-livres">${epingles.map(b => `<button class="mini" type="button" data-open="${esc(b.id)}">${coverHtml(b, 'mini-couv')}<span class="mini-t">${esc(b.titre)}</span>${b.pagesTotal ? `<span class="mini-p">${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} p.</span>` : ''}</button>`).join('')}</div></section>` : '';
   const resultatCount = l.length + (resumeVisible ? 1 : 0);
   $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs"><p class="ailleurs-titre">La recherche trouve aussi des livres dans ces statuts</p>${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
     `${filtresActifs ? `<p class="resultat-compte" role="status">Dans « ${STATUTS[ui.tab]} » : ${plural(resultatCount, 'livre')}${filtresActifs ? (resultatCount === 1 ? ' correspond' : ' correspondent') : ''}</p>` : ''}` +
@@ -2923,7 +2938,7 @@ async function drawNext() {
 }
 
 /* ---------- ✨ Découvrir : tirage en ligne et sélection du mois ---------- */
-let selEnCours = false, selProgress = '';
+let selEnCours = false, selProgress = '', selEchec = false;
 const moisCle = () => today().slice(0, 7);
 // « de mars », mais « d'octobre », « d'avril », « d'août »
 const moisNom = () => { const m = new Date().toLocaleDateString('fr-FR', {month: 'long'}); return (/^[aeiouéè]/i.test(m) ? 'd\'' : 'de ') + m; };
@@ -2934,7 +2949,7 @@ function dejaVu(x) {
 }
 function retenir(x) { prefs.proposes = [...(prefs.proposes || []), Recherche.norm(x.titre)].slice(-500); savePrefs(); }
 const libraireUrl = x => 'https://www.leslibraires.fr/recherche/?q=' + encodeURIComponent(x.isbn || (x.titre + ' ' + (x.auteur || '')));
-function sugCard(x, ctx, i) {
+function sugCard(x, ctx, i, rose) {
   const own = findOwned(x);
   const pagesApproximatives = !!(x.pagesEnviron || x.pagesSource === 'estimation');
   return `<article class="sug" data-ctx="${ctx}" data-i="${i}">
@@ -2943,7 +2958,7 @@ function sugCard(x, ctx, i) {
         <div class="meta mt-1"><span class="chip">Thème · ${x.themeE} ${esc(x.themeNom)}</span><span class="chip">Source · ${esc(x.sourceNom)}</span></div>
         <div class="a petit mt-1">${esc(x.raison || '')}${x.pagesTotal ? ` · ${pagesApproximatives ? '≈ ' : ''}${+x.pagesTotal || 0} p.` : ' · pagination non indiquée'}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
-    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>'}
+    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : `<button class="btn ${rose ? 'pri ' : ''}small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>`}
       <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener"><span class="ico i-panier" aria-hidden="true">🛒</span> En librairie</a>
       ${(ctx === 'sel' || ctx === 'tir') && !own ? '<button class="btn small" type="button" data-sug="non"><span class="ico i-fermer" aria-hidden="true">✕</span> Pas pour moi</button>' : ''}</div></article>`;
 }
@@ -3139,8 +3154,8 @@ function inspiHtml(id) {
     ${perso ? `<div class="a sous-titre">${noms.length || g.aimes.length
       || confirms.length || ambiances.length
       ? `Je m'inspire de tes livres${noms.length ? ' : tu lis surtout <b>' + noms.map(esc).join('</b>, <b>') + '</b>' : ''}${confirms.length ? (noms.length ? ' ; ' : ' : ') + 'tu as confirmé <b>' + confirms.map(esc).join('</b>, <b>') + '</b>' : ''}${ambiances.length ? (noms.length || confirms.length ? ' ; ' : ' : ') + 'tu préfères des ambiances <b>' + ambiances.map(esc).join('</b>, <b>') + '</b>' : ''}${g.aimes.length ? (noms.length || confirms.length || ambiances.length ? ' ; ' : ' : ') + 'tu as aimé ' + plural(new Set(g.aimes.map(b => b.auteur)).size, 'auteur') : ''}.`
-      : 'Ajoute et note quelques livres : je m\'inspirerai de tes lectures.'}
-      <span class="petit">(tes goûts restent sur ton téléphone ; seules des recherches liées à un auteur, un sujet, un classement confirmé ou une série partent vers les catalogues. Les ambiances servent de repère, pas de filtre bibliographique.)</span></div>` : ''}`;
+      : 'Ajoute et note quelques livres : je m\'inspirerai de tes lectures.'}</div>
+      <details class="comment"><summary>Comment ça marche ?</summary><p>Je m’inspire seulement de tes livres : tes goûts restent sur ton téléphone ; seules des recherches liées à un auteur, un sujet, un classement confirmé ou une série partent vers les catalogues. Les ambiances servent de repère, pas de filtre bibliographique.</p></details>` : ''}`;
 }
 function wireInspi(id, refaire) {
   const el = $('#' + id); if (!el) return;
@@ -3176,9 +3191,9 @@ async function genSelection(force) {
     selProgress = `Recherche du livre ${n + 1} sur 5${t ? ' (' + t.e + ' ' + t.nom + ')' : ''}…`;
     const p = $('#selprog'); if (p) p.textContent = selProgress;
   }).catch(() => []);
-  selEnCours = false;
+  selEnCours = false; selEchec = !items.length;
   if (items.length) {
-    items.forEach(retenir);
+    items.forEach(retenir); ui.pisteOuverte = 0;
     prefs.selection = {mois: m, items, vu: ui.tab === 'decouvrir'}; savePrefs();
     if (ui.tab !== 'decouvrir') toastLater(`📬 Ta sélection ${moisNom()} est prête : 5 livres à découvrir !`, 400);
   } else selProgress = '';
@@ -3187,27 +3202,66 @@ async function genSelection(force) {
 function renderDecouvrir() {
   const s = prefs.selection, actuelle = s && s.mois === moisCle() && (s.items || []).length;
   if (actuelle && !s.vu) { s.vu = true; savePrefs(); return render(); }
+  const items = actuelle ? s.items : [], ouverte = ui.pisteOuverte > 0 && ui.pisteOuverte < items.length ? ui.pisteOuverte : 0;
+  // (pistes : couverture, titre, source et pages ; le détail et ses actions s'ouvrent au toucher)
+  const sansEmoji = t => String(t || '').replace(/^[^\p{L}\p{N}]+/u, '');
+  const pistes = items.length > 1 ? `<div class="discover-more"><p>Encore ${plural(items.length - 1, 'piste')}</p><div class="rangee-livres" id="selRow">${items.slice(1).map((x, k) => `<button class="mini" type="button" data-piste="${k + 1}" aria-expanded="${ouverte === k + 1}">${coverHtml({titre: x.titre, couverture: x.couverture, _covers: x.covers}, 'mini-couv')}<span class="mini-t">${esc(x.titre)}</span><span class="mini-p">${esc([sansEmoji(x.sourceNom), x.pagesTotal ? (x.pagesEnviron || x.pagesSource === 'estimation' ? '≈ ' : '') + (+x.pagesTotal || 0) + ' p.' : ''].filter(Boolean).join(' · '))}</span></button>`).join('')}</div>
+      ${ouverte ? `<div class="discover-piste">${sugCard(items[ouverte], 'sel', ouverte)}</div>` : ''}</div>` : '';
+  const partiel = actuelle && items.length < 5 ? `<p class="discover-partiel" role="status">Seulement ${plural(items.length, 'piste')} sur 5 ce mois-ci : certains catalogues n’ont pas répondu ou n’avaient rien de nouveau.</p>` : '';
+  // Selon le temps que tu as, et par rayon : chaque tuile prépare la recherche existante (une tuile de rayon la lance)
+  const ambiancesALire = new Map();
+  books.filter(b => b.statut === 'a_lire').forEach(b => ((b.classif || {}).ambiances || []).forEach(a => ambiancesALire.set(a, (ambiancesALire.get(a) || 0) + 1)));
+  const tuiles = `<section class="discover-tuiles" aria-labelledby="tempsTitre"><h3 id="tempsTitre">Selon le temps que tu as</h3>
+      <div class="tuiles tuiles-temps" role="group" aria-labelledby="tempsTitre">${TEMPS_LECTURE.map(([v, t]) => `<button type="button" class="tuile" data-temps="${v}" aria-pressed="${rech.max === v}"><b>${t}</b><span>${v} p. au plus</span></button>`).join('')}</div>
+      <h3 id="rayonsTitre">Par rayon</h3>
+      <div class="tuiles tuiles-rayons" role="group" aria-labelledby="rayonsTitre">${Recherche.THEMES_RECHERCHE.map(c => { const n = Recherche.SOUS_RAYONS.filter(z => z.rayon === c.id && z.rech).length; return `<button type="button" class="tuile" data-rayon="${c.id}" aria-pressed="${rech.cat === c.id}"><b>${esc(c.nom)}</b>${n ? `<span>${plural(n, 'sous-rayon')}</span>` : ''}</button>`; }).join('')}</div>
+      ${ambiancesALire.size ? `<h3 id="ambiancesTitre">Dans mes livres, par ambiance</h3><p class="a petit">Parmi tes livres à lire : les catalogues ne connaissent pas les ambiances.</p>
+      <div class="chips" role="group" aria-labelledby="ambiancesTitre">${[...ambiancesALire].sort((a, b) => b[1] - a[1]).map(([id, n]) => `<button type="button" class="chipb" data-ambiance="${esc(id)}">${esc(Taxonomie.nom('ambiances', id))} (${n})</button>`).join('')}</div>` : ''}</section>`;
   $('#main').innerHTML = `
     <div class="discover-intro"><div><p>Découvrir</p><h2>Une piste pour ce soir</h2></div><p>Selon tes envies</p></div>
     <section class="discover-selection" aria-labelledby="selectionTitre"><div class="discover-selection-head"><div><h3 id="selectionTitre">Sélection ${moisNom()}</h3><p>Une recommandation à la fois, renouvelée chaque mois.</p></div></div>
       ${selEnCours ? etatChargement(selProgress, 'selprog')
-        : actuelle ? `<div class="discover-lead">${sugCard(s.items[0], 'sel', 0)}</div>${s.items.length > 1 ? `<div class="discover-more"><p>Encore ${s.items.length - 1} pistes</p><div class="sugs" id="selRow">${s.items.slice(1).map((x, i) => sugCard(x, 'sel', i + 1)).join('')}</div></div>` : ''}`
-        : `<p class="a sous-titre">Cinq livres choisis dans des sources variées : prix, nouveautés, incontournables et coups de cœur.</p><button class="btn pri" id="selgo" type="button"><span class="ico i-courrier" aria-hidden="true">📬</span> Préparer ma sélection</button>`}
+        : actuelle ? `<div class="discover-lead">${sugCard(s.items[0], 'sel', 0, true)}</div>${partiel}${pistes}`
+        : `${selEchec ? '<p class="discover-partiel" role="status">Les catalogues n’ont pas répondu : ta sélection n’a pas pu être préparée. Réessaie dans un instant.</p>' : ''}<p class="a sous-titre">Cinq livres choisis dans des sources variées : prix, nouveautés, incontournables et coups de cœur.</p><button class="btn pri" id="selgo" type="button"><span class="ico i-courrier" aria-hidden="true">📬</span> Préparer ma sélection</button>`}
     </section>
-    <details class="discover-search"><summary>Chercher un livre par titre, auteur ou thème</summary>${rechPanel()}</details>
+    ${tuiles}
+    <details class="discover-search" ${ui.rechOuvert ? 'open' : ''}><summary>Chercher un livre par titre, auteur ou thème</summary>${rechPanel()}</details>
     <section class="discover-random"><h3>Un détour inattendu</h3>
       <div class="a sous-titre">Je te trouve un livre que tu n'as pas encore : d'après tes lectures, ou au hasard dans le thème de ton choix.</div>
       ${inspiHtml('dc_inspi')}
       ${inspiration() === 'hasard' ? themeChips('dc_theme', pick.theme) : ''}
-      <div class="acts mb-2"><button class="btn pri" id="dc_go" type="button"><span class="ico i-de" aria-hidden="true">🎲</span> Tirer au sort</button></div>
+      <div class="acts mb-2"><button class="btn" id="dc_go" type="button"><span class="ico i-de" aria-hidden="true">🎲</span> Tirer au sort</button></div>
       <div id="dc_res">${lastTirage.length ? tirageHtml(lastTirage) : ''}</div></section>`;
   const ch = $('#dc_theme');
   if (ch) ch.onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; pick.theme = b.dataset.v; ch.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); };
   wireInspi('dc_inspi', renderDecouvrir);
   $('#dc_go').onclick = () => inspiration() === 'perso' ? drawPerso($('#dc_res'), $('#dc_go')) : drawOnline(pick.theme, $('#dc_res'), $('#dc_go'));
   const go = $('#selgo'); if (go) go.onclick = () => genSelection(true);
+  // (un panneau déjà remplacé par un nouvel affichage peut encore signaler son ouverture : on l'ignore)
+  $('.discover-search').ontoggle = e => { if (e.target.isConnected) ui.rechOuvert = e.target.open; };
+  const rangee = $('#selRow');
+  if (rangee) rangee.onclick = e => { const b = e.target.closest('[data-piste]'); if (!b) return; const k = +b.dataset.piste; ui.pisteOuverte = ui.pisteOuverte === k ? 0 : k; renderDecouvrir(); };
+  // Durée : choisie seule, elle attend un rayon ; après une recherche, elle la relance
+  $('#main').querySelectorAll('[data-temps]').forEach(b => b.onclick = () => {
+    const v = +b.dataset.temps; rech.max = rech.max === v ? 0 : v; prefs.rechMax = rech.max; savePrefs();
+    const relancer = !!(rech.etat && rech.lastPar === 'theme' && (rech.lastCat || rech.lastTexte || (rech.lastCriteres || []).length));
+    if (relancer) ui.rechOuvert = true;
+    renderDecouvrir(); if (relancer) lancerRech();
+  });
+  // Rayon : la recherche s'ouvre et part tout de suite (avec la durée choisie)
+  $('#main').querySelectorAll('[data-rayon]').forEach(b => b.onclick = () => {
+    Object.assign(rech, {par: 'theme', cat: b.dataset.rayon, sous: '', texte: '', classif: []}); prefs.rechPar = 'theme';
+    ui.rechOuvert = true; renderDecouvrir(); lancerRech();
+    const p = $('.discover-search'); if (p && p.scrollIntoView) p.scrollIntoView({block: 'start'});
+  });
+  // Ambiance : les livres à lire de cette ambiance, dans la Bibliothèque (filtre existant)
+  $('#main').querySelectorAll('[data-ambiance]').forEach(b => b.onclick = () => {
+    Object.assign(ui, {tab: 'a_lire', q: '', genre: '', genreConfirme: '', cat: '', own: '', sousGenre: '', theme: '', etiquette: '', ambiance: b.dataset.ambiance});
+    render(); scrollTo(0, 0);
+  });
   wireRechPanel();
 }
+const TEMPS_LECTURE = [[100, 'Une soirée'], [200, 'Un week-end'], [300, 'Une semaine']];
 /* ---------- 🔎 Chercher par thème, avec une longueur maximale ---------- */
 // (les livres dont le nombre de pages n'est pas connu ne sont jamais mêlés aux résultats quand il y a une limite)
 // Dernier thème cherché (rayon, ou « rayon/sous-rayon ») ; un ancien nom est converti : « philo » → Sciences humaines › Philosophie
@@ -3274,7 +3328,8 @@ function rechPanel() {
   return `<div class="panel" id="rechPanel"><h3>🔎 Chercher des livres</h3>
     <div class="lbl mb-1">Chercher par</div>
     <div class="seg" id="rq_par">${Object.entries(RECH_PAR).map(([k, v]) => `<button type="button" data-v="${k}" class="${rech.par === k ? 'on' : ''}">${v.nom}</button>`).join('')}</div>
-    <div class="a sous-titre">${m.aide} Puis choisis une longueur maximale. Les résultats viennent du catalogue indiqué sur chaque fiche ; la pagination peut varier selon l’édition.</div>
+    <div class="a sous-titre">${m.aide}</div>
+    <details class="comment"><summary>Comment ça marche ?</summary><p>Choisis ensuite une longueur maximale. Les résultats viennent du catalogue indiqué sur chaque fiche ; la pagination peut varier selon l’édition. Avec une limite, les livres dont le nombre de pages n’est pas connu sont mis à part, jamais mêlés aux résultats.</p></details>
     <div class="search"><input id="rq" type="search" enterkeyhint="search" placeholder="${esc(m.place)}" value="${esc(rech.texte)}" aria-label="${esc(m.nom.slice(3))}"></div>
     ${rech.par === 'theme' ? `${explorateurClassementHtml()}
       ${classes.length ? `<div class="lbl mb-1 mt-2">Tes classements confirmés · accès rapide</div><div class="chips" id="rq_classif_rapide" aria-label="Chercher à partir de mes classements confirmés">${classes.map(x => `<button type="button" class="chipb" data-rqclassif="${esc(x.dim)}|${esc(x.id)}">${x.dim === 'themes' ? '🏷️' : '›'} ${esc(Taxonomie.nom(x.dim, x.id))} <span class="a petit">(${x.n})</span></button>`).join('')}</div>` : ''}` : ''}
@@ -3300,7 +3355,7 @@ function rechCard(x, ctx, i) {
         <div class="a petit mt-1">${(x.sources || [])[0] === 'Apple' ? 'Livre trouvé sur Apple Books (nombre de pages non indiqué)'
           : (edition ? 'Édition ' + esc(edition) : 'Édition inconnue') + (x.pagesTotal ? ' (pages de cette édition' + autres + ')' : '') + ' · BnF'}${x.raison ? '<br>' + esc(x.raison) : ''}</div></div></div>
     ${x.resume ? `<div class="sugres" data-more title="Toucher pour lire la suite">${esc(x.resume)}</div>` : ''}
-    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn pri small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>'}
+    <div class="acts">${own ? `<span class="own">✓ Dans ta liste (${STATUT_UN[own.statut]})</span>` : '<button class="btn small" type="button" data-sug="add"><span class="ico i-ajouter" aria-hidden="true">＋</span> À lire</button>'}
       <button class="btn small" type="button" data-sug="fiche"><span class="ico i-document" aria-hidden="true">📄</span> Fiche</button>
       <a class="btn small" href="${esc(libraireUrl(x))}" target="_blank" rel="noopener"><span class="ico i-panier" aria-hidden="true">🛒</span> En librairie</a></div></article>`;
 }
@@ -5109,7 +5164,7 @@ function goTab(dir) {
 (() => {
   let sx = 0, sy = 0, st = 0, ok = false;
   // Zones qui défilent déjà à l'horizontale (calendrier, rangées de livres…) : le geste leur appartient
-  const zoneLibre = el => el.closest('.cal, .sugs, .tabs, .subtabs, .chips, input, textarea, select, .modal, .notice');
+  const zoneLibre = el => el.closest('.cal, .sugs, .rangee-livres, .tuiles, .tabs, .subtabs, .chips, input, textarea, select, .modal, .notice');
   document.addEventListener('touchstart', e => {
     const t = e.touches[0];
     ok = e.touches.length === 1 && !zoneLibre(e.target) && !document.querySelector('.ov.show, #livreOv.show');

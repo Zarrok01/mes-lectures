@@ -2838,7 +2838,7 @@
       r.push(rangee ? (rangee.querySelector('[data-open="t-Les Années"]') || {textContent: '?'}).textContent.includes('256 p.') ? '256 p.' : 'pages ?' : '?');
       r.push(rangee ? (rangee.querySelector('[data-tab="a_lire"]') || {textContent: 'pas de lien'}).textContent.trim() : '?');
       // (affichage : la couverture et le titre tiennent dans la rangée, rien n'est coupé)
-      if (rangee) { const zone = rangee.querySelector('.rangee').getBoundingClientRect(), m = rangee.querySelector('.mini'), cv = m.querySelector('.ph').getBoundingClientRect(), t = m.querySelector('.mini-t').getBoundingClientRect();
+      if (rangee) { const zone = rangee.querySelector('.rangee-livres').getBoundingClientRect(), m = rangee.querySelector('.mini'), cv = m.querySelector('.ph').getBoundingClientRect(), t = m.querySelector('.mini-t').getBoundingClientRect();
         r.push(cv.bottom <= zone.bottom + 1 && t.height > 0 && t.bottom <= zone.bottom + 1 ? 'couverture et titre entiers' : `coupé (zone ${Math.round(zone.height)}, couverture ${Math.round(cv.height)}, titre ${Math.round(t.height)})`); }
       books = [enCours('Lecture'), fiche('Autre')]; render(); r.push($('#main .epingles') ? 'présente sans épinglé' : 'absente sans épinglé');
       books = [enCours('Lecture'), fiche('Les Années', {epingle: true})]; ui.q = 'Lecture'; render(); r.push($('#main .epingles') ? 'présente pendant une recherche' : 'absente pendant une recherche');
@@ -2869,6 +2869,94 @@
       const c = $('#list .card').getBoundingClientRect(), limite = sousLaBarre(), ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
       return $('#notice').hidden ? 'pas de rappel' : !$('#resumeLecture .reste') ? 'pas de temps restant' : ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
     } finally { prefs.lastBackup = l0; books = []; paintNotice(); }
+  }));
+  // (lot 3 de la refonte, 31/10/2026 : Découvrir — tuiles des rayons et des durées, pistes en rangée, un seul rose, textes courts, états partiels)
+  const piste = (titre, extra) => ({titre, auteur: 'Auteur', themeNom: 'Roman', themeE: '📖', sourceNom: 'Primé', raison: 'Pour le test', theme: 'roman', pagesTotal: 200, ...extra});
+  const selectionTest = n => ({mois: moisCle(), vu: true, items: ['La Mer des Sargasses', 'Le Consentement', 'Les Furtifs', 'Sapiens', 'L’Anomalie'].slice(0, n).map(t => piste(t))});
+  const avecDecouvrir = async fn => {
+    const s0 = prefs.selection, r0 = {...rech}, t0 = lastTirage, o0 = ui.rechOuvert, vrai = Recherche.parTheme, b0 = books, p0 = ui.pisteOuverte;
+    try { ui.tab = 'decouvrir'; return await fn(); }
+    finally { prefs.selection = s0; Object.assign(rech, r0, {etat: '', res: [], inconnus: []}); lastTirage = t0; ui.rechOuvert = o0; Recherche.parTheme = vrai; books = b0; ui.pisteOuverte = p0; ui.tab = 'en_cours'; render(); }
+  };
+  const faux = recu => async o => { recu.push(JSON.stringify({cat: o.cat, max: o.max})); return {res: [], inconnus: [], trop: 0, examines: 0, fin: true, erreur: ''}; };
+  await test('Lot 3 : « politique, moins de 200 pages » en 2 gestes, dans un sens comme dans l’autre ; la recherche s’ouvre', '{"cat":"politique","max":200}|ouverte|{"cat":"politique","max":200}', () => avecDecouvrir(async () => {
+    const recu = []; Recherche.parTheme = faux(recu); prefs.selection = selectionTest(5);
+    Object.assign(rech, {cat: '', sous: '', texte: '', classif: [], max: 0, etat: '', par: 'theme'}); ui.rechOuvert = false; render();
+    const geste = s => { const b = $(s); if (!b) throw new Error('introuvable : ' + s); b.click(); };
+    geste('[data-temps="200"]'); geste('[data-rayon="politique"]'); await pause(30);
+    const r = [recu.pop() || 'rien envoyé', $('.discover-search').open ? 'ouverte' : 'fermée'];
+    Object.assign(rech, {cat: '', max: 0, etat: ''}); ui.rechOuvert = false; render();
+    geste('[data-rayon="politique"]'); await pause(30); geste('[data-temps="200"]'); await pause(30);
+    r.push(recu.pop() || 'rien envoyé'); return r.join('|');
+  }));
+  await test('Lot 3 : la recherche reste ouverte quand on y choisit un thème ou une longueur', 'ouverte|ouverte', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); Object.assign(rech, {cat: '', par: 'theme', etat: ''}); render();
+    const d = $('.discover-search'); d.open = true; d.dispatchEvent(new Event('toggle')); await pause(20);
+    $('#rq_cats [data-v]').click(); const a = $('.discover-search').open ? 'ouverte' : 'fermée';
+    $('#rq_max [data-v="300"]').click(); const b = $('.discover-search').open ? 'ouverte' : 'fermée';
+    return a + '|' + b;
+  }));
+  await test('Lot 3 : un seul bouton rose dans Découvrir (le « À lire » de la sélection) ; tirage et pistes sans rose', 'sélection : 1 rose|tirage : 0 rose', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); lastTirage = [piste('Tiré 1'), piste('Tiré 2')]; ui.rechOuvert = false; render();
+    const roses = s => { const l = [...document.querySelectorAll(s + ' .btn.pri')].filter(b => b.checkVisibility ? b.checkVisibility() : b.getClientRects().length); return l.length + ' rose' + (l.length > 1 ? ' (' + l.map(b => b.id || b.textContent.trim()).join(', ') + ')' : ''); };
+    return ['sélection : ' + roses('#main'), 'tirage : ' + roses('#dc_res')].join('|');
+  }));
+  await test('Lot 3 : « Encore 4 pistes » en rangée de couvertures ; le détail s’ouvre au toucher, avec ses actions', 'rangée 4|Le Consentement,Les Furtifs,Sapiens,L’Anomalie|détail fermé|détail : Le Consentement|actions', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); render();
+    const minis = [...document.querySelectorAll('.discover-more .mini')], r = ['rangée ' + minis.length, minis.map(m => (m.querySelector('.mini-t') || {textContent: '?'}).textContent.trim()).join(',')];
+    r.push($('.discover-more .sug') ? 'détail ouvert' : 'détail fermé');
+    if (minis[0]) minis[0].click(); const d = $('.discover-more .sug');
+    r.push(d ? 'détail : ' + d.querySelector('.t').textContent.trim() : 'pas de détail');
+    r.push(d && d.querySelector('[data-sug="add"]') && d.querySelector('[data-sug="non"]') && minis[0] && $('.discover-more .mini').getAttribute('aria-expanded') === 'true' ? 'actions' : 'actions manquantes');
+    return r.join('|');
+  }));
+  await test('Lot 3 : textes courts ; le détail est derrière « Comment ça marche ? », replié', 'tirage replié|recherche replié|titre simple', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5); prefs.tirage = 'perso'; render();
+    const c = s => { const d = $(s + ' details.comment'); return d && !d.open && /\S/.test(d.textContent) ? 'replié' : d ? 'ouvert' : 'absent'; };
+    const tirageCourt = !/restent sur ton téléphone/.test(($('.discover-random .sous-titre') || {textContent: ''}).textContent) || ($('.discover-random details.comment') || {textContent: ''}).textContent.includes('restent sur ton téléphone');
+    // (le titre de « Comment ça marche ? » ne reprend pas le « Ouvrir / Réduire » du titre de la recherche)
+    const apres = getComputedStyle($('#rechPanel details.comment summary'), '::after').content;
+    return ['tirage ' + (tirageCourt ? c('.discover-random') : 'texte long visible'), 'recherche ' + c('#rechPanel'), /Ouvrir|Réduire/.test(apres) ? 'titre : ' + apres : 'titre simple'].join('|');
+  }));
+  await test('Lot 3 : sélection impossible ou partielle → un message clair', 'aucune : catalogues|partielle : 3 pistes sur 5', () => avecDecouvrir(async () => {
+    const vrai = Recherche.selection, r = [];
+    try {
+      prefs.selection = null; Recherche.selection = async () => []; await genSelection(true); renderDecouvrir();
+      r.push(/catalogues? (ne répond|n.ont pas répondu)/.test($('.discover-selection').textContent) ? 'aucune : catalogues' : 'aucune : rien dit');
+      Recherche.selection = async () => [piste('Un'), piste('Deux'), piste('Trois')]; await genSelection(true); renderDecouvrir();
+      r.push(/3 pistes sur 5/.test($('.discover-selection').textContent) ? 'partielle : 3 pistes sur 5' : 'partielle : rien dit');
+    } finally { Recherche.selection = vrai; }
+    return r.join('|');
+  }));
+  await test('Lot 3 : « Dans mes livres, par ambiance » mène aux livres à lire de cette ambiance ; absent sans ambiance', 'Mélancolique (1)|À lire filtré|absent sans ambiance', () => avecDecouvrir(async () => {
+    prefs.selection = selectionTest(5);
+    books = [fiche('Triste', {classif: {genre: 'roman', sousGenres: [], themes: [], ambiances: ['melancolique']}}), fiche('Autre')]; render();
+    const b = $('[data-ambiance="melancolique"]'), r = [b ? b.textContent.replace(/\s+/g, ' ').trim() : 'pas d’entrée'];
+    if (b) b.click(); r.push(ui.tab === 'a_lire' && ui.ambiance === 'melancolique' && document.querySelectorAll('#list .card').length === 1 ? 'À lire filtré' : `onglet ${ui.tab}, filtre ${ui.ambiance}`);
+    ui.ambiance = ''; books = [fiche('Autre')]; ui.tab = 'decouvrir'; render(); r.push($('[data-ambiance]') ? 'présent sans ambiance' : 'absent sans ambiance');
+    return r.join('|');
+  }));
+  await test('Lot 3 : glisser le doigt sur une rangée (pistes, épinglés) la fait défiler sans changer d’espace', 'pistes : reste|épinglés : reste', () => avecDecouvrir(async () => {
+    const glisser = el => { const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, t = (cx) => new Touch({identifier: 1, target: el, clientX: cx, clientY: y});
+      el.dispatchEvent(new TouchEvent('touchstart', {bubbles: true, touches: [t(x)], changedTouches: [t(x)]}));
+      el.dispatchEvent(new TouchEvent('touchend', {bubbles: true, touches: [], changedTouches: [t(x - 150)]})); };
+    const r = [];
+    prefs.selection = selectionTest(5); ui.tab = 'decouvrir'; render(); glisser($('.discover-more .mini') || $('#selRow .sug')); await pause(40);
+    r.push('pistes : ' + (ui.tab === 'decouvrir' ? 'reste' : 'va vers ' + ui.tab));
+    await avecReprise(async () => { books = [enCours('Lecture'), fiche('Épinglé', {epingle: true})]; ui.tab = 'en_cours'; render(); glisser($('#main .epingles .mini')); await pause(40);
+      r.push('épinglés : ' + (ui.tab === 'en_cours' ? 'reste' : 'va vers ' + ui.tab)); });
+    return r.join('|');
+  }));
+  await test('Lot 3 : les rangées de livres tiennent sur une ligne et défilent ; le titre « Mon bilan » des Stats garde sa mise en page', 'pistes : 1 ligne|épinglés : 1 ligne|bilan intact', () => avecDecouvrir(async () => {
+    const uneLigne = l => new Set(l.map(m => Math.round(m.getBoundingClientRect().top))).size === 1 ? '1 ligne' : 'plusieurs lignes';
+    const r = []; prefs.selection = selectionTest(5); ui.tab = 'decouvrir'; render();
+    r.push('pistes : ' + uneLigne([...document.querySelectorAll('.discover-more .mini')]));
+    await avecReprise(async () => { books = [enCours('Lecture'), ...['A', 'B', 'C', 'D', 'E'].map(t => fiche('Épinglé ' + t, {epingle: true}))]; ui.tab = 'en_cours'; render();
+      r.push('épinglés : ' + uneLigne([...document.querySelectorAll('#main .epingles .mini')])); });
+    // (« .rangee » est aussi la mise en page du titre « Mon bilan » : le lot 2 lui avait donné, par erreur, un défilement et des marges)
+    const h = document.createElement('h3'); h.className = 'rangee'; document.body.appendChild(h); const st = getComputedStyle(h);
+    r.push(st.overflowX === 'visible' && st.flexWrap === 'wrap' && st.paddingTop === '0px' ? 'bilan intact' : `bilan : ${st.overflowX}, ${st.flexWrap}, ${st.paddingTop}`); h.remove();
+    return r.join('|');
   }));
   /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
   await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {

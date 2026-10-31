@@ -788,7 +788,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.30-2';
+const VERSION = '2026.10.31-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1663,8 +1663,9 @@ function noterFluidite(fluide, dim) {
   savePrefs();
 }
 // Sous « Animations » : ce que le téléphone demande, le repli automatique, et la dernière ouverture mesurée (depuis le lancement)
+const ligneMesure = (nom, d) => d ? `Dernière ${nom} : ${(d.ms / 1000).toFixed(2).replace('.', ',')} s · ${d.ips} images/s · image la plus longue ${d.long} ms · ${d.fluide === false ? 'saccadée' : 'fluide'}.` : '';
 function noteAnim() {
-  const d = Ouverture.derniere, m = d ? `Dernière ouverture : ${(d.ms / 1000).toFixed(2).replace('.', ',')} s · ${d.ips} images/s · ${d.fluide === false ? 'saccadée' : 'fluide'}` : '';
+  const m = [ligneMesure('ouverture', Ouverture.derniere), ligneMesure('fermeture', Ouverture.derniereFermeture)].filter(Boolean).join(' ');
   const choix = Object.hasOwn(MODES_ANIM, prefs.animation) ? prefs.animation : 'complete';
   const repli = Ouverture.reduit() ? 'Ton téléphone demande moins d\'animations : seul un fondu est utilisé.'
     : choix === 'complete' && prefs.anim3dLent && prefs.anim2dLent ? 'Le mouvement saccadait sur ce téléphone : seul un fondu est utilisé. Choisis « Complète » pour réessayer.'
@@ -1752,6 +1753,11 @@ async function etape(jeton, liste) {
 }
 // Intervalles entre images pendant l'ouverture 3D (pour le repli automatique)
 // (aussi pendant un tour de page : « actuel » donne le jeton en cours ; « cachee » si la page a été masquée entre-temps)
+// Ce que disent les intervalles entre images d'une animation : durée, images/s (médiane), image la plus longue, fluidité
+function bilanImages(l, t0, mode) {
+  const med = [...l].sort((x, y) => x - y)[Math.floor(l.length / 2)];
+  return {ms: performance.now() - t0, ips: med ? Math.round(1000 / med) : 0, long: Math.round(Math.max(0, ...l)), fluide: jugerFluidite(l), mode};
+}
 function mesurerImages(jeton, actuel) {
   const courant = actuel || (() => Ouverture.jeton), l = []; let avant = 0, actif = true;
   const cache = () => { if (document.hidden) l.cachee = true; }; document.addEventListener('visibilitychange', cache);
@@ -1807,9 +1813,8 @@ async function animerOuverture(id) {
   if (!(await etape(jeton, entree))) return;
   nettoyerAnimation();
   if (images) {
-    const l = images.arreter(), fluide = jugerFluidite(l), med = [...l].sort((x, y) => x - y)[Math.floor(l.length / 2)];
-    Ouverture.derniere = {ms: performance.now() - t0, ips: med ? Math.round(1000 / med) : 0, fluide, mode};   // (en mémoire seulement)
-    noterFluidite(fluide, mode === 'complete' ? '3d' : '2d');
+    Ouverture.derniere = bilanImages(images.arreter(), t0, mode);   // (en mémoire seulement)
+    noterFluidite(Ouverture.derniere.fluide, mode === 'complete' ? '3d' : '2d');
   }
 }
 // Fermeture : la fiche est déjà fermée (plus de focus ni de toucher) ; elle reste visible le temps du chemin inverse,
@@ -1826,6 +1831,7 @@ async function animerFermeture(id, modele, defile) {
   }
   const d3 = mode === 'complete', ce = rectCentre(mode), P = rectOuvert(ce, mode), ouvert = versRect(P, ce), Z = rectZoom(P), E = rectEcran();
   const o = monterLivre(modele, ce), {livre, couv} = o;
+  const images = mesurerImages(jeton), t0 = performance.now();   // (O4 : mesurée comme l'ouverture, sans effet sur le repli automatique)
   const ouverte = d3 ? 'rotateY(-180deg)' : 'scaleX(0)', fermee = d3 ? 'rotateY(0deg)' : 'scaleX(1)';
   if (d3) o.objet.style.transform = 'perspective(1000px)';
   couv.style.transform = ouverte; o.voileFace.style.opacity = .45; o.ombre.style.opacity = 1; o.fond.style.opacity = 1;
@@ -1851,6 +1857,7 @@ async function animerFermeture(id, modele, defile) {
   if (d3) rangement.push(o.objet.animate([{transform: 'perspective(1000px) rotateY(0deg)'}, {transform: 'perspective(1000px) rotateY(-14deg)'}, {transform: 'perspective(1000px) rotateY(0deg)'}], anim(DUREES.rentrer)));
   if (!(await etape(jeton, rangement))) return;
   nettoyerAnimation();
+  Ouverture.derniereFermeture = bilanImages(images.arreter(), t0, mode);   // (en mémoire seulement)
 }
 // Un toucher, une touche ou un écran qui change de taille arrêtent l'animation tout de suite
 // (un toucher qui coupe l'OUVERTURE, la fiche encore invisible : son clic, au relâchement, ne déclenche rien,
@@ -2301,7 +2308,7 @@ function peindreFiche() {
   box.innerHTML = `
     <div class="livre-tete avec-signets"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button>
       <span class="etire"><span class="livre-tete-statut">${esc(STATUTS[b.statut] || '')}</span><span class="livre-mini" aria-hidden="true">${esc(b.titre)}</span></span>
-      <button class="btn" type="button" data-fiche="modifier-livre">${ico('modifier', '✍️')} Modifier</button>
+      <button class="icon" type="button" data-fiche="modifier-livre" aria-label="Modifier ce livre" title="Modifier ce livre">${ico('modifier', '✍️')}</button>
       ${ligneSi(b.statut === 'en_cours', `<button class="icon" type="button" data-fiche="plus" aria-label="Autres actions : chrono, citation, j'ai fini">${ico('plus', '⋯')}</button>`)}
       <nav class="livre-signets" aria-label="Sections du carnet">${signets}</nav></div>
     <section class="livre-garde" id="fs_presentation" aria-label="Présentation">${coverHtml(b, 'big')}

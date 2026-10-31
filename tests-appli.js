@@ -1812,6 +1812,14 @@
     });
     return [...r, ...s].join('|');
   });
+  // (lot O4 du 31/10/2026 : « Modifier » en bouton rond dans la barre de la fiche — accord d'Elias — pour laisser la place au petit titre)
+  await test('Fiche (O4) : « Modifier » en bouton rond nommé ; le petit titre a la place de se lire', 'Modifier ce livre|rond|titre lisible', () => enFiche(ficheRiche(), async () => {
+    const m = $('#livre .livre-tete [data-fiche="modifier-livre"]'), r = m.getBoundingClientRect();
+    const texte = [...m.childNodes].filter(n => !(n.nodeType === 1 && n.classList.contains('ico'))).map(n => n.textContent).join('').trim();
+    const out = [m.getAttribute('aria-label') || texte, !texte && r.width >= 44 && r.width <= 56 ? 'rond' : 'largeur ' + Math.round(r.width) + ', texte « ' + texte + ' »'];
+    allerA('notes'); await pause(80); const w = $('#livre .livre-mini').getBoundingClientRect().width;
+    out.push(w >= 100 ? 'titre lisible' : 'titre ' + Math.round(w) + ' px'); return out.join('|');
+  }));
   await test('Note vide : erreur sous le champ, rien d\'enregistré', 'erreur|0', async () => {
     books = [ficheNote()]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', '   '); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(50);
     const r = ($('#fe_texte_err') ? 'erreur' : '?') + '|' + (books[0].notes || []).length; await fermerTout(); return r;
@@ -2457,6 +2465,19 @@
     await fermerFiche(); interrompreAnimation(); openSettings(); const txt = $('#st_anim_note') ? $('#st_anim_note').textContent : ''; closeM(); await pause(250);
     return (/Dernière ouverture : \d+,\d+ s · \d+ images\/s/.test(txt) ? 'affichée' : txt) + '|' + (localStorage.getItem(CLE + '-prefs').includes('derniere') ? 'enregistrée !' : 'pas enregistrée');
   }, 'complete'));
+  // (lot O4 du 31/10/2026 : la fermeture est mesurée comme l'ouverture, avec l'image la plus longue — critère à juger sur le téléphone)
+  await test('Réglages (O4) : dernière ouverture et dernière fermeture mesurées, avec l’image la plus longue ; rien d’enregistré', 'ouverture|fermeture|image la plus longue|pas enregistrée', async () => {
+    const p0 = prefs.consultation, a0 = prefs.animation, r0 = Ouverture.reduit, cles = ['anim3dLent', 'anim3dSaccades', 'anim2dLent', 'anim2dSaccades'];
+    prefs.consultation = 'continue'; prefs.animation = 'complete'; Ouverture.reduit = () => false; cles.forEach(k => delete prefs[k]);
+    const fin = async () => { const t0 = performance.now(); while ($('#ouverture') && performance.now() - t0 < 3000) await pause(15); await pause(30); };
+    try {
+      books = [fiche('Mesure fermeture', {statut: 'en_cours'})]; ui.tab = 'en_cours'; render(); $('#list .card .t').click();
+      await fin(); await pause(150); fermerFiche(); await pause(20); await fin();
+      openSettings(); const txt = $('#st_anim_note') ? $('#st_anim_note').textContent : ''; closeM(); await pause(250);
+      return [/Dernière ouverture : \d+,\d+ s · \d+ images\/s/.test(txt) ? 'ouverture' : 'ouverture ? ' + txt, /Dernière fermeture : \d+,\d+ s · \d+ images\/s/.test(txt) ? 'fermeture' : 'fermeture ? ' + txt,
+        /image la plus longue \d+ ms/.test(txt) ? 'image la plus longue' : '?', localStorage.getItem(CLE + '-prefs').includes('derniere') ? 'enregistrée !' : 'pas enregistrée'].join('|');
+    } finally { if (ficheEtat.id) await fermerFiche(); interrompreAnimation(); prefs.consultation = p0; prefs.animation = a0; Ouverture.reduit = r0; cles.forEach(k => delete prefs[k]); savePrefs(); }
+  });
   await test('Ruban : la page où l\'on referme le livre est marquée ; à la réouverture, « Reprendre au marque-page (Citations) » y mène', 'garde|Reprendre au marque-page (Citations)|citations|ruban', () => avecLivre(async () => {
     localStorage.removeItem(CLE + '-marques'); ouvrirLivre(LIVRE_PLEIN()); allerSection('citations'); await fermerFiche();
     ouvrirFiche(books[0].id); const r = [Feuille.pages[Feuille.page].section, ($('#lvPages [data-fiche="marque"]') || {textContent: '?'}).textContent];

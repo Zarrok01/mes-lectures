@@ -1052,6 +1052,37 @@
     try { return [lance({style: 'android', theme: 'light'}), lance({style: 'android', theme: 'light', styleEditorial: 1}), lance({style: 'actuel', theme: 'light'})].join('|'); }
     finally { if (p0 === null) localStorage.removeItem(CLE + '-prefs'); else localStorage.setItem(CLE + '-prefs', p0); applyTheme(); }
   });
+  // (lot O3a du 30/10/2026 : la fiche verticale devient le carnet par défaut — décision d'Elias ; passage unique, comme l'Éditorial)
+  await test('Carnet par défaut (O3a) : une installation neuve ouvre la fiche verticale', 'continue', () => typeof PREFS_DEFAUT === 'undefined' ? 'pas de valeurs par défaut nommées' : PREFS_DEFAUT.consultation);
+  await test('Passage fiche : le carnet feuilletable passe une seule fois à la fiche ; la fiche, le repère et les préférences vides restent',
+    'true|continue|false|false|continue|false|livre|false|1', () => {
+    if (typeof passageFiche === 'undefined') return 'pas de passage';
+    const a = {consultation: 'livre'}, r1 = passageFiche(a), s1 = a.consultation, r2 = passageFiche(a);
+    const b = {consultation: 'continue'}, rb = passageFiche(b), d = {consultation: 'livre', consultationFiche: 1}, rd = passageFiche(d), f = {}, rf = passageFiche(f);
+    return [r1, s1, r2, rb, b.consultation, rd, d.consultation, rf, f.consultationFiche].join('|');
+  });
+  await test('Passage fiche : enregistré, message affiché une fois, choix du carnet feuilletable respecté ensuite', 'continue|continue|1|message|livre|pas de message', async () => {
+    if (typeof appliquerPassageFiche === 'undefined') return 'pas de passage';
+    const p0 = JSON.stringify(prefs);
+    try {
+      prefs.consultation = 'livre'; delete prefs.consultationFiche; $('#toast').textContent = '';
+      appliquerPassageFiche(); await pause(1700);
+      const lu = JSON.parse(localStorage.getItem(CLE + '-prefs'));
+      const r = [prefs.consultation, lu.consultation, lu.consultationFiche, $('#toast').textContent.includes(MSG_FICHE) ? 'message' : 'pas de message'];
+      $('#toast').textContent = ''; $('#toast').classList.remove('show');
+      prefs.consultation = 'livre'; savePrefs(); appliquerPassageFiche(); await pause(1700);
+      r.push(prefs.consultation, $('#toast').textContent.includes(MSG_FICHE) ? 'message' : 'pas de message');
+      return r.join('|');
+    } finally { Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, JSON.parse(p0)); savePrefs(); }
+  });
+  await test('Fiche : le livre feuilletable s\'appelle « Feuilleter comme un livre » (fiche et Réglages)', 'Feuilleter comme un livre|réglage expliqué', async () => {
+    const c0 = prefs.consultation, a0 = prefs.animation;
+    try {
+      prefs.consultation = 'continue'; prefs.animation = 'aucune'; books = [fiche('Libellé', {statut: 'en_cours'})]; ouvrirFiche(books[0].id);
+      const b = $('#livre [data-fiche="ouvrir-carnet"]'), r = [b && b.textContent.includes('Feuilleter comme un livre') ? 'Feuilleter comme un livre' : b ? b.textContent.trim() : '?']; await fermerFiche(); openSettings();
+      r.push(($('#st_consult').parentElement.textContent || '').includes('« Feuilleter comme un livre »') ? 'réglage expliqué' : '?'); closeM(); await pause(250); return r.join('|');
+    } finally { prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
+  });
   await test('M6 : aucun effet de survol hors des appareils à souris (pas de contour collant au toucher)', [], () => {
     const feuille = [...document.styleSheets].find(s => s.ownerNode === document.head.querySelector('style')), fautes = [];
     const parcourir = (regles, dansSurvol) => [...regles].forEach(r => {
@@ -1577,7 +1608,7 @@
   });
   await test('Carnet : « Où j\'en suis » depuis la fiche met la progression à jour', 'p. 60 sur 100', async () => {
     books = [fiche('Page', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10, couverture: COUV})]; ouvrirFiche('t-Page');
-    $('#fs_progression [data-fiche="pages"]').click(); await pause(50); $('#p_val').value = '60'; $('#p_ok').click(); await pause(200);
+    $('#fs_presentation [data-fiche="pages"]').click(); await pause(50); $('#p_val').value = '60'; $('#p_ok').click(); await pause(200);
     const r = ($('#fs_progression').textContent.match(/p\. \d+ sur \d+/) || ['?'])[0]; await fermerTout(); return r;
   });
   await test('Carnet : retour couche par couche (question → formulaire → fiche → bibliothèque)', 'question|formulaire|fiche|bibliothèque', async () => {
@@ -1601,11 +1632,11 @@
     r.push($('#list').contains(document.activeElement) ? 'liste' : '?');
     ui.tab = 'en_cours'; render(); return r.join('|');
   });
-  await test('Carnet : fiche complète (classification en lecture seule, suggestion marquée, avis, infos, historique)', 'Roman · suggéré|Mon avis|Fayard|Commencé|aucun bouton de classification', async () => {
+  await test('Carnet : fiche complète (classification en lecture seule, suggestion marquée, avis, infos, historique)', 'Roman · à confirmer|Mon avis|Fayard|Commencé|aucun bouton de classification', async () => {
     books = [fiche('Complet', {statut: 'en_cours', genre: 'roman', avis: 'Très bien', editeur: 'Fayard', dateDebut: '2026-01-02', pagesTotal: 200, pageActuelle: 20,
       journal: [{date: '2026-01-02', page: 0}, {date: '2026-01-04', page: 20}], classements: [{c: '686', l: '843'}]})];
     ouvrirFiche('t-Complet'); const t = $('#livre').textContent;
-    const r = [$('#livre .chip.suggere') ? $('#livre .chip.suggere').textContent.trim() : '?', t.includes('Mon avis') ? 'Mon avis' : '?', t.includes('Fayard') ? 'Fayard' : '?',
+    const r = [($('#fs_infos').textContent.match(/Roman · à confirmer/) || ['?'])[0], t.includes('Mon avis') ? 'Mon avis' : '?', t.includes('Fayard') ? 'Fayard' : '?',
       $('#fs_historique').textContent.includes('Commencé') ? 'Commencé' : '?', $('#livre [data-fiche*="classif"]') ? 'bouton de classification !' : 'aucun bouton de classification'];
     await fermerTout(); return r.join('|');
   });
@@ -1649,15 +1680,137 @@
   });
   await test('Notes et citations : supprimer demande confirmation (« Garder » ne retire rien), par identifiant', '1|0|reste c-b', async () => {
     books = [ficheNote({notes: [{id: 'n-x', texte: 'N', date: today()}], citations: [{id: 'c-a', texte: 'Pareil', date: today()}, {id: 'c-b', texte: 'Pareil', date: today()}]})]; ouvrirFiche('t-Carnet');
+    // (O3d : « Supprimer » est dans la modification)
+    $('#fs_notes [data-fiche="modifier"][data-id="n-x"]').click(); await pause(30);
     reponseConfirm = false; $('#fs_notes [data-fiche="retirer"][data-id="n-x"]').click(); await pause(100); const a = books[0].notes.length;
     reponseConfirm = true; $('#fs_notes [data-fiche="retirer"][data-id="n-x"]').click(); await pause(150); const b = books[0].notes.length;
-    $('#fs_citations [data-fiche="retirer"][data-id="c-a"]').click(); await pause(150);
+    $('#fs_citations [data-fiche="modifier"][data-id="c-a"]').click(); await pause(30); $('#fs_citations [data-fiche="retirer"][data-id="c-a"]').click(); await pause(150);
     const r = [a, b, 'reste ' + books[0].citations.map(q => q.id).join(',')]; await fermerTout(); return r.join('|');
   });
   await test('Citations identiques : modifier l\'une ne touche jamais l\'autre', 'c-a:Pareil|c-b:Changée', async () => {
     books = [ficheNote({citations: [{id: 'c-a', texte: 'Pareil', date: today()}, {id: 'c-b', texte: 'Pareil', date: today()}]})]; ouvrirFiche('t-Carnet');
     $('#fs_citations [data-fiche="modifier"][data-id="c-b"]').click(); taper('#fe_texte', 'Changée'); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(150);
     const r = books[0].citations.map(q => q.id + ':' + q.texte).sort().join('|'); await fermerTout(); return r;
+  });
+  // (lot O3 du 30/10/2026 : le carnet vertical — page de garde, signets, progression sur place, notes et citations, historique, statistiques)
+  const enFiche = async (b, fn) => {
+    const c0 = prefs.consultation, a0 = prefs.animation;
+    prefs.consultation = 'continue'; prefs.animation = 'aucune';
+    try { books = Array.isArray(b) ? b : [b]; ouvrirFiche(books[0].id); await pause(30); return await fn(); }
+    finally { modalModifie = false; closeM(); ficheEtat.edition = null; if (ficheEtat.id) await fermerFiche(); await pause(60); prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
+  };
+  const ficheRiche = extra => fiche('Riche', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 160, dateDebut: addDays(-9), couverture: COUV, resumeTente: true, classTente: true,
+    resume: 'Un résumé. '.repeat(30), avis: 'Un avis.', editeur: 'Fayard',
+    journal: [{date: addDays(-9), page: 0}, {date: addDays(-5), page: 80}, {date: addDays(-1), page: 160}],
+    notes: Array.from({length: 6}, (_, k) => ({id: 'n-' + k, texte: 'Une note assez longue pour prendre de la place. '.repeat(4), date: addDays(-k - 1), page: String(20 + k)})),
+    citations: Array.from({length: 6}, (_, k) => ({id: 'c-' + k, texte: 'Une phrase à retenir, assez longue elle aussi. '.repeat(3), date: addDays(-k - 1), page: String(30 + k)})), ...extra});
+  const basTete = () => $('#livre .livre-tete').getBoundingClientRect().bottom;
+  const allerA = s => { const ov = $('#livreOv'); ov.scrollTop += $('#fs_' + s).getBoundingClientRect().top - basTete(); };
+  const signetActif = () => { const a = $('#livre .livre-signets [aria-current="true"]'); return a ? a.dataset.section : '?'; };
+  await test('Carnet vertical (O3b) : 7 signets, chacun mène à sa section et s’allume', 'presentation,progression,notes,citations,historique,stats,infos|7 sections|chacun atteint', () => enFiche(ficheRiche(), async () => {
+    const sig = [...document.querySelectorAll('#livre .livre-signets [data-fiche="aller"]')], ks = sig.map(x => x.dataset.section), ov = $('#livreOv'), rates = [];
+    const sections = ks.filter(k => $('#fs_' + k)).length + ' sections';
+    for (const x of sig) {
+      x.click(); await pause(60);
+      const r = $('#fs_' + x.dataset.section).getBoundingClientRect(), bas = basTete(), finDefile = ov.scrollTop + ov.clientHeight >= ov.scrollHeight - 2;
+      const atteint = (Math.abs(r.top - bas) <= 12 || (x.dataset.section === 'presentation' && ov.scrollTop === 0) || (finDefile && r.top < innerHeight - 40)) && x.getAttribute('aria-current') === 'true';
+      if (!atteint) rates.push(x.dataset.section + ' (haut ' + Math.round(r.top) + ', barre ' + Math.round(bas) + ', ' + x.getAttribute('aria-current') + ')');
+    }
+    return [ks.join(','), sections, rates.length ? 'raté : ' + rates.join(' ; ') : 'chacun atteint'].join('|');
+  }));
+  await test('Carnet vertical : le signet allumé suit le défilement', 'citations|notes|presentation', () => enFiche(ficheRiche(), async () => {
+    const r = []; allerA('citations'); await pause(80); r.push(signetActif());
+    allerA('notes'); await pause(80); r.push(signetActif());
+    $('#livreOv').scrollTop = 0; await pause(80); r.push(signetActif()); return r.join('|');
+  }));
+  await test('Carnet vertical : le titre réduit apparaît dans la barre quand le grand titre sort de l’écran', 'caché|Riche', () => enFiche(ficheRiche(), async () => {
+    const mini = () => $('#livre .livre-tete .livre-mini'), vu = () => mini() && getComputedStyle(mini()).display !== 'none' && mini().getBoundingClientRect().width > 0;
+    const a = vu() ? 'visible trop tôt' : 'caché'; allerA('notes'); await pause(80);
+    return a + '|' + (vu() ? mini().textContent.trim() : 'toujours caché (' + $('#livre .livre-tete').className + ', ' + (mini() ? getComputedStyle(mini()).display + ' ' + mini().getBoundingClientRect().width : 'absent') + ', titre ' + Math.round($('#livreTitre').getBoundingClientRect().bottom) + ', défile ' + $('#livreOv').scrollTop + '/' + $('#livreOv').scrollHeight + '/' + $('#livreOv').clientHeight + ', notes ' + Math.round($('#fs_notes').getBoundingClientRect().top) + ', n ' + document.querySelectorAll('#livreTitre').length + ' ' + $('#livreTitre').closest('[id]').id + ' pos ' + getComputedStyle($('#livreTitre')).position + ')');
+  }));
+  await test('Carnet vertical : rouvrir le même livre retrouve sa position (en mémoire seulement) ; un autre livre s’ouvre en haut', 'retrouvée|0|rien d’enregistré', async () => {
+    const instantane = () => JSON.stringify(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)]));
+    return enFiche([ficheRiche(), fiche('Autre', {statut: 'a_lire'})], async () => {
+      const ov = $('#livreOv'), avant = instantane(); ov.scrollTop = 600; await pause(30); const pos = ov.scrollTop;
+      await fermerFiche(); await pause(60); ouvrirFiche('t-Riche'); await pause(30);
+      const r = [Math.abs(ov.scrollTop - pos) <= 2 ? 'retrouvée' : 'perdue : ' + ov.scrollTop + ' au lieu de ' + pos];
+      await fermerFiche(); await pause(60); ouvrirFiche('t-Autre'); await pause(30); r.push(ov.scrollTop);
+      r.push(instantane() === avant ? 'rien d’enregistré' : 'enregistré !'); return r.join('|');
+    });
+  });
+  await test('Carnet vertical : page de garde centrée (auteur en petites capitales, titre, ＋ Note, ＋ Citation)', 'centrée|AUTEUR|titre|note|citation', () => enFiche(ficheRiche(), async () => {
+    const g = $('#fs_presentation'), a = g && g.querySelector('.livre-auteur');
+    if (!g) return 'pas de page de garde';
+    return [getComputedStyle(g).textAlign === 'center' ? 'centrée' : '?', a && getComputedStyle(a).textTransform === 'uppercase' ? 'AUTEUR' : '?', g.contains($('#livreTitre')) ? 'titre' : '?',
+      g.querySelector('[data-fiche="ajouter"][data-type="note"]') ? 'note' : '?', g.querySelector('[data-fiche="ajouter"][data-type="citation"]') ? 'citation' : '?'].join('|');
+  }));
+  await test('Carnet vertical : rien ne déborde de l’écran, signets et boutons de la page de garde ≥ 44 px', 'sans débordement|cibles', () => enFiche(ficheRiche({titre: 'Anticonstitutionnellementdeboutsansespacepourvoir'}), async () => {
+    const ov = $('#livreOv'), trop = [...document.querySelectorAll('#livre *')].filter(x => x.getBoundingClientRect().right > innerWidth + 1 && !x.closest('.livre-signets'));
+    const petits = [...document.querySelectorAll('#livre .livre-signets button, #fs_presentation button')].filter(x => x.getBoundingClientRect().height < 44);
+    return [ov.scrollWidth <= ov.clientWidth + 1 && !trop.length ? 'sans débordement' : 'déborde : ' + trop.slice(0, 3).map(x => x.className || x.tagName).join(','),
+      petits.length ? 'petits : ' + petits.map(x => x.textContent.trim()).join(',') : 'cibles'].join('|');
+  }));
+  for (const theme of ['light', 'dark']) {
+    await test(`Carnet vertical : textes lisibles en mode ${theme === 'dark' ? 'sombre' : 'clair'} (contraste ≥ 4,5)`, 'lisible', () => enFiche(ficheRiche(), async () => {
+      const t0 = document.documentElement.dataset.theme; document.documentElement.dataset.theme = theme;
+      try {
+        const fond = getComputedStyle($('#livreOv')).backgroundColor, faibles = [];
+        for (const s of ['.livre-signets button', '.livre-signets [aria-current="true"]', '.livre-auteur', '#fs_presentation .meta', '.histo .d', '.histo-mois', '.entree .meta', '.stat span', '.stat b']) {
+          const x = $('#livre ' + s); if (!x) { faibles.push(s + ' absent'); continue; }
+          const r = contraste(getComputedStyle(x).color, fond); if (r < 4.5) faibles.push(s + ' ' + r.toFixed(2));
+        }
+        return faibles.length ? faibles.join(', ') : 'lisible';
+      } finally { document.documentElement.dataset.theme = t0; }
+    }));
+  }
+  await test('Progression sur place (O3c) : curseur et champ, même journal que « Où j’en suis », événement dans l’historique', '70|60|journal|p. 60 sur 100|historique', () => enFiche(fiche('Place', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10, dateDebut: addDays(-3), journal: [{date: addDays(-3), page: 10}]}), async () => {
+    const c = $('#fs_progression #fp_curseur'); if (!c) return 'pas de curseur';
+    c.value = '70'; c.dispatchEvent(new Event('input', {bubbles: true})); const r = [$('#fp_page').value];
+    taper('#fp_page', '60'); $('#fp_ok').click(); await pause(200);
+    const j = books[0].journal; r.push(books[0].pageActuelle, j.length === 2 && j[1].date === today() && j[1].page === 60 ? 'journal' : JSON.stringify(j));
+    r.push(($('#fs_progression').textContent.match(/p\. \d+ sur \d+/) || ['?'])[0], $('#fs_historique').textContent.includes('p. 60 (+50) sur 100') ? 'historique' : '?');
+    return r.join('|');
+  }));
+  await test('Progression sur place : bornes (page vide refusée, au-delà de la fin → fiche « J’ai fini »)', 'erreur|10|100|fin', () => enFiche(fiche('Bornes', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10}), async () => {
+    if (!$('#fp_page')) return 'pas de champ';
+    taper('#fp_page', ''); $('#fp_ok').click(); await pause(80); const r = [$('#fp_page_err') ? 'erreur' : '?', books[0].pageActuelle];
+    taper('#fp_page', '150'); $('#fp_ok').click(); await pause(200); r.push(books[0].pageActuelle, $('#ov').classList.contains('show') && $('#f_titre') ? 'fin' : '?');
+    return r.join('|');
+  }));
+  await test('Notes (O3d) : « Supprimer » n’apparaît qu’en modifiant (toujours avec question)', 'pas de Supprimer|Supprimer en modifiant|question', () => enFiche(ficheNote({notes: [{id: 'n-x', texte: 'N', date: today()}]}), async () => {
+    const r = [$('#fs_notes [data-fiche="retirer"]') ? 'Supprimer visible' : 'pas de Supprimer'];
+    $('#fs_notes [data-fiche="modifier"][data-id="n-x"]').click(); await pause(30);
+    r.push($('#fe [data-fiche="retirer"][data-id="n-x"]') ? 'Supprimer en modifiant' : '?');
+    const q0 = confirmDemande; reponseConfirm = false; $('#fe [data-fiche="retirer"]').click(); await pause(80);
+    r.push(confirmDemande > q0 && books[0].notes.length === 1 ? 'question' : '?'); reponseConfirm = true; return r.join('|');
+  }));
+  await test('Notes et citations (O3d) : note à marge, date en petites capitales, citation en italique ornée, longue citation entière', 'marge|petites capitales|italique|orné|entière', () => {
+    const long = 'Une très longue citation. '.repeat(120).trim();
+    return enFiche(ficheNote({notes: [{id: 'n-x', texte: 'N', date: today(), page: '3'}], citations: [{id: 'c-l', texte: long, date: today()}]}), async () => {
+      const n = $('#fs_notes .entree.note'), m = n && n.querySelector('.meta'), c = $('#fs_citations .entree.citation'), p = c && c.querySelector('p');
+      if (!n || !c) return 'entrées absentes';
+      return [parseFloat(getComputedStyle(n).borderLeftWidth) >= 2 || getComputedStyle(n, '::before').content !== 'none' ? 'marge' : '?', m && getComputedStyle(m).textTransform === 'uppercase' ? 'petites capitales' : '?',
+        getComputedStyle(p).fontStyle === 'italic' ? 'italique' : '?', getComputedStyle(c, '::before').content.includes('«') ? 'orné' : '?',
+        p.textContent === long && p.scrollHeight <= p.clientHeight + 1 ? 'entière' : '?'].join('|');
+    });
+  });
+  await test('Historique (O3e) : groupé par mois, du plus récent au plus ancien', 'avril 2026|mars 2026|4', () => enFiche(fiche('Mois', {statut: 'en_cours', pagesTotal: 100, dateDebut: '2026-03-30', ajoute: '2026-03-28',
+    journal: [{date: '2026-03-30', page: 0}, {date: '2026-04-02', page: 20}, {date: '2026-04-09', page: 40}]}), async () => {
+    const m = [...document.querySelectorAll('#fs_historique .histo-mois')].map(x => x.textContent.trim());
+    return [...m, document.querySelectorAll('#fs_historique .histo .d').length].join('|');
+  }));
+  await test('Statistiques (O3e) : calculées depuis les données, estimation signalée', '53 %|10 jours|20 p./jour|≈ 7 jours|1 h 15|2 lectures|3|estimation signalée', () => enFiche(fiche('Stats', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 160, dateDebut: addDays(-9),
+    journal: [{date: addDays(-9), page: 0}, {date: addDays(-5), page: 80}, {date: addDays(-1), page: 160}], sessions: [{date: addDays(-2), min: 45}, {date: addDays(-1), min: 30}],
+    historique: [{debut: '2024-01-01', fin: '2024-02-01', note: 4}], notes: [{id: 'n-1', texte: 'a', date: today()}], citations: [{id: 'c-1', texte: 'b', date: today()}, {id: 'c-2', texte: 'c', date: today()}]}), async () => {
+    const t = [...document.querySelectorAll('#fs_stats .stat')], v = t.map(x => x.querySelector('b').textContent.trim()), fin = t.find(x => x.querySelector('b').textContent.startsWith('≈'));
+    return [...v, fin && /estimation/.test(fin.textContent) ? 'estimation signalée' : 'estimation non signalée'].join('|');
+  }));
+  await test('Statistiques : aucune ligne sans donnée (livre vide : une phrase ; une seule page notée : pas de rythme)', '0|phrase|53 %|pas de rythme', async () => {
+    const r = await enFiche(norm({id: 'vide', titre: 'Vide', statut: 'a_lire'}), async () => [document.querySelectorAll('#fs_stats .stat').length, $('#fs_stats') && $('#fs_stats').textContent.includes('apparaîtront') ? 'phrase' : '?']);
+    const s = await enFiche(fiche('Un', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 160, journal: [{date: today(), page: 160}]}), async () => {
+      const v = [...document.querySelectorAll('#fs_stats .stat b')].map(x => x.textContent.trim()); return [v[0], v.some(x => /p\.\/jour|≈/.test(x)) ? 'rythme inventé : ' + v.join(',') : 'pas de rythme'];
+    });
+    return [...r, ...s].join('|');
   });
   await test('Note vide : erreur sous le champ, rien d\'enregistré', 'erreur|0', async () => {
     books = [ficheNote()]; ouvrirFiche('t-Carnet'); $('#fs_notes [data-fiche="ajouter"]').click(); taper('#fe_texte', '   '); $('#livreOv [data-fiche="enregistrer"]').click(); await pause(50);
@@ -2572,14 +2725,14 @@
     prefs.density = 'confort'; applyTheme(); const b = document.documentElement.dataset.density;
     prefs.density = d; applyTheme(); return a + '|' + b;
   });
-  await test('Premium : fiche continue montre une dernière trace et cache les détails derrière « Approfondir »', 'trace|approfondir|essentiel', async () => {
+  await test('Premium : fiche continue montre une dernière trace ; les signets remplacent le volet « Approfondir » (O3b)', 'trace|pas de volet|signets', async () => {
     const c0 = prefs.consultation, a0 = prefs.animation;
     prefs.consultation = 'continue'; prefs.animation = 'aucune';
     try {
       const b = fiche('Trace', {statut: 'en_cours', notes: [{id: 'n-trace', texte: 'Une note à retrouver', date: today()}], citations: [{id: 'c-trace', texte: 'Une phrase à retenir', date: today()}]});
       books = [b]; ui.tab = 'en_cours'; render(); ouvrirFiche(b.id); interrompreAnimation(); await pause(30);
-      return [$('#livre .livre-trace') ? 'trace' : '?', ($('#livre .livre-approfondir summary') || {textContent: '?'}).textContent.trim().includes('Approfondir') ? 'approfondir' : '?',
-        document.querySelectorAll('#livre > .livre-nav [data-section]').length === 3 ? 'essentiel' : '?'].join('|');
+      return [$('#livre .livre-trace') ? 'trace' : '?', $('#livre .livre-approfondir') ? 'volet encore là' : 'pas de volet',
+        document.querySelectorAll('#livre .livre-signets [data-section]').length === 7 ? 'signets' : '?'].join('|');
     } finally { if (ficheEtat.id) await fermerFiche(); prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
   });
   await test('Découvrir premium : une recommandation centrale, la recherche à la demande et le tirage restent accessibles', 'centrale|fermée|tirage', () => {

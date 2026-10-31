@@ -404,8 +404,54 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .livre-tete{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:var(--e-2);padding:calc(env(safe-area-inset-top) + var(--e-2)) 0 var(--e-2);background:var(--fond);border-bottom:1px solid var(--trait)}
 .livre-tete .etire{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--texte-doux);font-size:var(--t-s)}
 .livre-tete .icon{background:var(--surface);color:var(--texte);border:1px solid var(--trait)}
-.livre-haut{display:flex;gap:var(--e-4);padding:var(--e-4) 0 var(--e-3)}
-.livre-haut .big{width:clamp(88px,25vw,120px);height:auto;aspect-ratio:2/3}
+/* (O3b, 30/10/2026) Carnet vertical : page de garde centrée, signets collants sous la barre, titre réduit quand le grand titre est sorti */
+.livre-tete.avec-signets{flex-wrap:wrap;padding-bottom:0}
+.livre-tete .livre-mini{display:none;font-family:var(--police-titres);font-weight:600;font-size:var(--t-m);color:var(--texte)}
+.livre-tete.titre-visible .livre-mini{display:block;overflow:hidden;text-overflow:ellipsis}
+.livre-tete.titre-visible .livre-tete-statut{display:none}
+.livre-signets{flex:1 1 100%;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.livre-signets::-webkit-scrollbar{display:none}
+.livre-signets button{position:relative;flex:none;min-height:var(--toucher);padding:0 var(--e-3);border:0;background:none;font:inherit;font-size:var(--t-s);color:var(--texte-doux);cursor:pointer;white-space:nowrap}
+.livre-signets button[aria-current=true]{color:var(--texte);font-weight:700}
+.livre-signets button[aria-current=true]::before{content:"";position:absolute;top:0;left:50%;width:10px;height:14px;margin-left:-5px;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 72%,0 100%)}
+.livre-signets button[aria-current=true]::after{content:"";position:absolute;left:var(--e-3);right:var(--e-3);bottom:0;height:2px;background:var(--accent)}
+.livre-garde{text-align:center;padding:var(--e-5) 0 var(--e-3)}
+.livre-garde .big{display:block;width:clamp(96px,28vw,132px);height:auto;aspect-ratio:2/3;margin:0 auto var(--e-4);box-shadow:var(--ombre-2)}
+.livre-auteur{margin:0;font-size:var(--t-xs);font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--texte-doux);overflow-wrap:anywhere}
+.livre-garde .livre-titre{margin:var(--e-2) 0 0}
+.livre-filet{width:28px;height:1px;background:var(--accent);margin:var(--e-3) auto}
+.livre-garde .meta{justify-content:center;margin-top:var(--e-1)}
+.livre-garde .livre-actions-hero{justify-content:center;margin-top:var(--e-4)}
+.livre-garde .livre-actions-hero .pri{flex:1 1 100%;max-width:320px}
+.livre-garde :is(.livre-avis,.livre-resume,.livre-trace){text-align:left;margin-top:var(--e-4)}
+/* (O3c) Progression sur place */
+.livre-maj{display:grid;grid-template-columns:1fr auto;gap:var(--e-2) var(--e-3);align-items:center;margin-top:var(--e-3);padding:var(--e-3);border-radius:var(--r-m);background:var(--surface-2)}
+.livre-maj label{grid-column:1/-1;font-size:var(--t-s);color:var(--texte-doux)}
+.livre-maj input[type=range]{width:100%;min-height:var(--toucher);margin:0;padding:0;border:0;background:none;accent-color:var(--accent)}
+.livre-maj input[type=number]{width:96px;text-align:right}
+.livre-maj.sans-curseur input[type=number]{grid-column:1}
+.livre-maj .erreur,.livre-maj .btn{grid-column:1/-1}
+.livre-maj .btn{justify-self:end}
+/* (O3d) Notes à marge, citations ornées (en entier) */
+:is(#fs_notes,#fs_citations) .entree{display:flex;flex-direction:column;background:none;border-radius:0}
+:is(#fs_notes,#fs_citations) .entree .meta{font-size:var(--t-xs);letter-spacing:.08em;text-transform:uppercase}
+#fs_notes .entree{border-left:2px solid var(--accent);padding:var(--e-1) 0 var(--e-1) var(--e-4);margin-bottom:var(--e-4)}
+#fs_notes .entree .meta{order:-1;margin:0 0 var(--e-1)}
+#fs_notes .entree p{font-family:var(--police-titres);line-height:1.6}
+#fs_citations .entree{position:relative;padding:var(--e-2) 0 var(--e-1) 34px}
+#fs_citations .entree::before{content:"«";position:absolute;left:0;top:0;font:400 40px/1 var(--police-titres);color:var(--accent)}
+#fs_citations .entree p{font-size:var(--t-l);line-height:1.6}
+#fs_citations .entree .meta{justify-content:flex-end}
+.livre-orne{text-align:center;color:var(--texte-doux);letter-spacing:.6em;margin:var(--e-1) 0}
+.editeur .acts .del{margin-right:auto}
+/* (O3e) Historique par mois, statistiques */
+.histo-mois{grid-column:1/-1;margin:var(--e-3) 0 0;font-size:var(--t-xs);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--texte-doux)}
+.histo-mois:first-child{margin-top:0}
+.histo .d{text-align:right;min-width:2ch;font-family:var(--police-titres)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--e-2)}
+.stat{padding:var(--e-3);border-radius:var(--r-m);background:var(--surface-2);min-width:0}
+.stat b{display:block;font-family:var(--police-titres);font-size:var(--t-l);font-weight:600;line-height:1.2;color:var(--texte);overflow-wrap:anywhere}
+.stat span{display:block;font-size:var(--t-xs);color:var(--texte-doux)}
 .livre-titre{margin:0 0 var(--e-1);font-size:var(--t-xl);line-height:1.25;font-family:var(--police-titres);overflow-wrap:anywhere}
 .livre-actions-hero{display:flex;flex-wrap:wrap;gap:var(--e-2);margin:var(--e-3) 0 0}
 .livre-actions-hero .btn{min-height:var(--toucher)}
@@ -493,9 +539,6 @@ button{-webkit-touch-callout:none}
 #livreTitre:focus{outline:none}   /* (le titre reçoit le focus à l'ouverture pour les lecteurs d'écran : ce n'est pas une commande) */
 .livre-avis{border-left:4px solid var(--accent);background:var(--surface-2);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);margin-bottom:var(--e-3)}
 .livre-avis p{margin:0 0 var(--e-1);white-space:pre-wrap;font-style:italic}
-.livre-nav{display:flex;gap:var(--e-2);overflow-x:auto;scrollbar-width:none;padding:var(--e-1) 0 var(--e-3)}
-.livre-nav::-webkit-scrollbar{display:none}
-.livre-nav .chipb{flex:0 0 auto}
 .livre-section{border-top:1px solid var(--trait);padding:var(--e-3) 0;scroll-margin-top:72px}
 .livre-section h3{display:flex;align-items:center;justify-content:space-between;gap:var(--e-2);margin:0 0 var(--e-2);font-size:var(--t-s);font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .livre-section .bar{margin-bottom:var(--e-2)}
@@ -565,7 +608,7 @@ button{-webkit-touch-callout:none}
 .lv .entree .meta{color:var(--livre-doux);font-size:var(--t-xs)}
 .lv .entree.note .meta{order:-1;letter-spacing:.1em;text-transform:uppercase;margin:0 0 2px}
 .lv .entree .acts .btn,.lv .editeur .btn{background:none;border:0;color:var(--livre-vert);text-decoration:underline;padding:0 var(--e-2)}
-.lv .entree .acts .btn.del{color:var(--livre-bordeaux)}
+.lv .entree .acts .btn.del,.lv .editeur .btn.del{color:var(--livre-bordeaux)}
 .lv .editeur{background:none;padding:0}
 .lv-mois{font-size:var(--t-xs);letter-spacing:.14em;text-transform:uppercase;color:var(--livre-or-texte);margin:10px 0 4px}
 .lv-evt{display:grid;grid-template-columns:2.2em 1fr;gap:var(--e-2);font-size:var(--t-s)}
@@ -672,9 +715,6 @@ button{-webkit-touch-callout:none}
 .livre-trace{display:block;width:100%;margin:0 0 var(--e-3);padding:var(--e-3) var(--e-4);border:0;border-radius:var(--r-m);background:var(--accent-doux);color:var(--sur-accent-doux);font:inherit;text-align:left;cursor:pointer}
 .livre-trace b{display:block;font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;margin-bottom:var(--e-1)}
 .livre-trace span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--police-titres);font-size:var(--t-m)}
-.livre-approfondir{margin:0 0 var(--e-3);border-top:1px solid var(--trait);border-bottom:1px solid var(--trait)}
-.livre-approfondir summary{display:flex;justify-content:space-between;align-items:center;color:var(--texte-doux)}
-.livre-approfondir .livre-nav{padding:0 0 var(--e-3);margin:0}
 /* Densité : les fonctions sont identiques ; seule la quantité de chrome et d'espace change. */
 [data-density=compact]{--e-2:6px;--e-3:10px;--e-4:14px;--e-5:20px;--e-6:26px}
 [data-density=compact] .resume-lecture{padding:var(--e-3)}
@@ -682,8 +722,6 @@ button{-webkit-touch-callout:none}
 [data-density=compact] .list{gap:var(--e-2)}
 [data-density=concentration] #livreOv .livre-tete .etire{display:none}
 [data-density=concentration] #livreOv .livre-tete{background:color-mix(in srgb,var(--fond) 92%,transparent);border-bottom-color:transparent}
-[data-density=concentration] #livreOv .livre-nav{display:none}
-[data-density=concentration] #livreOv .livre-haut{margin-bottom:var(--e-2)}
 [data-density=concentration] #livreOv .livre-section:not(#fs_notes):not(#fs_citations):not(#fs_progression){opacity:.82}
 </style>
 </head>
@@ -750,7 +788,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.30-1';
+const VERSION = '2026.10.30-2';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -805,7 +843,9 @@ const ESSAI = new URLSearchParams(location.search).has('tests');
 // Grande carte « Ta lecture en cours » : masquée pendant les tests (pour qu'ils comptent tous les livres), sauf ceux qui l'allument
 let REPRISE = !ESSAI;
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
-const prefs = Object.assign({view: 'liste', theme: 'auto', style: 'editorial', density: 'confort', animation: 'complete', consultation: 'livre', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'},
+// (O3a, 30/10/2026 : la fiche verticale est le carnet par défaut — décision d'Elias ; le livre feuilletable reste au choix)
+const PREFS_DEFAUT = {view: 'liste', theme: 'auto', style: 'editorial', density: 'confort', animation: 'complete', consultation: 'continue', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'};
+const prefs = Object.assign({...PREFS_DEFAUT},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
 // Passage unique au style Éditorial (plan maître, phase 1, option 10-A) : un appareil resté en Android moderne passe
@@ -823,6 +863,22 @@ function appliquerPassageEditorial() {
   if (passe) toastLater(MSG_EDITORIAL, 1500);
 }
 appliquerPassageEditorial();
+// Passage unique à la fiche verticale (O3a, accordé par Elias le 30/10/2026) : un appareil qui ouvrait les livres sur le
+// carnet feuilletable (l'ancien réglage par défaut, enregistré avec les autres) passe une seule fois à la fiche ;
+// le repère « consultationFiche » garantit que tout choix fait ensuite est respecté
+function passageFiche(p) {
+  if (p.consultationFiche) return false;
+  p.consultationFiche = 1;
+  if (p.consultation !== 'livre') return false;
+  p.consultation = 'continue'; return true;
+}
+const MSG_FICHE = 'Les livres s’ouvrent maintenant sur leur fiche. Réglages → À l’ouverture d’un livre pour revenir au carnet feuilletable.';
+function appliquerPassageFiche() {
+  if (prefs.consultationFiche) return;
+  const passe = passageFiche(prefs); savePrefs();
+  if (passe) toastLater(MSG_FICHE, 1500);
+}
+appliquerPassageFiche();
 Recherche.setGoogleKey(prefs.googleKey);
 
 /* ---------- Petits outils ---------- */
@@ -1680,6 +1736,7 @@ function nettoyerAnimation() {
   if (Ouverture.tete) Ouverture.tete.style.opacity = '';
   Ouverture.calque = Ouverture.fond = Ouverture.tete = null;
   const ov = $('#livreOv'); ov.classList.remove('masque', 'fermeture'); ov.inert = false; ov.style.visibility = ''; $('#livre').style.transformOrigin = '';
+  suivreFiche();
 }
 // Toucher, touche, retour, écran redimensionné : tout s'arrête tout de suite (rien ne reste à l'écran, la fiche est visible)
 function interrompreAnimation() {
@@ -1720,7 +1777,7 @@ async function animerOuverture(id) {
   const d3 = mode === 'complete', ce = rectCentre(mode), P = rectOuvert(ce, mode), ouvert = versRect(P, ce), o = monterLivre(modele, ce), {livre, couv} = o;
   if (d3) o.objet.style.transform = 'perspective(1000px)';
   // (la fiche est dessinée ; elle reste cachée pendant la prise, la barre du haut viendra en dernier)
-  ov.classList.add('masque'); ov.style.visibility = 'hidden'; dedans.style.transformOrigin = '0 0';
+  ov.classList.add('masque'); ov.style.visibility = 'hidden'; dedans.style.transformOrigin = `0 ${ov.scrollTop}px`;   // (O3b : rouverte là où on lisait)
   const tete = $('#livre .livre-tete'); if (tete) { tete.style.opacity = '0'; Ouverture.tete = tete; }
   const images = mode === 'complete' || mode === 'simple' ? mesurerImages(jeton) : null, t0 = performance.now();
   // 1. On prend le livre : de la carte au centre (sans carte visible : il apparaît au centre) ; il se soulève (ombre),
@@ -2133,11 +2190,13 @@ function ouvrirFiche(id, section) {
   // (un livre est déjà ouvert — le même, ou un autre par « Voir » : on change de contenu sans animation)
   const dejaOuverte = $('#livreOv').classList.contains('show'), memeLivre = fiche.id === id;
   if ($('#livreOv').classList.contains('fermeture')) interrompreAnimation();   // (fermeture animée encore en cours : elle s'arrête net)
-  Object.assign(fiche, {id, edition: memeLivre ? fiche.edition : null, dernier: b, toutHisto: false,
+  if (dejaOuverte && fiche.id && !memeLivre && !consultationLivre()) positionsFiche.set(fiche.id, $('#livreOv').scrollTop);
+  Object.assign(fiche, {id, edition: memeLivre ? fiche.edition : null, dernier: b, toutHisto: false, signet: memeLivre ? fiche.signet : '', sautA: 0,
     mode: memeLivre ? fiche.mode : (prefs.consultation === 'livre' ? 'carnet' : 'fiche')});
   $('#livreOv').classList.add('show'); $('#livreOv').scrollTop = 0; peindreFiche();
   const h = $('#livreTitre'); if (h) { h.tabIndex = -1; h.focus({preventScroll: true}); }
-  const s = section && $('#fs_' + section); if (s) s.scrollIntoView({block: 'start'});
+  // (O3b) le même livre rouvert retrouve où on lisait (en mémoire seulement) ; une section demandée l'emporte
+  if (!consultationLivre()) { if (section) allerFiche(section); else if (!(dejaOuverte && memeLivre) && positionsFiche.has(id)) { $('#livreOv').scrollTop = positionsFiche.get(id); suivreFiche(); } }
   // (livre feuilletable : depuis le Carnet, on ouvre directement la page de la section — Citations, Notes…)
   if (section && consultationLivre() && Feuille.pages.length) { const d = debutsSections(Feuille.pages); if (section in d) montrerPage(d[section], {focus: true}); }
   // (second toucher rapide sur le même livre : pas de seconde animation)
@@ -2151,6 +2210,7 @@ async function fermerFiche() {
   finirFeuille();
   const coupee = interrompreAnimation() || Ouverture.gesteCoupe || performance.now() - Ouverture.coupeeA < 80, modele = $('#livre .ph') || creerCouverture(fiche.id);
   const defile = $('#livreOv').scrollTop;   // (la fermeture animée repart de là où on lisait)
+  if (fiche.id && !consultationLivre()) positionsFiche.set(fiche.id, defile);
   Ouverture.gesteCoupe = false;
   const id = fiche.id; fiche.id = ''; fiche.edition = null;
   // (refermé sur la couverture ou la page de garde, là où le livre s'ouvre de lui-même : le marque-page ne bouge pas)
@@ -2166,12 +2226,14 @@ async function fermerFiche() {
 }
 const ligneSi = (cond, html) => cond ? html : '';
 function editeurHtml() {
-  const e = fiche.edition, cit = e.type === 'citation';
+  const e = fiche.edition, cit = e.type === 'citation', b = books.find(z => z.id === fiche.id);
+  // (O3d) « Supprimer » est dans la modification d'une entrée existante (toujours avec question)
+  const existe = e.id && b && (b[cit ? 'citations' : 'notes'] || []).some(z => z.id === e.id);
   return `<div class="editeur" id="fe">
     <div class="f"><label for="fe_texte">${cit ? 'La phrase' : 'Ma note'}</label><textarea id="fe_texte" rows="4">${esc(e.texte)}</textarea></div>
     ${ligneSi(cit, `<div class="f"><label for="fe_com">Mon commentaire (facultatif)</label><textarea id="fe_com" rows="2">${esc(e.commentaire)}</textarea></div>`)}
     <div class="f"><label for="fe_page">Page (facultatif)</label><input id="fe_page" type="number" min="0" inputmode="numeric" value="${esc(e.page)}" class="champ-page"></div>
-    <div class="acts"><button class="btn" type="button" data-fiche="annuler-edition">Annuler</button><button class="btn pri" type="button" data-fiche="enregistrer">Enregistrer</button></div></div>`;
+    <div class="acts">${ligneSi(existe, `<button class="btn del" type="button" data-fiche="retirer" data-id="${esc(e.id)}" data-type="${e.type}">Supprimer</button>`)}<button class="btn" type="button" data-fiche="annuler-edition">Annuler</button><button class="btn pri" type="button" data-fiche="enregistrer">Enregistrer</button></div></div>`;
 }
 function entreeHtml(x, type) {
   if (fiche.edition && fiche.edition.id === x.id && fiche.edition.type === type) return editeurHtml();
@@ -2179,10 +2241,10 @@ function entreeHtml(x, type) {
   const bouton = (a, t, cls) => `<button class="btn small${cls || ''}" type="button" data-fiche="${a}" data-id="${esc(x.id)}" data-type="${type}">${t}</button>`;
   return `<div class="entree ${type}${x.conflit ? ' conflit' : ''}">
     ${ligneSi(x.conflit, '<div class="lbl">Version venue d\'une autre fenêtre</div>')}
-    <p>${type === 'citation' ? '« ' + esc(x.texte) + ' »' : esc(x.texte)}</p>
+    <p>${type === 'citation' && consultationLivre() ? '« ' + esc(x.texte) + ' »' : esc(x.texte)}</p>
     ${ligneSi(type === 'citation' && x.commentaire, `<div class="a">${esc(x.commentaire)}</div>`)}
     ${ligneSi(meta, `<div class="meta">${meta}</div>`)}
-    <div class="acts">${x.conflit ? bouton('garder', 'Garder') : bouton('modifier', 'Modifier')}${bouton('retirer', 'Supprimer', ' del')}</div></div>`;
+    <div class="acts">${x.conflit ? bouton('garder', 'Garder') + bouton('retirer', 'Supprimer', ' del') : bouton('modifier', 'Modifier')}</div></div>`;
 }
 function peindreFicheSupprimee() {
   const b = fiche.dernier;
@@ -2225,32 +2287,100 @@ function peindreFiche() {
   const section = (k, titre, corps, bouton) => `<section class="livre-section" id="fs_${k}" aria-labelledby="fh_${k}"><h3 id="fh_${k}"><span>${titre}</span>${bouton || ''}</h3>${corps}</section>`;
   const ajouter = (type, t) => `<button class="btn small" type="button" data-fiche="ajouter" data-type="${type}">${ico('ajouter', '＋')} ${t}</button>`;
   const resume = b.resume ? `<details class="livre-resume"><summary>Résumé</summary><p>${esc(b.resume)}</p></details>` : '';
+  // (O3b) signets : chacun mène à sa section ; celui de la section lue s'allume (suivreFiche)
+  const signets = SIGNETS_FICHE.map(([k, t]) => `<button type="button" data-fiche="aller" data-section="${k}" aria-current="${k === (fiche.signet || 'presentation')}">${t}${k === 'notes' && notes.length ? ' · ' + notes.length : k === 'citations' && cits.length ? ' · ' + cits.length : ''}</button>`).join('');
+  // (O3c) progression sur place : même enregistrement que « Où j'en suis » (enregistrerPage)
+  const maj = b.statut !== 'en_cours' ? '' : `<form class="livre-maj${p.tot ? '' : ' sans-curseur'}" id="fp" novalidate><label for="fp_page">Je suis à la page</label>
+    ${ligneSi(p.tot, `<input type="range" id="fp_curseur" min="0" max="${p.tot}" value="${Math.min(p.cur, p.tot)}" aria-label="Page actuelle (curseur)">`)}<input type="number" id="fp_page" min="0" inputmode="numeric" value="${p.cur}">
+    <button class="btn pri" type="submit" id="fp_ok">Enregistrer</button></form>`;
+  // (O3e) historique groupé par mois (le jour devant chaque événement)
+  let moisVu = '';
+  const histo = evVus.map(e => { const k = e.date.slice(0, 7), m = k !== moisVu ? `<h4 class="histo-mois">${moisLong(k)}</h4>` : ''; moisVu = k;
+    return m + `<time class="d" datetime="${e.date}">${+e.date.slice(8)}</time><span>${esc(e.texte)}</span>`; }).join('');
+  const st = statsLivre(b);
   box.innerHTML = `
-    <div class="livre-tete"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button>
-      <span class="etire">${esc(STATUTS[b.statut] || '')}</span>
+    <div class="livre-tete avec-signets"><button class="icon" type="button" data-fiche="fermer" aria-label="Revenir à la bibliothèque">${ico('retour', '↩️')}</button>
+      <span class="etire"><span class="livre-tete-statut">${esc(STATUTS[b.statut] || '')}</span><span class="livre-mini" aria-hidden="true">${esc(b.titre)}</span></span>
       <button class="btn" type="button" data-fiche="modifier-livre">${ico('modifier', '✍️')} Modifier</button>
-      ${ligneSi(b.statut === 'en_cours', `<button class="icon" type="button" data-fiche="plus" aria-label="Autres actions : chrono, citation, j'ai fini">${ico('plus', '⋯')}</button>`)}</div>
-    <div class="livre-haut">${coverHtml(b, 'big')}<div class="info">
-      <h2 id="livreTitre" class="livre-titre">${esc(b.titre)}</h2>
-      ${ligneSi(b.auteur, `<div class="a">${esc(b.auteur)}</div>`)}
-      <div class="meta">${metaLivre}</div>
+      ${ligneSi(b.statut === 'en_cours', `<button class="icon" type="button" data-fiche="plus" aria-label="Autres actions : chrono, citation, j'ai fini">${ico('plus', '⋯')}</button>`)}
+      <nav class="livre-signets" aria-label="Sections du carnet">${signets}</nav></div>
+    <section class="livre-garde" id="fs_presentation" aria-label="Présentation">${coverHtml(b, 'big')}
+      ${ligneSi(b.auteur, `<p class="livre-auteur">${esc(b.auteur)}</p>`)}
+      <h2 id="livreTitre" class="livre-titre">${esc(b.titre)}</h2><div class="livre-filet" aria-hidden="true"></div>
+      ${ligneSi(metaLivre, `<div class="meta">${metaLivre}</div>`)}
       <div class="meta"><span class="chip">${esc(STATUT_UN[b.statut])}${b.statut === 'en_cours' && p.tot ? ' · ' + p.pct + ' %' : ''}</span>${ligneSi(b.note, `<span class="stars" aria-label="Note : ${b.note} sur 5">${stars(b.note)}</span>`)}</div>
-      <div class="livre-actions-hero">${action}<button class="btn" type="button" data-fiche="ouvrir-carnet">${ico('livre', '📖')} Ouvrir mon carnet</button></div>
-    </div></div>
-    ${ligneSi(b.avis, `<div class="livre-avis"><p>${esc(b.avis)}</p><div class="a">Mon avis</div></div>`)}
-    ${resume}
-    ${trace ? `<button class="livre-trace" type="button" data-fiche="aller" data-section="${trace.type}"><b>${trace.libelle}${trace.date ? ' · ' + fdate(trace.modif || trace.date) : ''}</b><span>${esc(trace.texte)}</span></button>` : ''}
-    <nav class="livre-nav" aria-label="Essentiel du carnet">${[['progression', 'Progression'], ['notes', 'Notes' + (notes.length ? ' ' + notes.length : '')], ['citations', 'Citations' + (cits.length ? ' ' + cits.length : '')]]
-      .map(([k, t]) => `<button type="button" class="chipb" data-fiche="aller" data-section="${k}">${t}</button>`).join('')}</nav>
-    <details class="livre-approfondir"><summary>Approfondir ce livre</summary><nav class="livre-nav" aria-label="Informations complémentaires"><button type="button" class="chipb" data-fiche="aller" data-section="historique">Historique</button><button type="button" class="chipb" data-fiche="aller" data-section="infos">Informations et édition</button></nav></details>
+      <div class="livre-actions-hero">${action}${ajouter('note', 'Note')}${ajouter('citation', 'Citation')}<button class="btn" type="button" data-fiche="ouvrir-carnet">${ico('livre', '📖')} Feuilleter comme un livre</button></div>
+      ${ligneSi(b.avis, `<div class="livre-avis"><p>${esc(b.avis)}</p><div class="a">Mon avis</div></div>`)}
+      ${resume}
+      ${trace ? `<button class="livre-trace" type="button" data-fiche="aller" data-section="${trace.type}"><b>${trace.libelle}${trace.date ? ' · ' + fdate(trace.modif || trace.date) : ''}</b><span>${esc(trace.texte)}</span></button>` : ''}
+    </section>
     ${section('progression', 'Progression', (p.tot ? `<div class="bar"><i style="width:${p.pct}%"></i></div><p class="moyen">p. ${p.cur} sur ${b.pagesSource === 'estimation' ? 'environ ' : ''}${p.tot} · ${p.pct} %${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>`
-      : p.cur ? `<p class="moyen">p. ${p.cur}${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>` : '<p class="a">Pas encore de progression</p>'))}
+      : p.cur ? `<p class="moyen">p. ${p.cur}${derniere ? ' · dernière progression le ' + fdate(derniere) : ''}</p>` : '<p class="a">Pas encore de progression</p>') + maj)}
     ${section('notes', 'Mes notes', nouveau('note') + (notes.length ? notes.map(x => entreeHtml(x, 'note')).join('') : nouveau('note') ? '' : '<p class="a">Aucune note pour l\'instant</p>'), ajouter('note', 'Note'))}
-    ${section('citations', 'Citations', nouveau('citation') + (cits.length ? cits.map(x => entreeHtml(x, 'citation')).join('') : nouveau('citation') ? '' : '<p class="a">Aucune citation pour l\'instant</p>'), ajouter('citation', 'Citation'))}
-    ${section('historique', 'Historique', ev.length ? `<div class="histo">${evVus.map(e => `<span class="d">${fdate(e.date)}</span><span>${esc(e.texte)}</span>`).join('')}</div>${ligneSi(!fiche.toutHisto && ev.length > 20, `<button class="btn small mt-2" type="button" data-fiche="histo">Tout afficher (${ev.length})</button>`)}` : '<p class="a">Aucun événement enregistré pour ce livre</p>')}
+    ${section('citations', 'Citations', nouveau('citation') + (cits.length ? cits.map(x => entreeHtml(x, 'citation')).join('<div class="livre-orne" aria-hidden="true">· · ·</div>') : nouveau('citation') ? '' : '<p class="a">Aucune citation pour l\'instant</p>'), ajouter('citation', 'Citation'))}
+    ${section('historique', 'Historique', ev.length ? `<div class="histo">${histo}</div>${ligneSi(!fiche.toutHisto && ev.length > 20, `<button class="btn small mt-2" type="button" data-fiche="histo">Tout afficher (${ev.length})</button>`)}` : '<p class="a">Aucun événement enregistré pour ce livre</p>')}
+    ${section('stats', 'Statistiques', st.length ? `<div class="stats">${st.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>` : '<p class="a">Les statistiques apparaîtront quand tu noteras ta progression.</p>')}
     ${section('infos', 'Infos', `<dl class="livre-infos">${infos.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>${ligneSi(rayonsInfos.length, `<p class="a">Rayons · ${rayonsInfos.map(esc).join(' · ')}</p>`)}
       <div class="livre-danger"><button class="btn del" type="button" data-fiche="supprimer-livre">${ico('fermer', '✕')} Supprimer ce livre…</button></div>`)}`;
   if (actif && $('#' + actif)) $('#' + actif).focus({preventScroll: true});
+  suivreFiche();
+}
+// (O3b) Signets de la fiche, dans l'ordre des sections
+const SIGNETS_FICHE = [['presentation', 'Présentation'], ['progression', 'Progression'], ['notes', 'Notes'], ['citations', 'Citations'], ['historique', 'Historique'], ['stats', 'Statistiques'], ['infos', 'Infos']];
+// Où on lisait dans chaque fiche : en mémoire seulement (rien n'est enregistré), retrouvé en rouvrant le même livre
+const positionsFiche = new Map();
+// Aller à une section : son haut juste sous la barre (signets compris) ; son signet s'allume tout de suite
+function allerFiche(k) {
+  const ov = $('#livreOv'), s = $('#fs_' + k), tete = $('#livre .livre-tete'); if (!s) return;
+  fiche.signet = k; fiche.sautA = performance.now(); marquerSignet(k);
+  ov.scrollTop = k === 'presentation' || !tete ? 0 : ov.scrollTop + s.getBoundingClientRect().top - tete.getBoundingClientRect().bottom;
+}
+// Pendant la lecture : le signet de la section lue s'allume ; le petit titre apparaît dans la barre quand le grand titre est sorti
+function suivreFiche() {
+  const ov = $('#livreOv'), tete = $('#livre .livre-tete.avec-signets');
+  if (!tete || !ov.classList.contains('show') || ov.classList.contains('masque') || ov.classList.contains('fermeture')) return;
+  const bas = tete.getBoundingClientRect().bottom, t = $('#livreTitre');
+  tete.classList.toggle('titre-visible', !!t && t.getBoundingClientRect().bottom < bas);
+  if (performance.now() - (fiche.sautA || 0) < 600) return marquerSignet(fiche.signet);   // (juste après un signet touché)
+  const ks = SIGNETS_FICHE.map(([k]) => k).filter(k => $('#fs_' + k));
+  let actif = ks[0];
+  // (tout en bas : la dernière section, même si elle est trop courte pour monter sous la barre)
+  if (ov.scrollTop > 0 && ov.scrollTop + ov.clientHeight >= ov.scrollHeight - 2) actif = ks[ks.length - 1];
+  else ks.forEach(k => { if ($('#fs_' + k).getBoundingClientRect().top <= bas + 8) actif = k; });
+  fiche.signet = actif; marquerSignet(actif);
+}
+function marquerSignet(k) {
+  const barre = $('#livre .livre-signets'); if (!barre) return;
+  let sb = null;
+  barre.querySelectorAll('button').forEach(x => { const on = x.dataset.section === k; if (on) sb = x; if ((x.getAttribute('aria-current') === 'true') !== on) x.setAttribute('aria-current', String(on)); });
+  // (le signet allumé reste visible dans sa barre, qui défile de côté)
+  if (sb && (sb.offsetLeft < barre.scrollLeft || sb.offsetLeft + sb.offsetWidth > barre.scrollLeft + barre.clientWidth)) barre.scrollLeft = Math.max(0, sb.offsetLeft - barre.offsetLeft - (barre.clientWidth - sb.offsetWidth) / 2);
+}
+let suiviPrevu = false;
+$('#livreOv').addEventListener('scroll', () => { if (suiviPrevu) return; suiviPrevu = true; requestAnimationFrame(() => { suiviPrevu = false; suivreFiche(); }); }, {passive: true});
+// (O3e) Statistiques d'un livre : seulement ce que ses données permettent de calculer ; une ligne sans donnée n'apparaît pas,
+// l'estimation est dite comme telle
+const ecartJours = (a, z) => Math.round((new Date(z + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
+function statsLivre(b) {
+  const t = [], p = progress(b), fini = (b.statut === 'lu' || b.statut === 'abandon') && b.dateFin, fin = fini ? b.dateFin : today();
+  if (p.tot && b.statut !== 'a_lire') t.push([p.pct + ' %', `${p.cur} pages sur ${b.pagesSource === 'estimation' ? 'environ ' : ''}${p.tot}`]);
+  if (b.dateDebut && b.statut !== 'a_lire' && fin >= b.dateDebut) t.push([plural(ecartJours(b.dateDebut, fin) + 1, 'jour'), !fini ? 'depuis le début' : b.statut === 'lu' ? 'du début à la fin' : 'du début à l’arrêt']);
+  // (rythme : entre la première et la dernière page notées de cette lecture)
+  const j = (b.journal || []).filter(e => !b.dateDebut || e.date >= b.dateDebut);
+  if (j.length >= 2) {
+    const a = j[0], z = j[j.length - 1], r = (z.page - a.page) / Math.max(1, ecartJours(a.date, z.date));
+    if (r > 0) {
+      t.push([(r < 10 ? r.toFixed(1).replace('.', ',') : Math.round(r)) + ' p./jour', 'rythme moyen entre la première et la dernière page notées']);
+      if (b.statut === 'en_cours' && p.tot > p.cur) t.push(['≈ ' + plural(Math.ceil((p.tot - p.cur) / r), 'jour'), 'pour finir à ce rythme (estimation)']);
+    }
+  }
+  const min = (b.sessions || []).reduce((s, x) => s + (+x.min || 0), 0);
+  if (min) t.push([fdur(min), 'chronométrées en ' + plural(b.sessions.length, 'séance')]);
+  const avant = (b.historique || []).filter(h => h.fin).length;
+  if (avant) t.push([plural(avant + (b.statut === 'a_lire' ? 0 : 1), 'lecture'), avant > 1 ? `dont ${avant} précédentes` : 'dont 1 précédente']);
+  const nn = (b.notes || []).length, nc = (b.citations || []).length;
+  if (nn + nc) t.push([String(nn + nc), plural(nn, 'note') + ' · ' + plural(nc, 'citation')]);
+  return t;
 }
 // Tous les gestes de la fiche passent par ici (par identifiant : jamais par la position d'une note ou d'une citation)
 $('#livreOv').addEventListener('click', e => {
@@ -2270,7 +2400,7 @@ $('#livreOv').addEventListener('click', e => {
   if (a === 'modifier-livre') return openForm(b);
   if (a === 'plus') return openActions(b);
   if (a === 'pages' || a === 'start' || a === 'resume') return quick(a, b);
-  if (a === 'aller') { if (consultationLivre()) return allerSection(x.dataset.section); const s = $('#fs_' + x.dataset.section); if (s) s.scrollIntoView({block: 'start'}); return; }
+  if (a === 'aller') return consultationLivre() ? allerSection(x.dataset.section) : allerFiche(x.dataset.section);
   if (a === 'histo') { fiche.toutHisto = true; return peindreFiche(); }
   if (a === 'supprimer-livre') return supprimerLivre(b.id);
   if (a === 'ajouter' || a === 'modifier') return commencerEdition(x.dataset.type, a === 'modifier' ? x.dataset.id : null);
@@ -2285,6 +2415,17 @@ $('#livreOv').addEventListener('input', e => {
   if (e.target.id === 'fe_texte') fiche.edition.texte = e.target.value;
   if (e.target.id === 'fe_page') fiche.edition.page = e.target.value;
   if (e.target.id === 'fe_com') fiche.edition.commentaire = e.target.value;
+});
+// (O3c) Progression sur place : le curseur et le champ se suivent ; « Enregistrer » passe par le même chemin que « Où j'en suis »
+$('#livreOv').addEventListener('input', e => {
+  if (e.target.id === 'fp_curseur') $('#fp_page').value = e.target.value;
+  if (e.target.id === 'fp_page' && $('#fp_curseur') && e.target.value !== '') $('#fp_curseur').value = e.target.value;
+});
+$('#livreOv').addEventListener('submit', e => {
+  if (e.target.id !== 'fp') return; e.preventDefault();
+  const b = books.find(z => z.id === fiche.id), n = parseInt($('#fp_page').value, 10); if (!b) return;
+  if (isNaN(n) || n < 0) return erreurChamp('fp_page', 'Indique un numéro de page');
+  enregistrerPage(b, n);
 });
 // Édition en place d'une note ou d'une citation (une seule à la fois)
 function commencerEdition(type, id) {
@@ -2308,6 +2449,7 @@ function enregistrerEdition() {
 async function retirerEntree(type, id) {
   if (!(await demander(type === 'note' ? 'Supprimer cette note ?' : 'Supprimer cette citation ?', 'Supprimer', 'Garder'))) return;
   const cle = type === 'note' ? 'notes' : 'citations', b = books.find(z => z.id === fiche.id); if (!b) return;
+  if (fiche.edition && fiche.edition.id === id) fiche.edition = null;   // (supprimée depuis sa modification)
   save({...b, [cle]: (b[cle] || []).filter(z => z.id !== id)}, type === 'note' ? 'Note supprimée' : 'Citation supprimée');
 }
 // Version venue d'une autre fenêtre (conflit) : « Garder » en fait une entrée ordinaire
@@ -3716,6 +3858,16 @@ function closeM() {
   focusAvant = null;
 }
 
+// Une page enregistrée (« Où j'en suis » et la fiche, O3c) : même journal, mêmes règles (page maximale, livre fini)
+function enregistrerPage(b, n) {
+  const tot = +b.pagesTotal || 0;
+  const nb = {...b, pageActuelle: tot ? Math.min(n, tot) : n};
+  logPage(nb, nb.pageActuelle);
+  // (dernière page : enregistrée d'abord, comme pour le chrono ; fermer la fiche « Bravo » ne la perd plus)
+  if (tot && n >= tot) { save(nb); return openForm({...nb, statut: 'lu', dateFin: today()}, {finish: true}); }
+  const d = n - (+b.pageActuelle || 0);
+  save(nb, d > 0 ? `+${plural(d, 'page')} 👏` : 'Page enregistrée');
+}
 function openPage(b) {
   // En un geste : quelques pages de plus, ou « Fini » (au-dessus du champ, pour rester visibles quand le clavier s'ouvre)
   const cur = +b.pageActuelle || 0;
@@ -3729,14 +3881,7 @@ function openPage(b) {
   const ok = () => {
     const n = parseInt(inp.value, 10);
     if (isNaN(n) || n < 0) return toast('Indique un numéro de page');
-    closeM();
-    const tot = +b.pagesTotal || 0;
-    const nb = {...b, pageActuelle: tot ? Math.min(n, tot) : n};
-    logPage(nb, nb.pageActuelle);
-    // (dernière page : enregistrée d'abord, comme pour le chrono ; fermer la fiche « Bravo » ne la perd plus)
-    if (tot && n >= tot) { save(nb); return openForm({...nb, statut: 'lu', dateFin: today()}, {finish: true}); }
-    const d = n - (+b.pageActuelle || 0);
-    save(nb, d > 0 ? `+${plural(d, 'page')} 👏` : 'Page enregistrée');
+    closeM(); enregistrerPage(b, n);
   };
   $('#p_ok').onclick = ok;
   inp.onkeydown = e => { if (e.key === 'Enter') ok(); };
@@ -4504,7 +4649,7 @@ function openSettings() {
     <div class="f"><label>Animations</label><div class="seg" id="st_anim">${Object.entries(MODES_ANIM).map(([k, v]) => `<button data-an="${k}" class="${(Object.hasOwn(MODES_ANIM, prefs.animation) ? prefs.animation : 'complete') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="a petit" id="st_anim_note">${esc(noteAnim())}</p></div>
     <div class="f"><label>À l’ouverture d’un livre</label><div class="seg" id="st_consult">${Object.entries(CONSULTATIONS).map(([k, v]) => `<button data-co="${k}" class="${(prefs.consultation === 'livre' ? 'livre' : 'continue') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-      <p class="a petit">La fiche de lecture est recommandée : elle aide à reprendre où tu en es. Le carnet feuilletable reste accessible à tout moment depuis « Ouvrir mon carnet ».</p></div>
+      <p class="a petit">La fiche de lecture est recommandée : elle aide à reprendre où tu en es. Le carnet feuilletable reste accessible à tout moment depuis « Feuilleter comme un livre ».</p></div>
     <div class="f"><label>Apparence des pages · mode « Feuilleter »</label><div class="page-styles" id="st_pages" role="group" aria-label="Apparence des pages du livre">${Object.entries(PAGE_STYLES).map(([k, v]) => `<button type="button" class="page-style-choice ${stylePageLivre() === k ? 'on' : ''}" data-page-style="${k}" aria-pressed="${stylePageLivre() === k}"><span class="page-style-preview ${k}" aria-hidden="true"><i></i><b></b></span><strong>${v}</strong></button>`).join('')}</div>
       <p class="a petit">Classique suit le thème clair ou sombre de l’appli ; Ivoire garde un papier crème aux détails bordeaux ; Nuit propose un papier anthracite et une encre claire. La couverture reste celle du livre. « Vue continue » garde le thème de l’application.</p></div>
     <div class="panel encadre"><h3>🔎 Recherche de livres</h3>

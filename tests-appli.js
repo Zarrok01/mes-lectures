@@ -1247,12 +1247,13 @@
     ui.tab = 'en_cours'; render(); return r.join('|');
   });
   await test('États : bibliothèque vide → ajouter un livre ou restaurer une sauvegarde', 'ajouter|restaurer', () => {
+    // (depuis la page de bienvenue, l'accueil vide est la section « .onboarding », plus un « .etat » : test mis à jour au lot 2)
     books = []; ui.tab = 'en_cours'; render();
-    return ($('#main .etat [data-ajouter]') ? 'ajouter' : '?') + '|' + ($('#main .etat [data-export="restore"]') ? 'restaurer' : '?');
+    return ($('#main .onboarding [data-ajouter]') ? 'ajouter' : '?') + '|' + ($('#main .onboarding [data-export="restore"]') ? 'restaurer' : '?');
   });
   await test('États : l\'avertissement sous l\'accueil est centré comme l\'accueil', 'centré', () => {
     books = []; ui.tab = 'en_cours'; render();
-    const a = $('#main .etat').getBoundingClientRect(), b = $('#main .etat + .etat-texte').getBoundingClientRect();
+    const a = $('#main .onboarding').getBoundingClientRect(), b = $('#main .onboarding + .onboarding-help').getBoundingClientRect();
     return Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2) < 4 ? 'centré' : 'décalé de ' + Math.round((b.left + b.right) / 2 - (a.left + a.right) / 2) + ' px';
   });
   await test('États : recherche sans résultat → « Effacer les filtres » remet tout', 'effacer|1 livre', () => {
@@ -2786,6 +2787,88 @@
     const barre = $('#tabs').getBoundingClientRect().height, c = $('#list .card').getBoundingClientRect(), limite = (innerWidth >= 360 ? 780 : 640) - barre;
     const ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
     books = []; paintNotice(); return ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
+  }));
+  // (lot 2 de la refonte, 31/10/2026 : Bibliothèque — accueil vide dégagé, rappel compact, carte « En ce moment », épinglés, grille)
+  const sousLaBarre = () => (innerWidth >= 360 ? 780 : 640) - $('#tabs').getBoundingClientRect().height;
+  const seCoupent = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  await test('Lot 2 : bibliothèque vide, ni statuts, ni recherche, ni filtres ; « Ajouter mon premier livre » visible, hors du ＋ ; tout revient au premier livre', 'sans statuts|sans recherche|sans filtres|ajouter visible|hors du ＋|statuts revenus', async () => {
+    const avant = books;
+    try {
+      books = []; ui.tab = 'en_cours'; render(); paintNotice(); scrollTo(0, 0); await pause(50);
+      const vu = s => { const e = $(s); return e && e.getClientRects().length; }, b = $('#list [data-ajouter]').getBoundingClientRect();
+      const r = [vu('#main .library-nav') ? 'statuts' : 'sans statuts', vu('#q') ? 'recherche' : 'sans recherche', vu('#filtres') ? 'filtres' : 'sans filtres',
+        b.bottom <= sousLaBarre() ? 'ajouter visible' : `ajouter en ${Math.round(b.top)}-${Math.round(b.bottom)}, limite ${Math.round(sousLaBarre())}`,
+        seCoupent(b, $('.fab').getBoundingClientRect()) ? 'sous le ＋' : 'hors du ＋'];
+      books = [fiche('Premier', {statut: 'a_lire'})]; render(); r.push(vu('#main .library-nav') && vu('#q') ? 'statuts revenus' : 'statuts absents');
+      return r.join('|');
+    } finally { books = avant; render(); }
+  });
+  await test('Lot 2 : rappel de sauvegarde jamais coupé ; sur une ligne sous 360 px, phrase complète au-delà', 'jamais coupé|ligne', () => {
+    const l0 = prefs.lastBackup, v0 = Store.vu, r = [];
+    try {
+      books = [fiche('R1'), fiche('R2'), fiche('R3')];
+      for (const [last, vu] of [['', ''], [addDays(-20) + 'T08:00:00.000Z', new Date().toISOString()]]) {
+        prefs.lastBackup = last || undefined; Store.vu = vu; paintNotice();
+        const bar = $('#notice'), btn = bar.querySelector('[data-export="backup"]'), txt = [...bar.querySelectorAll('span')].filter(s => s.getClientRects().length);
+        const entier = bar.scrollWidth <= bar.clientWidth + 1 && txt.every(s => s.scrollWidth <= s.clientWidth + 1);
+        const uneLigne = bar.getBoundingClientRect().height <= btn.getBoundingClientRect().height + 20;
+        const complet = /Pense à sauvegarder tes livres|depuis ta dernière sauvegarde/.test(txt.map(s => s.textContent).join(' '));
+        r.push(!entier ? 'coupé' : innerWidth < 360 ? (uneLigne ? 'ok' : 'plusieurs lignes sous 360 px') : (complet ? 'ok' : 'phrase raccourcie au-delà de 360 px'));
+      }
+      return [r.every(x => x !== 'coupé') ? 'jamais coupé' : 'coupé', r.every(x => x === 'ok') ? 'ligne' : r.join(',')].join('|');
+    } finally { prefs.lastBackup = l0; Store.vu = v0; books = []; paintNotice(); }
+  });
+  await test('Lot 2 : carte « En ce moment » avec ruban (Éditorial seulement) et temps restant à ton rythme ; rien d’inventé sans vitesse', 'ruban|≈ 1 h 20 à ton rythme|sans vitesse : rien|pas de ruban en android', () => avecReprise(async () => {
+    const r = [];
+    // (vitesse : 60 pages en 30 min = 120 pages/h ; il reste 160 pages → 1 h 20)
+    books = [enCours('Rythme', {pagesTotal: 300, pageActuelle: 140, sessions: [{date: today(), de: 20, a: 80, min: 30}]})]; ui.tab = 'en_cours';
+    await avecStyle('editorial', 'light', () => { render(); const ru = $('#resumeLecture .ruban'); r.push(ru && ru.getClientRects().length && ru.getBoundingClientRect().height > 0 ? 'ruban' : 'pas de ruban');
+      const t = $('#resumeLecture .reste'); r.push(t ? t.textContent.trim() : 'pas de temps'); });
+    books = [enCours('Sans vitesse', {pagesTotal: 300, pageActuelle: 140})]; render();
+    r.push($('#resumeLecture .reste') ? 'inventé : ' + $('#resumeLecture .reste').textContent : 'sans vitesse : rien');
+    await avecStyle('android', 'light', () => { render(); const ru = $('#resumeLecture .ruban'); r.push(ru && ru.getClientRects().length ? 'ruban en android' : 'pas de ruban en android'); });
+    return r.join('|');
+  }));
+  await test('Lot 2 : rangée « Épinglés pour la suite » sous les lectures en cours ; absente sans épinglé et pendant une recherche ; ouvre la fiche', 'Les Années,Sapiens|256 p.|À lire · 3|couverture et titre entiers|absente sans épinglé|absente pendant une recherche|fiche ouverte', () => avecReprise(async () => {
+    const a0 = prefs.animation, c0 = prefs.consultation; prefs.animation = 'aucune'; prefs.consultation = 'continue';
+    try {
+      books = [enCours('Lecture'), fiche('Les Années', {epingle: true, pagesTotal: 256, ajoute: addDays(-1)}), fiche('Sapiens', {epingle: true, ajoute: addDays(-2)}), fiche('Autre')];
+      ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render();
+      const rangee = $('#main .epingles'), r = [rangee ? [...rangee.querySelectorAll('.mini-t')].map(t => t.textContent.trim()).join(',') : 'pas de rangée'];
+      r.push(rangee ? (rangee.querySelector('[data-open="t-Les Années"]') || {textContent: '?'}).textContent.includes('256 p.') ? '256 p.' : 'pages ?' : '?');
+      r.push(rangee ? (rangee.querySelector('[data-tab="a_lire"]') || {textContent: 'pas de lien'}).textContent.trim() : '?');
+      // (affichage : la couverture et le titre tiennent dans la rangée, rien n'est coupé)
+      if (rangee) { const zone = rangee.querySelector('.rangee').getBoundingClientRect(), m = rangee.querySelector('.mini'), cv = m.querySelector('.ph').getBoundingClientRect(), t = m.querySelector('.mini-t').getBoundingClientRect();
+        r.push(cv.bottom <= zone.bottom + 1 && t.height > 0 && t.bottom <= zone.bottom + 1 ? 'couverture et titre entiers' : `coupé (zone ${Math.round(zone.height)}, couverture ${Math.round(cv.height)}, titre ${Math.round(t.height)})`); }
+      books = [enCours('Lecture'), fiche('Autre')]; render(); r.push($('#main .epingles') ? 'présente sans épinglé' : 'absente sans épinglé');
+      books = [enCours('Lecture'), fiche('Les Années', {epingle: true})]; ui.q = 'Lecture'; render(); r.push($('#main .epingles') ? 'présente pendant une recherche' : 'absente pendant une recherche');
+      ui.q = ''; render(); $('#main .epingles [data-open]').click(); await pause(30);
+      r.push(ficheEtat.id === 't-Les Années' ? 'fiche ouverte' : 'fiche : ' + ficheEtat.id);
+      return r.join('|');
+    } finally { if (ficheEtat.id) await fermerFiche(); prefs.animation = a0; prefs.consultation = c0; ui.q = ''; render(); }
+  }));
+  await test('Lot 2 : grille avec l’auteur et le nombre de pages sous le titre ; les pages restent visibles avec un long nom', 'Annie Ernaux · 256 p.|Voltaire · ≈ 148 p.|Sans Pages : Auteur Test|pages visibles', () => {
+    const v0 = prefs.view;
+    try {
+      books = [fiche('Les Années', {auteur: 'Annie Ernaux', pagesTotal: 256}), fiche('Candide', {auteur: 'Voltaire', pagesTotal: 148, pagesSource: 'estimation'}), fiche('Sans Pages'),
+        fiche('Long', {auteur: 'Antoine Marie Jean-Baptiste Roger de Saint-Exupéry', pagesTotal: 120})];
+      ui.tab = 'a_lire'; prefs.view = 'grille'; ui.sort = 'titre'; render();
+      const l = id => ($(`#list .gcard[data-id="${id}"] .g-sous`) || {textContent: '?'}).textContent.trim();
+      const s = $('#list .gcard[data-id="t-Long"] .g-sous'), p = s && [...s.querySelectorAll('*')].find(e => /120 p\./.test(e.textContent) && !e.children.length);
+      const vu = p && p.getBoundingClientRect().right <= s.getBoundingClientRect().right + 1 && p.scrollWidth <= p.clientWidth + 1;
+      return [l('t-Les Années'), l('t-Candide'), 'Sans Pages : ' + l('t-Sans Pages'), vu ? 'pages visibles' : 'pages coupées'].join('|');
+    } finally { prefs.view = v0; ui.sort = 'recent'; render(); }
+  });
+  await test('Lot 2 : avec le rappel de sauvegarde, le premier livre de la collection se voit sous la grande carte', 'visible', () => avecReprise(async () => {
+    const l0 = prefs.lastBackup;
+    try {
+      prefs.lastBackup = undefined;
+      // (avec une vitesse connue : la ligne « ≈ … à ton rythme » s'ajoute à la carte, cas le plus haut)
+      books = [enCours('Les Années', {auteur: 'Annie Ernaux', sessions: [{date: today(), de: 20, a: 80, min: 30}]}), enCours('La Communauté de l\'anneau', {auteur: 'J. R. R. Tolkien', pagesTotal: 704, pageActuelle: 90, dateDebut: addDays(-10)}), fiche('Bel-Ami'), fiche('Candide')];
+      ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render(); paintNotice(); scrollTo(0, 0); await pause(50);
+      const c = $('#list .card').getBoundingClientRect(), limite = sousLaBarre(), ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
+      return $('#notice').hidden ? 'pas de rappel' : !$('#resumeLecture .reste') ? 'pas de temps restant' : ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
+    } finally { prefs.lastBackup = l0; books = []; paintNotice(); }
   }));
   /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
   await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {

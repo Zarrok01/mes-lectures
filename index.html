@@ -161,6 +161,8 @@ body{padding-bottom:calc(var(--barre-bas) + 1px + env(safe-area-inset-bottom))}
 .notice-txt{display:flex;align-items:baseline;gap:.3em;min-width:0;white-space:nowrap}
 .notice-txt > *,.notice.court > .btn{flex:none}
 .notice-txt > .notice-titre{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.notice.rappel .bref{display:none}
+@media(max-width:359.98px){.notice.rappel{flex-wrap:nowrap;justify-content:space-between;text-align:left}.notice.rappel .long{display:none}.notice.rappel .bref{display:inline}.notice.rappel > .btn{flex:none}}
 /* ---------- Champs ---------- */
 .tools{display:flex;gap:var(--e-2);padding:var(--e-3) 0;flex-wrap:wrap;align-items:center}
 input,select,textarea{font:inherit;font-size:var(--t-m);color:var(--texte);background:var(--surface);border:1px solid var(--trait-champ);border-radius:var(--r-s);padding:var(--e-2) var(--e-3);min-height:var(--toucher);width:100%}
@@ -219,6 +221,8 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .gcard .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);font-size:var(--t-xxl);box-shadow:var(--ombre-1)}
 .gcard .t{font-size:var(--t-s);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .gcard .pin{position:absolute;top:var(--e-1);right:var(--e-1)}
+.gcard .g-sous{display:flex;gap:.3em;font-size:var(--t-xs);color:var(--texte-doux);white-space:nowrap;margin-top:calc(-1 * var(--e-1))}
+.gcard .g-a{min-width:0;overflow:hidden;text-overflow:ellipsis}.gcard .g-p{flex:none}
 .gcard .gscore{position:absolute;left:var(--e-1);top:var(--e-1);z-index:2}
 .ph{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--sur-note);font-family:var(--police-titres);font-weight:800;flex:none}
 .ph img{position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:contain;background:var(--surface)}
@@ -469,6 +473,17 @@ main.slide-l{animation:inL .22s ease-out}main.slide-r{animation:inR .22s ease-ou
 .livre-danger{border-top:1px solid var(--trait);margin-top:var(--e-5);padding-top:var(--e-3)}
 .resume-lecture{display:grid;grid-template-columns:56px 1fr;gap:var(--e-2) var(--e-3);align-items:start;padding:var(--e-3) var(--e-4);margin:var(--e-3) 0;background:var(--surface);border:1px solid var(--trait);border-left:4px solid var(--accent);border-radius:var(--r-m);box-shadow:var(--ombre-1)}
 .resume-lecture .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);box-shadow:var(--ombre-1)}
+.resume-lecture .reste{margin-top:var(--e-1);font-size:var(--t-xs);color:var(--texte-doux)}
+.couv-ruban{position:relative}.ruban{display:none}
+.epingles{grid-column:1/-1;margin:var(--e-4) 0 var(--e-2)}
+.epingles-tete{display:flex;align-items:center;justify-content:space-between;gap:var(--e-3);margin-bottom:var(--e-2)}
+.epingles h3{margin:0;font:600 var(--t-m)/1.2 var(--police-titres)}
+.rangee{display:flex;gap:var(--e-3);overflow-x:auto;scrollbar-width:none;padding:var(--e-1) 0 var(--e-2)}
+.rangee::-webkit-scrollbar{display:none}
+.mini{flex:none;width:92px;height:auto;min-height:0;display:flex;flex-direction:column;gap:var(--e-1);padding:0;border:0;background:none;color:var(--texte);text-align:left;font:inherit;cursor:pointer}
+.mini .mini-couv{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);box-shadow:var(--ombre-1)}
+.mini-t{font-size:var(--t-xs);font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mini-p{font-size:var(--t-xs);color:var(--texte-doux)}
 .resume-lecture h2{margin:0;font:500 var(--t-l)/1.25 var(--police-titres);color:var(--texte)}
 .resume-lecture .meta{margin:var(--e-1) 0}
 .resume-lecture > .acts{grid-column:1/-1;flex-wrap:nowrap;margin:0;padding-top:0}
@@ -702,12 +717,18 @@ button{-webkit-touch-callout:none}
 /* ---------- Direction premium : une hiérarchie calme, sans retirer aucune fonction ---------- */
 [data-style=editorial] header{box-shadow:none}
 [data-style=editorial] h1,.livre-titre,.resume-lecture h2{font-family:var(--police-titres);font-weight:600}
-[data-style=editorial] .library-intro{display:flex;align-items:baseline;justify-content:space-between;gap:var(--e-3);padding:var(--e-3) 0 var(--e-1)}
+[data-style=editorial] .library-intro{display:flex;align-items:baseline;justify-content:space-between;gap:var(--e-3);padding:var(--e-2) 0 var(--e-1)}
+/* (lot 2 : « Ma bibliothèque » reste dit aux lecteurs d'écran ; le titre et le nombre de livres tiennent sur une ligne) */
+[data-style=editorial] .library-intro > div > p{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 [data-style=editorial] .library-intro h2{font:600 var(--t-xl)/1.1 var(--police-titres);margin:0;letter-spacing:-.01em}
 [data-style=editorial] .library-intro p{margin:0;color:var(--texte-doux);font-size:var(--t-s)}
-[data-style=editorial] .library-nav{margin-bottom:var(--e-2)}
-[data-style=editorial] .resume-lecture{background:linear-gradient(135deg,var(--surface),var(--accent-doux));padding:var(--e-4);margin:var(--e-2) 0 var(--e-4);gap:var(--e-3)}
+[data-style=editorial] .library-nav{margin-bottom:var(--e-1)}
+[data-style=editorial] .resume-lecture{background:linear-gradient(135deg,var(--surface),var(--accent-doux));padding:var(--e-3) var(--e-4);margin:var(--e-1) 0 var(--e-2);gap:var(--e-2) var(--e-3)}
+[data-style=editorial] .resume-lecture + .tools{padding-top:var(--e-1)}
+[data-style=editorial] .resume-lecture .meta{margin:calc(var(--e-1) / 2) 0}[data-style=editorial] .resume-lecture .reste{margin-top:calc(var(--e-1) / 2)}
+@media(max-width:359.98px){[data-style=editorial] .library-nav{padding-top:var(--e-1);padding-bottom:var(--e-1)}[data-style=editorial] .resume-lecture{gap:var(--e-2) var(--e-3)}[data-style=editorial] .filtres{margin-bottom:var(--e-1)}[data-style=editorial] .resume-lecture .resume-titre{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 [data-style=editorial] .resume-lecture .ph{box-shadow:none}
+[data-style=editorial] .ruban{display:block;position:absolute;top:-3px;right:14%;width:14%;min-width:8px;height:26%;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
 [data-style=editorial] .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
 [data-style=editorial] .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
 [data-style=editorial] .list:not(.grid) .card:last-child{border-bottom:0}
@@ -793,7 +814,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-2';
+const VERSION = '2026.10.31-3';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1462,11 +1483,15 @@ function renderTout() {
   if (ui.tab === 'citations') return renderQuotesTab();
   if (ui.tab === 'notes') return renderNotesTab();
   if (ui.tab === 'decouvrir') return renderDecouvrir();
+  // (bibliothèque vide : la page de bienvenue d'abord ; statuts, recherche et filtres reviennent avec le premier livre)
+  if (!books.length) { $('#main').innerHTML = '<div class="list" id="list"></div>'; return renderCards(); }
   const libraryNav = `<div class="library-intro"><div><p>Ma bibliothèque</p><h2>${ui.tab === 'en_cours' ? 'Lire maintenant' : STATUTS[ui.tab]}</h2></div><p>${plural(total, 'livre')}</p></div><nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
   const reprendre = REPRISE && ui.tab === 'en_cours' ? books.filter(b => b.statut === 'en_cours').sort((a, b) => dateKey(b).localeCompare(dateKey(a)))[0] : null;
+  const pr = reprendre && progress(reprendre), vit = reprendre && speed();
+  const resteLecture = pr && pr.tot && vit && pr.cur < pr.tot ? `<div class="reste">≈ ${fdur((pr.tot - pr.cur) / vit * 60)} à ton rythme</div>` : '';
   const resumeLecture = reprendre ? `<section class="resume-lecture" id="resumeLecture" data-id="${esc(reprendre.id)}" aria-label="Lecture en cours">
-      ${coverHtml(reprendre, 'ph')}<div><p class="resume-titre">En ce moment</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
-      ${progress(reprendre).tot ? `<div class="meta">Page ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>` : '<div class="meta">Une page suffit pour reprendre le fil.</div>'}
+      <div class="couv-ruban">${coverHtml(reprendre, 'ph')}<i class="ruban" aria-hidden="true"></i></div><div><p class="resume-titre">En ce moment</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
+      ${progress(reprendre).tot ? `<div class="meta">Page ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>${resteLecture}` : '<div class="meta">Une page suffit pour reprendre le fil.</div>'}
       </div><div class="acts"><button class="btn pri" type="button" data-open="${esc(reprendre.id)}" aria-label="Reprendre ma lecture">Reprendre</button>
       <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn" type="button" data-act="plus" aria-label="Autres actions : chrono, citation, j'ai fini">⋯</button></div></section>` : '';
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
@@ -1575,12 +1600,17 @@ function renderCards() {
   };
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
   vitesseAffichage = ui.tab === 'en_cours' ? speed() : null;
+  const epingles = ui.tab === 'en_cours' && !filtresActifs ? books.filter(b => b.statut === 'a_lire' && b.epingle).sort((a, b) => dateKey(b).localeCompare(dateKey(a))) : [];
+  const nALire = books.filter(b => b.statut === 'a_lire').length;
+  const rangeeEpingles = epingles.length ? `<section class="epingles" aria-labelledby="epinglesTitre"><div class="epingles-tete"><h3 id="epinglesTitre">Épinglés pour la suite</h3>
+      <button type="button" class="chipb" data-tab="a_lire" aria-label="Voir les ${plural(nALire, 'livre')} à lire">À lire · ${nALire}</button></div>
+      <div class="rangee">${epingles.map(b => `<button class="mini" type="button" data-open="${esc(b.id)}">${coverHtml(b, 'mini-couv')}<span class="mini-t">${esc(b.titre)}</span>${b.pagesTotal ? `<span class="mini-p">${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} p.</span>` : ''}</button>`).join('')}</div></section>` : '';
   const resultatCount = l.length + (resumeVisible ? 1 : 0);
   $('#list').innerHTML = (ailleurs.length ? `<div class="ailleurs"><p class="ailleurs-titre">La recherche trouve aussi des livres dans ces statuts</p>${ailleurs.map(([k, n]) => `<button type="button" class="chipb" data-tab="${k}">${STATUTS[k]} (${n})</button>`).join(' ')}</div>` : '') +
     `${filtresActifs ? `<p class="resultat-compte" role="status">Dans « ${STATUTS[ui.tab]} » : ${plural(resultatCount, 'livre')}${filtresActifs ? (resultatCount === 1 ? ' correspond' : ' correspondent') : ''}</p>` : ''}` +
     (l.length ? l.map(prefs.view === 'grille' ? gcard : card).join('') : resumeVisible ? '' :
     (q || ui.genre || ui.genreConfirme || ui.own || ui.cat || ui.sousGenre || ui.theme || ui.ambiance || ui.etiquette ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucun livre ne correspond', texte: 'dans cet onglet, avec cette recherche ou ces filtres.',
-      actions: '<button class="btn" type="button" data-effacer>Effacer la recherche et les filtres</button>'}) : !books.length ? accueil() : ETATS[ui.tab]()));
+      actions: '<button class="btn" type="button" data-effacer>Effacer la recherche et les filtres</button>'}) : !books.length ? accueil() : ETATS[ui.tab]())) + rangeeEpingles;
 }
 
 function progress(b) {
@@ -1627,8 +1657,11 @@ function card(b) {
 function gcard(b) {
   let extra = '';
   if (b.statut === 'en_cours') { const p = progress(b); if (p.tot) extra = `<div class="bar"><i style="width:${p.pct}%"></i></div>`; }
+  // (auteur, puis pages : seul le nom se raccourcit avec « … », le nombre de pages reste toujours visible)
+  const pages = b.pagesTotal ? (b.auteur ? '· ' : '') + (b.pagesSource === 'estimation' ? '≈ ' : '') + esc(b.pagesTotal) + ' p.' : '';
+  const sous = [b.auteur ? `<span class="g-a">${esc(b.auteur)}</span>` : '', pages ? `<span class="g-p">${pages}</span>` : ''].filter(Boolean).join(' ');
   return `<article class="gcard" data-id="${esc(b.id)}" tabindex="0">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
-    <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${extra}</article>`;
+    <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${sous ? `<div class="g-sous">${sous}</div>` : ''}${extra}</article>`;
 }
 
 /* ---------- 📖 Ouverture immersive du livre : réglage, mode, fluidité ---------- */
@@ -2499,8 +2532,8 @@ function paintNotice() {
     bar.innerHTML = `<span class="notice-txt">📥 «&nbsp;<span class="notice-titre">${esc(due.titre)}</span>&nbsp;» : ${lateRet ? 'en retard depuis le' : 'à rendre le'} <b>${fdate(due.pretRetour)}</b></span><button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
     bar.className = 'notice alerte court'; bar.hidden = false;
   } else if (late) {
-    bar.innerHTML = `💾 ${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'} <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
-    bar.className = 'notice'; bar.hidden = false;
+    bar.innerHTML = `<span class="rappel-txt">💾 <span class="long">${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'}</span><span class="bref">${last ? 'Sauvegarde à refaire.' : 'Pense à sauvegarder.'}</span></span> <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
+    bar.className = 'notice rappel'; bar.hidden = false;
   } else bar.hidden = true;
 }
 

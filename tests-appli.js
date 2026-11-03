@@ -3680,6 +3680,105 @@
     finally { document.documentElement.style.fontSize = f0; books = b0; render(); paintNotice(); }
   });
 
+  /* ---------- Lot V3 (03/11/2026) : Stats et Réglages ---------- */
+  const livresV3 = () => [fiche('V3 prêté', {possession: 'emprunte', pretRetour: addDays(5)}),
+    ...[1, 2, 3, 4].map(i => fiche('V3 lu ' + i, {statut: 'lu', note: 3 + (i % 2), genre: 'Roman', pagesTotal: 100 * i, dateDebut: addDays(-15 * i - 30), dateFin: addDays([-5, -10, -25, -40][i - 1])}))];   // (finis sur 2 mois : défis « 2 / 3 » et « 4 / 10 » côte à côte)
+  await test('Lot V3 : petites couvertures visibles (Prêts et emprunts, Top du bilan) — 36 × 54 environ', 'prêts:ok|top:ok', async () => {
+    const b0 = books, tab0 = ui.tab; books = livresV3();
+    try { ui.tab = 'stats'; render(); await pause(40);
+      const t = s => { const e = $(s); if (!e) return 'absente'; const r = e.getBoundingClientRect(); return r.height >= 40 && r.width <= 60 ? 'ok' : `${Math.round(r.width)}×${Math.round(r.height)}`; };
+      return ['prêts:' + t('#main .line .mini'), 'top:' + t('#main .top5 .mini')].join('|'); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V3 : graphiques des Stats en rose, jamais couleur du texte (clair et sombre)', 'light:rose|dark:rose', async () => {
+    const b0 = books, tab0 = ui.tab, th0 = prefs.theme, r = []; books = livresV3();
+    try { for (const th of ['light', 'dark']) { prefs.theme = th; applyTheme(); ui.tab = 'stats'; ui.statsDetail = true; render(); await pause(40);
+        const p = document.createElement('i'); p.style.background = 'var(--accent)'; document.body.append(p); const rose = getComputedStyle(p).backgroundColor; p.remove();
+        const barres = [...document.querySelectorAll('#main .chart i, #main .hb .bar > i')].filter(i => i.getBoundingClientRect().height > 0);
+        const ko = barres.filter(i => getComputedStyle(i).backgroundColor !== rose);
+        r.push(th + ':' + (barres.length && !ko.length ? 'rose' : `${ko.length}/${barres.length} pas rose`)); } }
+    finally { prefs.theme = th0; applyTheme(); ui.statsDetail = false; books = b0; ui.tab = tab0; render(); }
+    return r.join('|');
+  });
+  await test('Lot V3 : sans séance chronométrée, une ligne discrète au lieu de deux tuiles « – » ; les tuiles reviennent avec une séance', 'sans tuile vide|ligne|tuiles revenues', async () => {
+    const b0 = books, tab0 = ui.tab;
+    books = [fiche('V3 c', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 50})];
+    try { ui.tab = 'stats'; render(); await pause(30);
+      const vides = [...document.querySelectorAll('#main .tile b')].filter(b => b.textContent.trim() === '–' && /chrono/.test(b.nextElementSibling.textContent)).length;
+      const r = [vides ? `${vides} tuiles vides` : 'sans tuile vide', /Pas encore de séance chronométrée/.test($('#main').textContent) ? 'ligne' : 'pas de ligne'];
+      books = [fiche('V3 c', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 50, sessions: [{date: today(), min: 30, pages: 20}]})]; render(); await pause(30);
+      r.push([...document.querySelectorAll('#main .tile span')].some(s => /chronométrées en/.test(s.textContent)) ? 'tuiles revenues' : 'tuiles absentes');
+      return r.join('|'); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V3 : tuiles — « note moyenne sur 5 » ; série dite comme la flamme (« jour de lecture d’affilée · record : … »)', 'note moyenne sur 5|jour de lecture d’affilée · record : 1 jour', async () => {
+    const b0 = books, tab0 = ui.tab;
+    books = [...livresV3(), fiche('V3 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
+    try { ui.tab = 'stats'; render(); await pause(30); const tuiles = [...document.querySelectorAll('#main .tile > span')].map(t => t.textContent.replace(/\s+/g, ' ').trim());
+      return [tuiles.find(t => /note moyenne/.test(t)) || '?', tuiles.find(t => /affilée|consécutif/.test(t)) || '?'].join('|'); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V3 : défis — barres de progression toutes de la même longueur', 'alignées', async () => {
+    const b0 = books, tab0 = ui.tab; books = livresV3();
+    try { ui.tab = 'stats'; render(); await pause(30); const l = [...document.querySelectorAll('#main .defis-prochains .bar')].map(b => Math.round(b.getBoundingClientRect().width));
+      return l.length < 2 ? 'pas assez de défis' : Math.max(...l) - Math.min(...l) <= 1 ? 'alignées' : l.join(' / '); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V3 : Réglages (Éditorial) — le choix actif est une pilule arrondie, détachée du bord', 'Clair:ok|Confortable:ok|Aucune:ok|Fiche de lecture:ok', () => enStyle('editorial', async () => {
+    const th0 = prefs.theme, d0 = prefs.density, a0 = prefs.animation;
+    try { prefs.theme = 'light'; prefs.density = 'confort'; prefs.animation = 'aucune'; applyTheme(); openSettings(); await pause(60);
+      return [...document.querySelectorAll('#modal .seg:not(.styles) button.on')].map(b => { const r = b.getBoundingClientRect(), s = b.parentElement.getBoundingClientRect(), rad = parseFloat(getComputedStyle(b).borderTopLeftRadius);
+        const ok = rad >= r.height / 2 - 1 && r.left - s.left >= 3 && s.right - r.right >= 3 && r.top - s.top >= 3;
+        return b.textContent.trim().replace(/^\S+ (?=Clair|Sombre|Auto)/, '') + ':' + (ok ? 'ok' : `rayon ${Math.round(rad)}, marges ${Math.round(r.left - s.left)}/${Math.round(s.right - r.right)}/${Math.round(r.top - s.top)}`); }).join('|'); }
+    finally { closeM(true); prefs.theme = th0; prefs.density = d0; prefs.animation = a0; applyTheme(); }
+  }));
+  await test('Lot V3 : un seul bouton rose — « Sauvegarder » — dans les Stats et dans les Réglages', 'stats:Sauvegarder|réglages:Sauvegarder', async () => {
+    const b0 = books, tab0 = ui.tab; books = livresV3();
+    const roses = root => [...root.querySelectorAll('.btn.pri')].filter(b => b.checkVisibility()).map(b => b.textContent.trim().replace(/^[^A-Za-zÀ-ÿ]+/, '')).join(' + ');
+    try { ui.tab = 'stats'; ui.statsDetail = true; render(); await pause(40); const r = ['stats:' + roses($('#main'))];
+      openSettings(); await pause(60); r.push('réglages:' + roses($('#modal'))); closeM(true); return r.join('|'); }
+    finally { ui.statsDetail = false; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V3 : « Ma bibliothèque en détail » — 4 panneaux sous un volet replié ; l’ouvrir les montre et garde l’état ; un rayon s’ouvre toujours', 'replié|Genre,Classement,rayon,séries|ouvert gardé|rayon ouvert', async () => {
+    const b0 = books, tab0 = ui.tab, d0 = ui.statsDetail;
+    books = [...livresV3(), fiche('V3 série 1', {serie: 'Dune', tome: 1, classements: [{source: 'test', libelle: 'Science-fiction'}]}), fiche('V3 série 2', {serie: 'Dune', tome: 2})];
+    try { ui.statsDetail = false; ui.tab = 'stats'; render(); await pause(40); const v = $('#main details.stats-detail'); if (!v) return 'pas de volet';
+      const r = [!v.open && /Ma bibliothèque en détail/.test(v.querySelector('summary').textContent) ? 'replié' : 'ouvert ou sans titre'];
+      v.querySelector('summary').click(); await pause(30);
+      r.push(['Genre indiqué', 'Classement personnel', 'Mes livres par rayon', 'Mes séries'].filter(t => v.textContent.includes(t) && [...v.querySelectorAll('h3, summary')].some(h => h.textContent.includes(t) && h.checkVisibility())).map(t => t.split(' ').pop().replace('indiqué', 'Genre').replace('personnel', 'Classement')).join(','));
+      render(); await pause(30); r.push($('#main details.stats-detail').open ? 'ouvert gardé' : 'refermé au re-rendu');
+      const ray = $('#main details.stats-detail [data-cat], #main details.stats-detail .catline, #main details.stats-detail [data-rayon]');
+      if (ray) { ray.click(); await pause(60); r.push($('#modal') && $('#modal').checkVisibility() ? 'rayon ouvert' : 'rayon fermé'); closeM(true); } else r.push('pas de rayon touchable');
+      return r.join('|'); }
+    finally { ui.statsDetail = d0; books = b0; ui.tab = tab0; render(); }
+  });
+
+  await test('Lot V3 (relecture) : sélecteur sur deux rangées — toucher le bas d’un bouton du haut le choisit, lui', 'ok', () => enStyle('editorial', async () => {
+    try { openSettings(); await pause(60); const s = $('#st_density'); s.style.maxWidth = '200px'; await pause(20);   // (force deux rangées à toute largeur)
+      const bs = [...s.querySelectorAll('button')], haut = bs.filter(b => b.getBoundingClientRect().top < bs[bs.length - 1].getBoundingClientRect().top - 5);
+      if (!haut.length) return 'pas de deuxième rangée';
+      const ko = haut.filter(b => { const r = b.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.bottom + 3.5); return !(h === b || b.contains(h)); });
+      return ko.length ? 'volé : ' + ko.map(b => b.textContent.trim()).join(', ') : 'ok'; }
+    finally { const s = $('#st_density'); if (s) s.style.maxWidth = ''; closeM(true); }
+  }));
+  await test('Lot V3 (relecture) : sélecteurs — le bouton qui a le focus passe au-dessus de ses voisins (contour entier)', 'au-dessus', () =>
+    // (la page de tests n'a pas le focus de la fenêtre : :focus ne s'y applique pas ; on vérifie donc la règle elle-même)
+    [...document.styleSheets[0].cssRules].some(r => r.selectorText && /\.seg/.test(r.selectorText) && /button:focus/.test(r.selectorText) && +r.style.zIndex >= 1) ? 'au-dessus' : 'pas de règle');
+  await test('Lot V3 (relecture) : fenêtre du chrono — couverture et titre sur une ligne, centrés', 'même ligne|centrés', async () => {
+    const b0 = books; books = [fiche('V3 chrono', {statut: 'en_cours'})];
+    try { prefs.timer = {id: books[0].id, start: Date.now(), acc: 0, running: true}; openTimer(); await pause(40);
+      const m = $('#timerModal'), c = m.querySelector('.mini').getBoundingClientRect(), t = [...m.querySelectorAll('b')].find(x => x.textContent.includes('V3 chrono')).getBoundingClientRect(), mm = m.getBoundingClientRect();
+      const centre = (Math.min(c.left, t.left) + Math.max(c.right, t.right)) / 2, milieu = (mm.left + mm.right) / 2;
+      return [t.top < c.bottom && t.bottom > c.top ? 'même ligne' : 'titre dessous', Math.abs(centre - milieu) <= 6 ? 'centrés' : `décalés de ${Math.round(centre - milieu)} px`].join('|'); }
+    finally { prefs.timer = null; $('#timerOv').classList.remove('show'); paintTimerPill(); books = b0; render(); }
+  });
+  await test('Lot V3 (relecture) : année passée sans chrono — « Aucune séance chronométrée en … », pas « Pas encore »', 'Aucune séance chronométrée en 2025.', async () => {
+    const b0 = books, tab0 = ui.tab, y0 = ui.year; books = [fiche('V3 ancien', {statut: 'lu', note: 4, dateDebut: '2025-03-01', dateFin: '2025-03-10'}), fiche('V3 récent', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-1)})];
+    try { ui.tab = 'stats'; render(); await pause(30); $('#year').value = '2025'; $('#year').dispatchEvent(new Event('change', {bubbles: true})); await pause(40);
+      return ($('#main .stats-chrono') || {textContent: 'pas de ligne'}).textContent.trim(); }
+    finally { ui.year = y0; books = b0; ui.tab = tab0; render(); }
+  });
+
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

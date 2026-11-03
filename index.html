@@ -247,6 +247,8 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .ph img{position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:contain;background:var(--surface)}
 .cover{width:72px;height:108px;border-radius:var(--r-s);font-size:var(--t-xl)}
 .big{width:80px;height:120px;border-radius:var(--r-s);font-size:var(--t-xxl)}
+/* (lot V3 : petite couverture des Prêts, du Top du bilan, du chrono — elle n'avait aucune taille) */
+.ph.mini{width:36px;height:54px;flex:none;aspect-ratio:auto;border-radius:var(--r-s);font-size:var(--t-s)}
 .rc{width:40px;height:60px;border-radius:var(--r-s);font-size:var(--t-s)}
 .mini{width:32px;height:48px;border-radius:var(--r-s);font-size:var(--t-xs)}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--e-1)}
@@ -263,6 +265,9 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 /* ---------- Panneaux, tuiles, statistiques ---------- */
 .panel{background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-4);margin-bottom:var(--e-3)}
 .panel.encadre{background:var(--surface);border:1px solid var(--trait);box-shadow:none}
+/* (lot V3, P-c : « Ma bibliothèque en détail » — les panneaux du volet perdent leur cadre) */
+.stats-detail > summary{font-weight:700}.stats-detail[open] > summary{margin-bottom:var(--e-3)}
+.stats-detail .panel{background:none;border:0;box-shadow:none;padding:var(--e-3) 0 0;margin:0;border-top:1px solid var(--trait);border-radius:0}
 .panel h3{margin:0 0 var(--e-3);font-size:var(--t-s);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--texte)}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--e-3);margin-bottom:var(--e-3)}
 @media(min-width:600px){.tiles{grid-template-columns:repeat(3,1fr)}}
@@ -294,7 +299,7 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .defis-prochains li{display:flex;align-items:center;gap:var(--e-3);min-height:var(--toucher)}
 .defis-prochains .be{flex:none;color:var(--texte-doux)}.defis-prochains .be .ico{width:24px;height:24px}
 .dp-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.dp-txt > span{font-size:var(--t-xs);color:var(--texte-doux)}
-.dp-n{flex:none;font-size:var(--t-s);color:var(--texte-doux);font-variant-numeric:tabular-nums}
+.dp-n{flex:none;min-width:3.5em;text-align:right;font-size:var(--t-s);color:var(--texte-doux);font-variant-numeric:tabular-nums}
 .defis-tous > summary{padding:var(--e-3) 0;font-weight:700;cursor:pointer}
 .defis-tous[open] > summary{margin-bottom:var(--e-2)}
 .cal{overflow-x:auto;padding-bottom:var(--e-2)}
@@ -423,6 +428,7 @@ details.comment p{margin:0 0 var(--e-2)}
 @keyframes sweep{0%,100%{transform:translateY(-35px)}50%{transform:translateY(35px)}}
 .blist{display:grid;gap:var(--e-2);margin-top:var(--e-3);max-height:32vh;overflow:auto}
 .bl{display:flex;gap:var(--e-2);align-items:center;font-size:var(--t-s);background:var(--surface-2);border:1px solid var(--trait);border-radius:var(--r-s);padding:var(--e-2)}
+.chrono-livre{display:flex;align-items:center;justify-content:center;gap:var(--e-3)}
 .clock{font-size:3.4rem;text-align:center;margin:var(--e-3) 0;font-variant-numeric:tabular-nums}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--texte);color:var(--fond);padding:var(--e-2) var(--e-4);border-radius:var(--r-m);font-size:var(--t-s);opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;text-align:center;line-height:1.4;max-width:min(94vw,520px)}
 .toast.show{opacity:.96}.toast.act{pointer-events:auto}
@@ -791,6 +797,12 @@ button{-webkit-touch-callout:none}
 /* (lot V1 : un seul état « choisi » en Éditorial, celui des statuts — rose doux et contour rose ; le rose plein reste au bouton principal) */
 [data-style=editorial] :is(.seg button,.chipb).on,[data-style=editorial] .discover-q-par .chipb.on{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
 [data-style=editorial] .seg button.on{box-shadow:inset 0 0 0 1px var(--accent)}
+/* (lot V3 : graphiques en rose ; choix actif des sélecteurs en pilule détachée du bord, 48 px de toucher conservés) */
+[data-style=editorial] :is(.chart i,.hb .bar>i){background:var(--accent)}
+[data-style=editorial] .seg:not(.styles){padding:3px;gap:10px 2px;overflow:visible;flex-wrap:wrap;border-radius:calc(var(--toucher) / 2)}   /* (deux rangées si les mots ne tiennent pas : texte agrandi, 320 px) */
+[data-style=editorial] .seg:not(.styles) button{position:relative;border-radius:var(--r-pilule);min-height:calc(var(--toucher) - 8px)}
+[data-style=editorial] .seg:not(.styles) button::after{content:"";position:absolute;inset:-4px 0}
+[data-style=editorial] .seg:not(.styles) button:focus{z-index:1}
 /* (lot V1 : tuiles de Découvrir et choix d'Ajouter et d'Actions sans contour, distingués par leur fond, comme les autres cartes de l'Éditorial) */
 [data-style=editorial] .tuile{border-color:transparent;background:var(--carte)}
 [data-style=editorial] .ajout button{border-color:transparent;background:var(--surface-2)}   /* (dans une fenêtre, dont le fond est déjà celui des cartes) */
@@ -891,7 +903,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.03-2';
+const VERSION = '2026.11.03-3';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -2732,11 +2744,12 @@ function renderStatsTout() {
     <div class="tiles">
       <div class="tile"><b>${ly.length}</b><span>livre${s} lu${s} en ${y}</span></div>
       <div class="tile"><b>${pages.toLocaleString('fr-FR')}</b><span>pages des lectures terminées · ${pagesConnues}/${ly.length} renseignées${pagesEstimees ? ` · ${pagesEstimees} estimée${pagesEstimees > 1 ? 's' : ''}` : ''}</span></div>
-      <div class="tile"><b>${moy ? moy.toFixed(1).replace('.', ',') : '–'}</b><span>note moyenne des livres notés · / 5</span></div>
-      <div class="tile"><b>${ico('flamme', '🔥')} ${st.cur}</b><span>jour${st.cur > 1 ? 's consécutifs' : ' consécutif'} · record historique ${st.best}</span></div>
-      <div class="tile"><b>${minY ? fdur(minY) : '–'}</b><span>temps des séances chronométrées en ${y}</span></div>
-      <div class="tile"><b>${v ? Math.round(v) : '–'}</b><span>pages/heure en séance chronométrée${v ? '' : ' · données insuffisantes'}</span></div>
+      <div class="tile"><b>${moy ? moy.toFixed(1).replace('.', ',') : '–'}</b><span>note moyenne sur 5</span></div>
+      <div class="tile"><b>${ico('flamme', '🔥')} ${st.cur}</b><span>${st.cur > 1 ? 'jours' : 'jour'} de lecture d’affilée · record : ${plural(st.best, 'jour')}</span></div>
+      ${minY ? `<div class="tile"><b>${fdur(minY)}</b><span>temps des séances chronométrées en ${y}</span></div>
+      <div class="tile"><b>${v ? Math.round(v) : '–'}</b><span>pages/heure en séance chronométrée${v ? '' : ' · données insuffisantes'}</span></div>` : ''}
     </div>
+    ${minY ? '' : `<p class="a petit stats-chrono">${y < thisYear ? 'Aucune' : 'Pas encore de'} séance chronométrée en ${y}.</p>`}
     <details class="stats-explications"><summary>Comment sont calculés ces chiffres ?</summary>
       <p>Les livres et notes suivent leur date de fin. Le total des pages reprend la pagination renseignée pour chaque lecture terminée ; les valeurs estimées sont comptées et signalées, les valeurs absentes ne sont pas inventées.</p>
       <p>Les jours d’activité viennent des changements de page et des séances chronométrées. Le temps et la vitesse utilisent uniquement le chrono ; la vitesse n’apparaît qu’après au moins 15 minutes enregistrées.</p>
@@ -2754,6 +2767,7 @@ function renderStatsTout() {
     ${calendarPanel(y)}
     <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
       `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
+    <details class="panel stats-detail"${ui.statsDetail ? ' open' : ''}><summary>Ma bibliothèque en détail</summary>
     <div class="panel"><h3>Genre indiqué sur la fiche</h3><p class="a petit">Ce champ ancien peut provenir d’un catalogue et rester à confirmer.</p>${gl.length ? gl.map(([k, n]) =>
       `<div class="hb"><span>${esc(k)}</span><div class="bar"><i style="width:${n / gl[0][1] * 100}%"></i></div><span>${n}</span></div>`).join('')
       : `<div class="a">Aucun livre fini en ${y}.</div>`}</div>
@@ -2761,13 +2775,16 @@ function renderStatsTout() {
       ${statsClassif('genre', 'Genres')}${statsClassif('sousGenres', 'Sous-genres')}${statsClassif('themes', 'Thèmes')}${statsClassif('ambiances', 'Ambiances')}</details>
     ${categoriesPanel()}
     ${seriesPanel()}
+    </details>
     ${loansPanel()}
     ${bilan(y, ly)}
     <div class="panel"><h3>Exporter ma liste</h3><div class="a mb-3">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
-      <div class="acts"><button class="btn pri" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn pri" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
+      <div class="acts"><button class="btn" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
     <div class="panel"><h3>${ico('sauver', '💾')} Sauvegarde et partage</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
       (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
       ${sauvegardeEtPartage()}</div>`;
+  // (le volet « Ma bibliothèque en détail » garde son état d'un rendu à l'autre)
+  $('#main .stats-detail').ontoggle = e => { ui.statsDetail = e.target.open; };
   // Calendrier : on fait défiler jusqu'à aujourd'hui
   const cal = $('#cal'), now = $('#cal .now');
   if (cal && now) cal.scrollLeft = now.offsetLeft - cal.clientWidth + 60;
@@ -3824,7 +3841,7 @@ function bilan(y, ly) {
   const aband = books.filter(b => b.statut === 'abandon' && (b.dateFin || '').startsWith(String(y))).length;
   const fact = (k, v) => v ? `<div class="fact"><span class="k">${k}</span><span>${v}</span></div>` : '';
   const bk = r => `<b>${esc(r.b.titre)}</b>`;
-  return `<div class="panel"><h3 class="rangee">${ico('fete', '🎉')} Mon bilan ${y}<span class="etire"></span><button class="btn pri small" data-share="${y}"><span class="ico i-partager" aria-hidden="true">📤</span> Partager</button></h3>
+  return `<div class="panel"><h3 class="rangee">${ico('fete', '🎉')} Mon bilan ${y}<span class="etire"></span><button class="btn small" data-share="${y}"><span class="ico i-partager" aria-hidden="true">📤</span> Partager</button></h3>
     <div class="lbl mb-2">Mon top ${top.length}</div>
     <div class="top5">${top.map((r, i) => `<div><span class="rk">${i + 1}</span>${coverHtml(r.b, 'mini')}<span>${bk(r)}${r.note ? ` <span class="stars">${stars(r.note)}</span>` : ''}</span></div>`).join('')}</div>
     <div class="facts">
@@ -5002,7 +5019,7 @@ function openTimer() {
   const t = prefs.timer; if (!t) return;
   const b = books.find(x => x.id === t.id);
   if (!b) { prefs.timer = null; savePrefs(); return paintTimerPill(); }
-  $('#timerModal').innerHTML = `<h2>⏱️ Lecture en cours</h2>${coverHtml(b, 'mini')}<b> ${esc(b.titre)}</b>
+  $('#timerModal').innerHTML = `<h2>⏱️ Lecture en cours</h2><div class="chrono-livre">${coverHtml(b, 'mini')}<b>${esc(b.titre)}</b></div>
     <div class="clock" id="clock">${clock(timerMs())}</div>
     <div class="acts centre"><button class="btn" id="t_pause">${t.running ? ico('pause', '⏸️') + ' Pause' : ico('lecture', '▶️') + ' Reprendre'}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
     <div id="t_end" hidden><div class="f mt-3"><label for="t_page">À quelle page t'es-tu arrêté ?${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
@@ -5060,11 +5077,11 @@ function openSettings() {
     <div class="panel encadre"><h3>${ico('etincelle', '✨')} Compléter mes livres</h3>
       <div class="a moyen">Retrouve automatiquement ce qui manque à tes livres déjà enregistrés : couverture, nombre de pages, série et tome, ISBN, éditeur.
       Seules les cases vides sont remplies, et seulement si le titre et l'auteur correspondent bien.</div>
-      <div class="acts"><button class="btn pri" id="st_fill"><span class="ico i-etincelle" aria-hidden="true">✨</span> Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a moyen mt-2" id="st_fillres"></div></div>
+      <div class="acts"><button class="btn" id="st_fill"><span class="ico i-etincelle" aria-hidden="true">✨</span> Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a moyen mt-2" id="st_fillres"></div></div>
     <div class="panel encadre"><h3>${ico('sauver', '💾')} Sauvegarde et partage</h3><div class="a moyen mb-2">${backupInfo()}</div>
       ${sauvegardeEtPartage()}</div>
     <div class="a petit">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
-    <div class="mfoot"><span class="sp"></span><button class="btn pri" id="st_ok">Fermer</button></div>`;
+    <div class="mfoot"><span class="sp"></span><button class="btn" id="st_ok">Fermer</button></div>`;
   showM();
   // Mémoire « protégée » : Chrome ne l'efface pas tout seul quand le téléphone manque de place
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => {

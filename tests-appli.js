@@ -1173,7 +1173,7 @@
   await test('CSS : tailles de texte toutes sur l\'échelle (6 tailles)', [], () =>
     // (exceptions : l'horloge, les badges, le texte des couvertures générées, proportionnel à la couverture, et les deux éléments
     // de titrage du livre : le grand chiffre de la page Progression et la lettrine du résumé)
-    regles().filter(r => r.style.fontSize && !/^(var\(--t-(xs|s|m|l|xl|xxl)\)|inherit|0|0px)$/.test(r.style.fontSize) && !/^\.clock$|\.badge \.be$|(^|\s)\.cg[-\s]|^\.lv-(grand|lettrine::first-letter)$/.test(r.selectorText))
+    regles().filter(r => r.style.fontSize && !/^(var\(--t-(xs|s|m|l|xl|xxl)\)|min\(var\(--t-(xs|s|m|l|xl|xxl)\), ?[\d.]+vw\)|inherit|0|0px)$/.test(r.style.fontSize) && !/^\.clock$|\.badge \.be$|(^|\s)\.cg[-\s]|^\.lv-(grand|lettrine::first-letter)$/.test(r.selectorText))
       .map(r => r.selectorText + ' ' + r.style.fontSize).slice(0, 20));
   await test('CSS : l\'ancien thème superposé est retiré', [], () =>
     ['--bg', '--ink', '--card', '--muted', '--line', '--accent-soft', '--on-accent', '--field', '--radius', '--shadow', '--bar', '--red', '--star', '--green']
@@ -1624,7 +1624,7 @@
 
   /* ---------- 12. Étape 2 : carnet du livre ---------- */
   await test('Historique : événements enregistrés seulement, plus récents d\'abord, ordre défini le même jour', JSON.stringify([
-    '2026-01-10 Fini', '2026-01-10 p. 300 (+180) sur 300', '2026-01-05 Séance de chrono : 30 min · 40 p.', '2026-01-05 Séance de chrono : 20 min',
+    '2026-01-10 Fini', '2026-01-10 p. 300 (+180) sur 300', '2026-01-05 Séance de chrono : 30 min · 40 p.', '2026-01-05 Séance de chrono : 20 min',
     '2026-01-05 p. 120 (+120) sur 300', '2026-01-02 Commencé', '2026-01-01 Ajouté à ta bibliothèque', '2025-06-20 Lecture précédente terminée · note 4/5',
     '2025-01-01 Lecture précédente commencée']), () => {
     const b = norm({id: 'h', titre: 'H', statut: 'lu', pagesTotal: 300, ajoute: '2026-01-01T10:00:00.000Z', dateDebut: '2026-01-02', dateFin: '2026-01-10',
@@ -2848,7 +2848,7 @@
       books = [enCours('Lecture'), fiche('Les Années', {epingle: true, pagesTotal: 256, ajoute: addDays(-1)}), fiche('Sapiens', {epingle: true, ajoute: addDays(-2)}), fiche('Autre')];
       ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render();
       const rangee = $('#main .epingles'), r = [rangee ? [...rangee.querySelectorAll('.mini-t')].map(t => t.textContent.trim()).join(',') : 'pas de rangée'];
-      r.push(rangee ? (rangee.querySelector('[data-open="t-Les Années"]') || {textContent: '?'}).textContent.includes('256 p.') ? '256 p.' : 'pages ?' : '?');
+      r.push(rangee ? /256\sp\./.test((rangee.querySelector('[data-open="t-Les Années"]') || {textContent: '?'}).textContent) ? '256 p.' : 'pages ?' : '?');
       r.push(rangee ? (rangee.querySelector('[data-tab="a_lire"]') || {textContent: 'pas de lien'}).textContent.trim() : '?');
       // (affichage : la couverture et le titre tiennent dans la rangée, rien n'est coupé)
       if (rangee) { const zone = rangee.querySelector('.rangee-livres').getBoundingClientRect(), m = rangee.querySelector('.mini'), cv = m.querySelector('.ph').getBoundingClientRect(), t = m.querySelector('.mini-t').getBoundingClientRect();
@@ -2866,8 +2866,8 @@
       books = [fiche('Les Années', {auteur: 'Annie Ernaux', pagesTotal: 256}), fiche('Candide', {auteur: 'Voltaire', pagesTotal: 148, pagesSource: 'estimation'}), fiche('Sans Pages'),
         fiche('Long', {auteur: 'Antoine Marie Jean-Baptiste Roger de Saint-Exupéry', pagesTotal: 120})];
       ui.tab = 'a_lire'; prefs.view = 'grille'; ui.sort = 'titre'; render();
-      const l = id => ($(`#list .gcard[data-id="${id}"] .g-sous`) || {textContent: '?'}).textContent.trim();
-      const s = $('#list .gcard[data-id="t-Long"] .g-sous'), p = s && [...s.querySelectorAll('*')].find(e => /120 p\./.test(e.textContent) && !e.children.length);
+      const l = id => ($(`#list .gcard[data-id="${id}"] .g-sous`) || {textContent: '?'}).textContent.trim().replace(/ /g, ' ');   // (« 256 p. » est insécable depuis le lot V2)
+      const s = $('#list .gcard[data-id="t-Long"] .g-sous'), p = s && [...s.querySelectorAll('*')].find(e => /120\sp\./.test(e.textContent) && !e.children.length);
       const vu = p && p.getBoundingClientRect().right <= s.getBoundingClientRect().right + 1 && p.scrollWidth <= p.clientWidth + 1;
       return [l('t-Les Années'), l('t-Candide'), 'Sans Pages : ' + l('t-Sans Pages'), vu ? 'pages visibles' : 'pages coupées'].join('|');
     } finally { prefs.view = v0; ui.sort = 'recent'; render(); }
@@ -3284,7 +3284,7 @@
     r.push(books.length ? 'ajouté' : 'rien ajouté'); return r.join('|');
   }));
   /* ---------- 17. Direction premium : priorité, détail à la demande, densité ---------- */
-  await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'Lire maintenant|4', () => {
+  await test('Premium : Bibliothèque annonce son intention et garde les quatre statuts', 'En cours|4', () => {
     books = [enCours('Lecture')]; ui.tab = 'en_cours'; render();
     return [($('#main .library-intro h2') || {textContent: '?'}).textContent.trim(), document.querySelectorAll('#main .library-nav [data-tab]').length].join('|');
   });
@@ -3553,6 +3553,131 @@
     try { render(); await pause(30); const f = $('#flame'), sr = f && f.querySelector('.sr');
       return f && !f.hidden && sr && /jours? de lecture/.test(sr.textContent) ? 'texte lu' : `série : ${f && f.innerHTML}`; }
     finally { books = b0; render(); }
+  });
+
+  /* ---------- Lot V2 (03/11/2026) : confort tactile et petits écrans ---------- */
+  // (ce que le doigt touche : à 3,5 px au-dessus et au-dessous du bord visible, on vise encore le bouton —
+  //  ou le bouton voisin collé à moins de 8 px, qui partage l'espace entre eux par moitié)
+  const zoneToucher = e => { const r = e.getBoundingClientRect(), x = r.left + r.width / 2;
+    const vise = y => { const h = document.elementFromPoint(x, y), v = h && h.closest('button, a');
+      if (h === e || e.contains(h)) return true; if (!v) return false; const q = v.getBoundingClientRect();
+      return Math.max(q.top - r.bottom, r.top - q.bottom) < 8.5; };
+    const dit = y => { const h = document.elementFromPoint(x, y); return h ? (h.className || h.tagName) + ' ' + Math.round(h.getBoundingClientRect().top - r.top) : 'rien'; };
+    return vise(r.top - 3.5) ? vise(r.bottom + 3.5) ? '' : 'bas→' + dit(r.bottom + 3.5) : 'haut→' + dit(r.top - 3.5); };
+  await test('Lot V2 : puces et petits boutons — zone de toucher de 48 px en haut ET en bas, dans les 4 styles', 'editorial:ok|android:ok|actuel:ok|carnet:ok', async () => {
+    const b0 = books, tab0 = ui.tab, r = [];
+    books = [fiche('V2 lu', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-1), pagesTotal: 200})];
+    try {
+      for (const s of ['editorial', 'android', 'actuel', 'carnet']) r.push(await enStyle(s, async () => { const ko = [];
+        for (const t of ['decouvrir', 'stats']) { ui.tab = t; render(); await pause(80);
+          for (const e of [...document.querySelectorAll('#main :is(.chipb,.btn.small)')].filter(e => e.checkVisibility()).slice(0, 8)) {
+            e.scrollIntoView({block: 'center'}); await pause(10); const c = e.getBoundingClientRect(), m = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
+            if (!m || !(m === e || e.contains(m))) continue;   // (hors de vue, par exemple dans une carte rangée de côté : pas touchable ici)
+            const z = zoneToucher(e); if (z) ko.push(e.textContent.trim().slice(0, 12) + ' (' + z + ')'); } }
+        return s + ':' + (ko.length ? ko.join(', ') : 'ok'); }));
+    } finally { books = b0; ui.tab = tab0; render(); scrollTo(0, 0); }
+    return r.join('|');
+  });
+  await test('Lot V2 (relecture) : puces d’une rangée qui défile de côté (thèmes de Surprends-moi) — zone de toucher de 48 px', 'ok', async () => {
+    const tab0 = ui.tab, o0 = ui.surpriseOuvert, t0 = prefs.tirage;
+    try { ui.surpriseOuvert = true; prefs.tirage = 'hasard'; ui.tab = 'decouvrir'; render(); await pause(80);
+      const e = [...document.querySelectorAll('#dc_theme .chipb')].find(x => x.checkVisibility()); if (!e) return 'rangée absente';
+      e.scrollIntoView({block: 'center', inline: 'nearest'}); await pause(20); const z = zoneToucher(e); return z ? e.textContent.trim().slice(0, 12) + ' (' + z + ')' : 'ok'; }
+    finally { ui.surpriseOuvert = o0; prefs.tirage = t0; ui.tab = tab0; render(); scrollTo(0, 0); }
+  });
+  await test('Lot V2 : bibliothèque vide — pas de ＋ sur cet écran seulement (« Ajouter mon premier livre » suffit) ; il revient au premier livre', 'caché|là dans Découvrir|revenu|nommé', async () => {
+    const b0 = books, tab0 = ui.tab;
+    try { books = []; ui.tab = 'en_cours'; render(); await pause(30);
+      const r = [!$('#fab').checkVisibility() ? 'caché' : 'visible'];
+      ui.tab = 'decouvrir'; render(); await pause(30); r.push($('#fab').checkVisibility() ? 'là dans Découvrir' : 'absent de Découvrir'); ui.tab = 'en_cours';
+      books = [fiche('V2 premier')]; render(); await pause(30);
+      r.push($('#fab').checkVisibility() ? 'revenu' : 'toujours caché');
+      r.push($('#fab').getAttribute('aria-label') ? 'nommé' : 'sans nom');
+      return r.join('|'); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V2 : texte à 130 % — « Mes lectures » sur une ligne et entier, flamme comprise', 'une ligne|entier', async () => {
+    const b0 = books, f0 = document.documentElement.style.fontSize;
+    books = [fiche('V2 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
+    try { document.documentElement.style.fontSize = '130%'; render(); await pause(40);
+      const t = $('header h1'), lh = parseFloat(getComputedStyle(t).lineHeight) || parseFloat(getComputedStyle(t).fontSize) * 1.3;
+      return [t.getBoundingClientRect().height <= lh * 1.5 ? 'une ligne' : `${Math.round(t.getBoundingClientRect().height)} px pour ${Math.round(lh)}`,
+        t.scrollWidth <= t.clientWidth + 1 ? 'entier' : 'coupé'].join('|'); }
+    finally { document.documentElement.style.fontSize = f0; books = b0; render(); }
+  });
+  await test('Lot V2 (relecture) : texte à 130 % — « Mes lectures » jamais sous la flamme, série de 11 ou 122 jours, 4 styles', 'ok', async () => {
+    const b0 = books, f0 = document.documentElement.style.fontSize, ko = [];
+    try { document.documentElement.style.fontSize = '130%';
+      for (const n of [11, 122]) { books = [fiche('V2 longue série', {statut: 'en_cours', pagesTotal: 500, pageActuelle: n, journal: Array.from({length: n + 1}, (_, i) => ({date: addDays(i - n), page: i}))})];
+        for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { render(); await pause(30);
+          const t = $('header h1'), f = $('#flame').getBoundingClientRect(); if ($('#flame').hidden || !$('#flame').textContent.includes(String(n))) { ko.push(`${st} ${n} j : pas de série`); return; }
+          if (t.scrollWidth > t.clientWidth + 1 || t.getBoundingClientRect().right > f.left + 1) ko.push(`${st} ${n} j`); }); } }
+    finally { document.documentElement.style.fontSize = f0; books = b0; render(); }
+    return ko.length ? 'titre coupé ou sous la flamme : ' + ko.join(', ') : 'ok';
+  });
+  await test('Lot V2 : flamme — un bouton nommé ; le toucher explique la série', 'bouton|nommé|1 jour de lecture d’affilée', async () => {
+    const b0 = books;
+    books = [fiche('V2 flamme', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
+    try { render(); await pause(30); const f = $('#flame');
+      const r = [f.tagName === 'BUTTON' ? 'bouton' : f.tagName, /jours? de lecture/.test(f.textContent) ? 'nommé' : 'sans nom'];
+      f.click(); await pause(30); r.push(($('#toast').innerText.match(/1 jour de lecture d’affilée/) || ['pas de message'])[0]);
+      return r.join('|'); }
+    finally { books = b0; render(); }
+  });
+  await test('Lot V2 : bibliothèque — le titre suit l’onglet (« En cours ») ; le total dit « en tout »', 'En cours|2 livres en tout', async () => {
+    const b0 = books, tab0 = ui.tab;
+    books = [fiche('V2 a', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10}), fiche('V2 b')];
+    try { ui.tab = 'en_cours'; render(); await pause(30);
+      return [$('#main .library-intro h2').textContent.trim(), $('#main .library-intro > p').textContent.trim()].join('|'); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V2 : progression écrite « p. X sur Y · Z % » (carte et liste) ; jamais d’espace sécable avant « p. »', 'carte:p. X sur Y · Z %|liste:p. X sur Y · Z %|insécables', async () => {
+    const b0 = books, tab0 = ui.tab;
+    books = [fiche('V2 un', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 40, dateDebut: addDays(-1), journal: [{date: today(), page: 40}]}),
+      fiche('V2 deux', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 90, dateDebut: addDays(-5)}), fiche('V2 trois', {pagesTotal: 512, epingle: true}),
+      fiche('V2 quatre', {statut: 'abandon', pagesTotal: 400, pageActuelle: 80})];
+    try { return await avecReprise(async () => { ui.tab = 'en_cours'; render(); await pause(40);
+      const net = e => e.textContent.replace(/\s+/g, ' ').trim();
+      const forme = e => !e ? 'absente' : /^p\. \d+ sur \d+ · \d+ %/.test(net(e)) ? 'p. X sur Y · Z %' : net(e);
+      const r = ['carte:' + forme($('#resumeLecture .meta')), 'liste:' + forme($('#list .meta'))];
+      const secables = []; for (const t of ['en_cours', 'a_lire', 'abandon', 'decouvrir', 'stats']) { ui.tab = t; render(); await pause(60);
+        const w = document.createTreeWalker($('#main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) if (/\d p\.|p\. \d+ \/ \d/.test(n.textContent)) secables.push(t + ':' + n.textContent.trim().slice(0, 30)); }
+      r.push(secables.length ? secables.join(' ; ') : 'insécables'); return r.join('|'); }); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V2 : Découvrir — l’exemple du champ tient en entier (Sujet, Auteur, Titre)', 'entiers', async () => {
+    const tab0 = ui.tab, par0 = rech.par; try { ui.tab = 'decouvrir'; render(); await pause(80); const coupes = [], cv = document.createElement('canvas').getContext('2d');
+      for (const k of ['theme', 'auteur', 'titre']) { $(`#main [data-dqpar="${k}"]`).click(); await pause(30); const champ = $('#dq'), st = getComputedStyle(champ);
+        cv.font = `${st.fontSize} ${st.fontFamily}`; const place = champ.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+        if (cv.measureText(champ.placeholder).width > place) coupes.push(champ.placeholder); }
+      return coupes.length ? 'coupés : ' + coupes.join(' / ') : 'entiers'; }
+    finally { rech.par = par0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V2 : fiche — la barre des signets montre qu’elle défile (fondu), plus au bout', 'fondu|plus de fondu au bout', async () => {
+    const b0 = books; books = [fiche('V2 signets', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10})];
+    try { ui.tab = 'en_cours'; render(); ouvrirFiche(books[0].id); await pause(150);
+      const n = $('.livre-signets'); if (!n) return 'pas de signets';
+      if (n.scrollWidth <= n.clientWidth + 2) { n.style.maxWidth = '160px'; dispatchEvent(new Event('resize')); await pause(30); }
+      const r = [n.classList.contains('deborde') && getComputedStyle(n).maskImage !== 'none' ? 'fondu' : 'pas de fondu'];
+      n.scrollLeft = n.scrollWidth; n.dispatchEvent(new Event('scroll')); await pause(60);
+      r.push(!n.classList.contains('deborde') ? 'plus de fondu au bout' : 'fondu au bout'); return r.join('|'); }
+    finally { const n = $('.livre-signets'); if (n) n.style.maxWidth = ''; await fermerFiche(); books = b0; render(); }
+  });
+  await test('Lot V2 : bandeau de prêt — titre lisible, date entière, rien ne déborde, « » jamais séparé du titre (texte 100 % et 130 %)', 'titre lisible|date entière|sans débordement|guillemets avec le titre', async () => {
+    const b0 = books, f0 = document.documentElement.style.fontSize, ko = [];
+    books = [fiche('Les Furtifs', {possession: 'emprunte', pretRetour: addDays(-2)})];
+    try { for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; render(); paintNotice(); await pause(40);
+        const bar = $('#notice'), b = bar.getBoundingClientRect(), t = $('#notice .notice-titre'), d = $('#notice .notice-txt b');
+        if (!t || t.getBoundingClientRect().width + 1 < Math.min(t.scrollWidth, 60)) ko.push('titre ' + taille);
+        if (!d || d.getClientRects().length > 1 || d.getBoundingClientRect().right > b.right + 1) ko.push('date ' + taille);
+        if (bar.scrollWidth > bar.clientWidth + 1 || [...bar.querySelectorAll('*')].some(c => c.getBoundingClientRect().right > b.right + 1)) ko.push('déborde ' + taille);
+        // (le « » » fermant doit rester sur la ligne du titre)
+        const w = document.createTreeWalker(bar, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode()) && !n.textContent.includes('»'));
+        if (n && t) { const g = document.createRange(), i = n.textContent.indexOf('»'); g.setStart(n, i); g.setEnd(n, i + 1);
+          if (Math.abs(g.getBoundingClientRect().bottom - t.getBoundingClientRect().bottom) > 4) ko.push('guillemets ' + taille); } }
+      const k = p => ko.filter(x => x.startsWith(p)).join(',');
+      return [k('titre') || 'titre lisible', k('date') || 'date entière', k('déborde') || 'sans débordement', k('guillemets') || 'guillemets avec le titre'].join('|'); }
+    finally { document.documentElement.style.fontSize = f0; books = b0; render(); paintNotice(); }
   });
 
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */

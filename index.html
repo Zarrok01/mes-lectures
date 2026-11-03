@@ -252,6 +252,12 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .rc{width:40px;height:60px;border-radius:var(--r-s);font-size:var(--t-s)}
 .mini{width:32px;height:48px;border-radius:var(--r-s);font-size:var(--t-xs)}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--e-1)}
+/* (lot 26 : la flèche dit que la ligne ouvre la fiche ; posée au bord droit, à hauteur du titre, elle laisse toute la largeur
+   aux boutons et à la barre de progression. La ligne fonce sous le doigt — un voile par-dessus sa couleur, visible dans
+   tous les styles —, sauf quand le doigt est sur un de ses boutons) */
+.card .info{position:relative}.card .t{padding-right:calc(1rem + var(--e-2))}
+.ico.card-suite{position:absolute;top:0;right:0;width:1rem;height:calc(var(--t-m) * 1.3);line-height:1.3;color:var(--texte-doux)}
+.list .card:active:not(:has(button:active)){background-image:linear-gradient(color-mix(in srgb,var(--texte) 8%,transparent),color-mix(in srgb,var(--texte) 8%,transparent))}
 .t{font-weight:750;font-size:var(--t-m);line-height:1.3}
 .card .t{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .a{color:var(--texte-doux);font-size:var(--t-s)}
@@ -903,7 +909,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.03-3';
+const VERSION = '2026.11.03-4';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1017,6 +1023,7 @@ const ICONES = {
   epingle: "<path d='M9 3h6l-1 6 4 4H6l4-4z'/><path d='M12 13v8'/>",
   // (lot V1, 03/11/2026 : livre emprunté — livre et flèche entrante)
   chevron: "<path d='m6 9 6 6 6-6'/>",   // (lot V1 : volets repliables)
+  suite: "<path d='m9 6 6 6-6 6'/>",   // (lot 26 : la ligne d'un livre s'ouvre au toucher)
   pret: "<path d='M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z'/><path d='M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3'/><path d='M12 13V7m-2.5 2.5L12 7l2.5 2.5'/>",   // (lot V1 : livre prêté)
   emprunt: "<path d='M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z'/><path d='M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3'/><path d='M12 7v6m-2.5-2.5L12 13l2.5-2.5'/>",
   de: "<rect x='4' y='4' width='16' height='16' rx='3'/><circle cx='9' cy='9' r='1.3' fill='currentColor'/><circle cx='15' cy='15' r='1.3' fill='currentColor'/><circle cx='15' cy='9' r='1.3' fill='currentColor'/><circle cx='9' cy='15' r='1.3' fill='currentColor'/>",
@@ -1764,7 +1771,7 @@ function card(b) {
   }
   const chips = [b.aCompleter ? `<span class="chip warn">${ico('alerte', '⚠️')} À compléter</span>` : '', serieLabel(b) ? `<span class="chip">${esc(serieLabel(b))}</span>` : '',
     b.genre ? `<span class="chip">${esc(b.genre)}</span>` : '', b.format && b.format !== 'papier' && FORMATS[b.format] ? `<span class="chip">${avecEmo(FORMATS[b.format])}</span>` : '', loanChip(b)].join('');
-  return `<article class="card" data-id="${esc(b.id)}" tabindex="0">${coverHtml(b)}<div class="info">
+  return `<article class="card" data-id="${esc(b.id)}" tabindex="0">${coverHtml(b)}<div class="info"><span class="ico i-suite card-suite" aria-hidden="true">›</span>
       <div class="t">${b.epingle && b.statut === 'a_lire' ? ico('epingle', '📌') + ' ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
       ${chips.trim() ? `<div class="meta">${chips}</div>` : ''}
       ${extra}${acts ? `<div class="acts">${acts}</div>` : ''}</div></article>`;

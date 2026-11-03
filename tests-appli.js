@@ -3779,6 +3779,48 @@
     finally { ui.year = y0; books = b0; ui.tab = tab0; render(); }
   });
 
+  /* ---------- Lot 26 (03/11/2026) : P-e — chaque livre de la liste montre qu'il s'ouvre au toucher ---------- */
+  const livres26 = () => [fiche('L26 en cours', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 120}), fiche('L26 à lire', {pagesTotal: 200}),
+    fiche('L26 lu', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-2)}), fiche('L26 abandon', {statut: 'abandon', pagesTotal: 400, pageActuelle: 50})];
+  // (flèche visible, muette pour le lecteur d'écran, au bord droit, à hauteur du titre ; le titre ne passe pas dessous)
+  const fleche26 = c => { const f = c && c.querySelector('.info > .card-suite'); if (!f || !f.checkVisibility()) return 'absente';
+    if (f.getAttribute('aria-hidden') !== 'true') return 'lue à voix haute';
+    const r = f.getBoundingClientRect(), i = c.querySelector('.info').getBoundingClientRect(), t = c.querySelector('.t'), tr = t.getBoundingClientRect();
+    const finTitre = tr.right - parseFloat(getComputedStyle(t).paddingRight), ligne = parseFloat(getComputedStyle(t).lineHeight);
+    if (!(r.width > 0 && i.right - r.right <= 2)) return `pas au bord (${Math.round(i.right - r.right)})`;
+    if (!(r.top >= tr.top - 2 && r.bottom <= tr.top + ligne + 2)) return 'pas à hauteur du titre';
+    return finTitre <= r.left ? 'ok' : 'titre dessous'; };
+  await test('Lot 26 : chaque livre de la liste a une petite flèche « › » à droite du titre (4 onglets, Éditorial et Carnet) ; pas en grille', 'en_cours:ok|a_lire:ok|lu:ok|abandon:ok|carnet:ok|grille:aucune', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = livres26(); prefs.view = 'liste';
+    try { const r = [];
+      await enStyle('editorial', async () => { for (const t of ['en_cours', 'a_lire', 'lu', 'abandon']) { ui.tab = t; render(); await pause(20); r.push(t + ':' + fleche26($('#list .card'))); } });
+      await enStyle('carnet', async () => { ui.tab = 'a_lire'; render(); await pause(20); r.push('carnet:' + fleche26($('#list .card'))); });
+      prefs.view = 'grille'; ui.tab = 'a_lire'; render(); await pause(20); r.push('grille:' + ($('#list .card-suite') ? 'présente' : 'aucune'));
+      return r.join('|'); }
+    finally { prefs.view = v0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot 26 : sur un petit écran (liste de 296 px), « Où j’en suis » et « ⋯ » restent sur une rangée, dans les 4 styles', 'editorial:1|carnet:1|android:1|actuel:1', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = livres26(); prefs.view = 'liste'; const r = [];
+    try { for (const st of ['editorial', 'carnet', 'android', 'actuel']) await enStyle(st, async () => {
+        ui.tab = 'en_cours'; render(); await pause(20); $('#list').style.width = '296px'; await pause(20);
+        r.push(st + ':' + new Set([...$('#list .card .acts').children].map(b => Math.round(b.getBoundingClientRect().top))).size); });
+      return r.join('|'); }
+    finally { const l = $('#list'); if (l) l.style.width = ''; prefs.view = v0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot 26 : toucher la ligne la fonce un instant, dans les 4 styles — mais pas quand on touche un de ses boutons', 'règle|editorial:fonce|carnet:fonce|android:fonce|actuel:fonce', async () => {
+    // (la page de tests ne peut pas poser un doigt : on recopie la règle, à la même place, avec une classe à la place de :active)
+    const fs = document.styleSheets[0], k = [...fs.cssRules].findIndex(r => r.selectorText && /\.card:active/.test(r.selectorText) && /:has\(/.test(r.selectorText));
+    if (k < 0) return 'pas de règle';
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = livres26(); prefs.view = 'liste'; const r = ['règle'];
+    fs.insertRule(fs.cssRules[k].cssText.replace(/\.card:active/, '.card.sonde26'), k + 1);
+    try { for (const st of ['editorial', 'carnet', 'android', 'actuel']) await enStyle(st, async () => {
+        ui.tab = 'en_cours'; render(); await pause(20); const c = $('#list .card'), avant = getComputedStyle(c).backgroundImage;
+        c.classList.add('sonde26'); const apres = getComputedStyle(c).backgroundImage;
+        r.push(st + ':' + (apres !== avant && /gradient/.test(apres) ? 'fonce' : 'rien')); });
+      return r.join('|'); }
+    finally { fs.deleteRule(k + 1); prefs.view = v0; books = b0; ui.tab = tab0; render(); }
+  });
+
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

@@ -3379,6 +3379,182 @@
     try { return ['reseau', 'pause'].includes((await Recherche.parTheme({cat: 'eco', texte: 'illisible ' + Date.now(), max: 300}, {})).erreur); } finally { window.fetch = vrai; }
   });
 
+  /* ---------- Lot V1 (03/11/2026) : cohérence du style Éditorial ---------- */
+  await test('Lot V1 : fenêtres Ajouter et Actions — icône dessinée seule (Éditorial, Android, Actuel) ; émoji en Carnet', 'editorial:0|android:0|actuel:0|carnet:émojis', async () => {
+    const r = [];
+    for (const s of ['editorial', 'android', 'actuel', 'carnet']) r.push(await enStyle(s, async () => {
+      openAjout(); await pause(30); const e1 = emojisVisibles($('#modal')); closeM(); await pause(30);
+      const b = fiche('V1 actions', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10}); openActions(b); await pause(30);
+      const e2 = emojisVisibles($('#modal')); closeM(); await pause(30);
+      return s === 'carnet' ? (e1.length && e2.length ? 'carnet:émojis' : 'carnet:émojis perdus') : `${s}:${e1.length + e2.length}`;
+    }));
+    return r.join('|');
+  });
+  await test('Lot V1 : emoTexte masque les émojis hors Carnet (sans espace orpheline) et échappe le texte', 'Épinglé en haut|Tu as déjà|a b|&lt;b&gt;|carnet:📌', async () => {
+    const r = [];
+    await enStyle('editorial', async () => {
+      toast('Épinglé en haut 📌'); await pause(30); r.push($('#toast').innerText);
+      const d = document.createElement('div'); $('#main').appendChild(d);
+      d.innerHTML = emoTexte('📚 Tu as déjà'); r.push(d.innerText);
+      d.innerHTML = emoTexte('a 📌 b'); r.push(d.innerText); d.remove();
+    });
+    r.push(emoTexte('<b>'));
+    await enStyle('carnet', async () => { toast('Épinglé 📌'); await pause(30); r.push('carnet:' + emojisVisibles($('#toast')).join('')); });
+    return r.join('|');
+  });
+  await test('Lot V1 : Éditorial — aucun émoji visible sur les écrans de la tournée ; Carnet garde les siens', 'editorial:aucun|carnet:émojis', async () => {
+    const b0 = books, tab0 = ui.tab, r = [];
+    books = [fiche('V1 en cours', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 20, dateDebut: addDays(-1), journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}],
+        notes: [{id: 'n-v1', texte: 'Une note', date: today()}], citations: [{id: 'c-v1', texte: 'Une citation', page: '3', date: today(), commentaire: ''}]}),
+      fiche('V1 épinglé', {epingle: true}), fiche('V1 autre'),
+      fiche('V1 emprunté', {possession: 'emprunte', pretRetour: addDays(-2)}),
+      fiche('V1 lu', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: today()})];
+    const tournee = async () => { const vus = [];
+      for (const t of ['en_cours', 'a_lire', 'lu', 'decouvrir', 'notes', 'citations', 'stats']) { ui.tab = t; render(); await pause(40); vus.push(...emojisVisibles(document.body)); }
+      ui.tab = 'a_lire'; render(); await pause(30); $('#dice') && $('#dice').click(); await pause(60); vus.push(...emojisVisibles($('#modal'))); closeM(); await pause(30);
+      return vus; };
+    try {
+      r.push(await enStyle('editorial', async () => { const v = await tournee(); return 'editorial:' + ([...new Set(v)].join('') || 'aucun'); }));
+      r.push(await enStyle('carnet', async () => { const v = await tournee(); return v.length >= 3 ? 'carnet:émojis' : 'carnet:' + v.length; }));
+    } finally { books = b0; ui.tab = tab0; render(); }
+    return r.join('|');
+  });
+  await test('Lot V1 : Éditorial — tirage, rayons, explorateur et « Tu as déjà » sans émoji ; Carnet les garde', 'tirage:aucun|rayon:aucun|sans rayon:aucun|explorateur:aucun|déjà:aucun|carnet:émojis', async () => {
+    const b0 = books, tab0 = ui.tab;
+    const lieu = {epingle: true, possession: 'emprunte', pretRetour: addDays(3), pagesTotal: 100};
+    books = [fiche('V1 tirage un', lieu), fiche('V1 tirage deux', lieu), fiche('V1 rangé', {statut: 'lu', classements: [B('686', '320')]}), fiche('V1 sans rayon', {statut: 'lu'})];
+    const releve = async () => { const r = [], vus = s => [...new Set(emojisVisibles($(s)))].join('') || 'aucun';
+      ui.tab = 'a_lire'; render(); await pause(30); $('#dice').click(); await pause(60); $('#nx_go').click(); for (let i = 0; i < 40 && !$('#nx_res .nxcard'); i++) await pause(100); r.push(($('#nx_res .nxcard') ? '' : 'pas de carte ') + 'tirage:' + vus('#modal')); closeM(); await pause(30);
+      openCategorie('politique'); await pause(40); r.push('rayon:' + vus('#modal')); closeM(); await pause(30);
+      openCategorie('_aucune'); await pause(40); r.push('sans rayon:' + vus('#modal')); closeM(); await pause(30);
+      const d = document.createElement('div'); d.innerHTML = explorateurClassementHtml(); $('#main').appendChild(d); r.push('explorateur:' + vus('#main > div:last-child')); d.remove();
+      openForm(); await pause(40); lastRes = [{titre: 'V1 rangé', auteur: 'Auteur Test'}]; pickResult(0); await pause(30); r.push('déjà:' + vus('#s_res')); closeM(true); await pause(30);
+      return r; };
+    try {
+      const r = await enStyle('editorial', releve);
+      const c = await enStyle('carnet', releve);
+      r.push(c.filter(x => !x.endsWith(':aucun')).length >= 4 ? 'carnet:émojis' : 'carnet:' + c.join(','));
+      return r.join('|');
+    } finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V1 : bouton ⋯ identique dans la carte et la liste, 48 × 48, icône dessinée, nommé', 'carte:48x48 dessin nommé|liste:48x48 dessin nommé', async () => {
+    const b0 = books, tab0 = ui.tab;
+    books = [fiche('V1 a', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 20, dateDebut: addDays(-1)}), fiche('V1 b', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 30, dateDebut: addDays(-3)})];
+    try { return await avecReprise(() => enStyle('editorial', async () => { ui.tab = 'en_cours'; render(); await pause(40);
+      const d = el => { if (!el) return 'absent'; const q = el.getBoundingClientRect(), i = el.querySelector('.i-plus');
+        return `${Math.round(q.width)}x${Math.round(q.height)} ${i && getComputedStyle(i).fontSize === '0px' ? 'dessin' : 'caractère'} ${el.getAttribute('aria-label') ? 'nommé' : 'sans nom'}`; };
+      return `carte:${d($('#resumeLecture [data-act="plus"]'))}|liste:${d($('#main .list [data-act="plus"]'))}`; })); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+
+  await test('Lot V1 : Éditorial — même état « choisi » pour statuts, sélecteurs, puces et choix de Découvrir', 'identiques|bouton principal plein', async () => {
+    return await enStyle('editorial', async () => {
+      // (fond, contour — bordure ou ombre intérieure —, texte)
+      const style = el => { const s = getComputedStyle(el), contour = s.borderTopStyle !== 'none' && parseFloat(s.borderTopWidth) ? s.borderTopColor : (s.boxShadow.match(/rgba?\([^)]*\)/) || ['aucun'])[0];
+        return [s.backgroundColor, contour, s.color].join(' '); };
+      const essai = (html, sel = '.on') => { const d = document.createElement('div'); d.innerHTML = html; $('#main').appendChild(d); const v = style(d.querySelector(sel)); d.remove(); return v; };
+      const ref = essai('<div class="subtabs"><button class="subtab on">a</button></div>');
+      const autres = [essai('<div class="seg"><button class="on">a</button></div>'), essai('<div class="chips"><button class="chipb on">a</button></div>'),
+        essai('<div class="discover-q-par"><button class="chipb on">a</button></div>'), essai('<div class="discover-envies"><div class="seg"><button class="on">a</button></div></div>')];
+      const pri = essai('<button class="btn pri">a</button>', '.pri');
+      return [autres.every(v => v === ref) ? 'identiques' : 'différents : ' + [ref, ...autres].join(' / '),
+        pri.split(' rgb')[0] !== ref.split(' rgb')[0] ? 'bouton principal plein' : 'bouton principal changé'].join('|');
+    });
+  });
+
+  await test('Lot V1 : Éditorial — tuiles et choix d’Ajouter sans contour, fond distinct de leur contenant, focus visible', 'sans contour|fond distinct|focus', async () => {
+    return await enStyle('editorial', async () => {
+      openAjout(); await pause(30); const b = $('#modal .ajout button'), t = document.createElement('button'); t.className = 'tuile'; $('#main').appendChild(t);
+      const sb = getComputedStyle(b), st = getComputedStyle(t), carte = getComputedStyle(document.documentElement).getPropertyValue('--carte').trim();
+      const transparent = s => s.borderTopStyle === 'none' || s.borderTopColor === 'rgba(0, 0, 0, 0)' || parseFloat(s.borderTopWidth) === 0;
+      const r = [transparent(sb) && transparent(st) ? 'sans contour' : 'contour présent'];
+      const tmp = document.createElement('i'); tmp.style.color = carte; document.body.appendChild(tmp); const c = getComputedStyle(tmp).color; tmp.remove();
+      // (chaque choix se distingue de ce qui l'entoure par son fond : la fenêtre pour Ajouter, la page pour les tuiles)
+      const fm = getComputedStyle($('#modal')).backgroundColor, fp = getComputedStyle(document.body).backgroundColor;
+      r.push(sb.backgroundColor !== fm && st.backgroundColor === c && c !== fp ? 'fond distinct' : `fond ${sb.backgroundColor} (fenêtre ${fm}) / ${st.backgroundColor} (page ${fp})`);
+      b.focus({focusVisible: true}); r.push(parseFloat(getComputedStyle(b).outlineWidth) >= 3 ? 'focus' : 'focus perdu');
+      t.remove(); closeM(); await pause(30); return r.join('|');
+    });
+  });
+
+  await test('Lot V1 : Éditorial — Dernière note, Dernière citation et Mon avis : même encart', 'identiques', async () => {
+    return await enStyle('editorial', async () => {
+      const essai = cls => { const d = document.createElement(cls === 'livre-avis' ? 'div' : 'button'); d.className = cls; $('#main').appendChild(d);
+        const s = getComputedStyle(d), v = [s.backgroundColor, s.borderLeftWidth, s.borderLeftColor, s.color, s.borderTopLeftRadius, s.borderTopRightRadius].join(' '); d.remove(); return v; };
+      const v = ['carnet-repere', 'livre-trace', 'livre-avis'].map(essai);
+      return v.every(x => x === v[0]) ? 'identiques' : v.join(' / ');
+    });
+  });
+
+  await test('Lot V1 : Éditorial — volets sans triangle natif, chevron dessiné qui tourne ; « Changer » garde son mot, plus de « Ouvrir » ni « Afficher »', 'sans triangle|chevron|tourne|Changer|sans mot', async () => {
+    return await enStyle('editorial', async () => {
+      const volet = cls => { const d = document.createElement('details'); if (cls) d.className = cls; d.innerHTML = '<summary>Volet</summary><p>x</p>'; $('#main').appendChild(d); return d; };
+      const d = volet(), s = d.querySelector('summary'), cs = getComputedStyle(s), apres = () => getComputedStyle(s, '::after');
+      const r = [cs.display !== 'list-item' ? 'sans triangle' : 'triangle natif'];
+      r.push(apres().maskImage && apres().maskImage !== 'none' ? 'chevron' : 'pas de chevron');
+      const t0 = apres().transform; d.open = true; r.push(t0 !== apres().transform ? 'tourne' : 'immobile'); d.remove();
+      const ch = volet('discover-surprise'), ca = getComputedStyle(ch.querySelector('summary'), '::after');
+      r.push(ca.content === '"Changer"' && ca.maskImage === 'none' ? 'Changer' : `Changer : ${ca.content} ${ca.maskImage.slice(0, 12)}`); ch.remove();
+      const mots = ['discover-search', 'livre-resume'].map(c => { const v = volet(c), x = getComputedStyle(v.querySelector('summary'), '::after').content; v.remove(); return x; });
+      r.push(mots.every(x => !/Ouvrir|Afficher/.test(x)) ? 'sans mot' : 'mots : ' + mots.join(', '));
+      return r.join('|');
+    });
+  });
+
+  await test('Lot V1 : bandeau de prêt — icône dessinée centrée sur la ligne du texte', 'centrée', async () => {
+    const b0 = books;
+    books = [fiche('V1 prêt en retard', {possession: 'emprunte', pretRetour: addDays(-2)})];
+    try { return await enStyle('editorial', async () => { render(); paintNotice(); await pause(30);
+      const i = $('#notice .notice-txt > .ico'), t = $('#notice .notice-titre'); if (!i || !t) return 'bandeau ou icône absents';
+      const a = i.getBoundingClientRect(), b = t.getBoundingClientRect(), ecart = Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2);
+      return ecart <= 3 ? 'centrée' : `décalée de ${Math.round(ecart)} px`; }); }
+    finally { books = b0; render(); paintNotice(); }
+  });
+
+  // (relecture du lot V1 : états ouverts des volets, épingle de la grille, émojis restants des fiches, série lue par TalkBack)
+  await test('Lot V1 (relecture) : volets ouverts — « Réduire » à l’endroit dans Surprends-moi, chevron sans mot ailleurs', 'Réduire droit|recherche:chevron|résumé:chevron', async () => {
+    return await enStyle('editorial', async () => {
+      const ouvert = cls => { const d = document.createElement('details'); d.className = cls; d.open = true; d.innerHTML = '<summary>Volet</summary><p>x</p>'; $('#main').appendChild(d);
+        const a = getComputedStyle(d.querySelector('summary'), '::after'); const v = {content: a.content, transform: a.transform, mask: a.maskImage}; d.remove(); return v; };
+      const s = ouvert('discover-surprise'), r = [s.content === '"Réduire"' && s.transform === 'none' ? 'Réduire droit' : `Réduire : ${s.content} ${s.transform}`];
+      for (const [nom, cls] of [['recherche', 'discover-search'], ['résumé', 'livre-resume']]) { const v = ouvert(cls);
+        r.push(/^(none|"")$/.test(v.content) && v.mask !== 'none' ? nom + ':chevron' : `${nom} : ${v.content}`); }
+      return r.join('|');
+    });
+  });
+  await test('Lot V1 (relecture) : épingle de la grille posée sur une pastille (lisible sur toute couverture)', 'pastille', async () => {
+    const b0 = books, v0 = prefs.view;
+    books = [fiche('V1 grille un', {epingle: true}), fiche('V1 grille deux')];
+    try { return await enStyle('editorial', async () => { ui.tab = 'a_lire'; prefs.view = 'grille'; render(); await pause(40);
+      const p = $('#main .gcard .pin'); if (!p) return 'pas d’épingle en grille';
+      const s = getComputedStyle(p); return s.backgroundColor !== 'rgba(0, 0, 0, 0)' && parseFloat(s.paddingTop) >= 2 && parseFloat(s.borderTopLeftRadius) > 0 ? 'pastille' : `fond ${s.backgroundColor}, marge ${s.paddingTop}`; }); }
+    finally { books = b0; prefs.view = v0; render(); }
+  });
+  await test('Lot V1 (relecture) : Éditorial — puces des fiches, rayons, formulaire et bandeau d’alerte sans émoji ; Carnet les garde', 'cartes:aucun|rayon:aucun|formulaire:aucun|alerte:aucun|carnet:émojis', async () => {
+    const b0 = books, tab0 = ui.tab, e0 = Store.erreur;
+    const rangé = {classements: [B('686', '320'), B('686', '940')]};
+    books = [fiche('V1 prêté', {possession: 'prete', pretNom: 'Léa', ...rangé}), fiche('V1 à compléter', {aCompleter: true}),
+      fiche('V1 numérique', {format: 'numerique'}), fiche('V1 audio', {format: 'audio'})];
+    const releve = async () => { const r = [], vus = s => [...new Set(emojisVisibles($(s)))].join('') || 'aucun';
+      ui.tab = 'a_lire'; render(); await pause(40); r.push('cartes:' + vus('#main'));
+      openCategorie('politique'); await pause(40); r.push('rayon:' + vus('#modal')); closeM(); await pause(30);
+      openForm(books[0]); await pause(60); if ($('#catBox')) $('#catBox').open = true; await pause(30); r.push('formulaire:' + vus('#catBox')); closeM(true); await pause(30);
+      Store.erreur = true; paintNotice(); await pause(20); r.push('alerte:' + vus('#notice')); Store.erreur = e0; paintNotice();
+      return r; };
+    try {
+      const r = await enStyle('editorial', releve), c = await enStyle('carnet', releve);
+      r.push(c.filter(x => !x.endsWith(':aucun')).length >= 3 ? 'carnet:émojis' : 'carnet:' + c.join(','));
+      return r.join('|');
+    } finally { Store.erreur = e0; books = b0; ui.tab = tab0; render(); paintNotice(); }
+  });
+  await test('Lot V1 (relecture) : série de jours — un texte lu par les lecteurs d’écran, pas seulement le chiffre', 'texte lu', async () => {
+    const b0 = books;
+    books = [fiche('V1 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
+    try { render(); await pause(30); const f = $('#flame'), sr = f && f.querySelector('.sr');
+      return f && !f.hidden && sr && /jours? de lecture/.test(sr.textContent) ? 'texte lu' : `série : ${f && f.innerHTML}`; }
+    finally { books = b0; render(); }
+  });
+
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

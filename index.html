@@ -169,6 +169,7 @@ body{padding-bottom:calc(var(--barre-bas) + 1px + env(safe-area-inset-bottom))}
 .notice-txt{display:flex;align-items:baseline;gap:.3em;min-width:0;white-space:nowrap}
 .notice-txt > *,.notice.court > .btn{flex:none}
 .notice-txt > .notice-titre{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.notice-txt > .ico{align-self:center}   /* (lot V1 : une icône dessinée n'a pas de ligne de base) */
 .notice.rappel .bref{display:none}
 @media(max-width:359.98px){.notice.rappel{flex-wrap:nowrap;justify-content:space-between;text-align:left}.notice.rappel .long{display:none}.notice.rappel .bref{display:inline}.notice.rappel > .btn{flex:none}}
 /* ---------- Champs ---------- */
@@ -198,6 +199,8 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .btn.del{color:var(--danger);border-color:var(--danger)}
 .btn.del.sure{background:var(--danger);color:var(--surface)}
 .btn:disabled{opacity:.6;cursor:default}
+/* (lot V1 : bouton à icône seule, ⋯ de la carte et de la liste — carré de la taille d'une zone de toucher) */
+.btn.btn-ico{width:var(--toucher);min-width:var(--toucher);height:var(--toucher);padding:0;justify-content:center}
 .acts{display:flex;gap:var(--e-2);flex-wrap:wrap;padding-top:var(--e-2);margin-top:auto}
 .acts.centre{justify-content:center}
 .fab{position:fixed;right:var(--e-5);bottom:var(--e-5);width:60px;height:60px;border-radius:var(--r-l);border:0;background:var(--accent);color:var(--sur-accent);font-size:var(--t-xxl);line-height:1;box-shadow:var(--ombre-2);cursor:pointer;z-index:20;display:flex;align-items:center;justify-content:center}
@@ -231,7 +234,7 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .gcard{display:flex;flex-direction:column;gap:var(--e-1);position:relative;cursor:pointer}
 .gcard .ph{width:100%;height:auto;aspect-ratio:2/3;border-radius:var(--r-s);font-size:var(--t-xxl);box-shadow:var(--ombre-1)}
 .gcard .t{font-size:var(--t-s);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.gcard .pin{position:absolute;top:var(--e-1);right:var(--e-1)}
+.gcard .pin{position:absolute;top:var(--e-1);right:var(--e-1);display:flex;padding:var(--e-1);border-radius:var(--r-pilule);background:var(--surface);color:var(--accent);box-shadow:var(--ombre-1)}   /* (lot V1 : pastille, lisible sur toute couverture) */
 .gcard .g-sous{display:flex;gap:.3em;font-size:var(--t-xs);color:var(--texte-doux);white-space:nowrap;margin-top:calc(-1 * var(--e-1))}
 .gcard .g-a{min-width:0;overflow:hidden;text-overflow:ellipsis}.gcard .g-p{flex:none}
 .gcard .gscore{position:absolute;left:var(--e-1);top:var(--e-1);z-index:2}
@@ -326,7 +329,7 @@ summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:var(--t-s);
 .filtres{margin:calc(-1 * var(--e-1)) 0 var(--e-2)}
 .ajout{display:grid;gap:var(--e-2);margin-bottom:var(--e-2)}
 .ajout button{display:flex;flex-direction:column;align-items:flex-start;gap:var(--e-1);text-align:left;font:inherit;font-size:var(--t-m);padding:var(--e-3) var(--e-4);min-height:56px;border:1px solid var(--trait);border-radius:var(--r-m);background:var(--carte);color:var(--texte);cursor:pointer}
-.ajout button span{font-size:var(--t-s);color:var(--texte-doux)}
+.ajout button > span{font-size:var(--t-s);color:var(--texte-doux)}
 .prev{display:flex;gap:var(--e-3);align-items:flex-end;margin-bottom:var(--e-3)}
 .prev .btns{display:flex;flex-direction:column;gap:var(--e-2);align-items:flex-start}
 .srcs{font-size:var(--t-xs);color:var(--texte-doux);margin:var(--e-2) 0 0;display:flex;gap:var(--e-1) var(--e-3);flex-wrap:wrap}
@@ -778,7 +781,22 @@ button{-webkit-touch-callout:none}
 [data-style=editorial] .resume-lecture .meta{margin:calc(var(--e-1) / 2) 0}[data-style=editorial] .resume-lecture .reste{margin-top:calc(var(--e-1) / 2)}
 @media(max-width:359.98px){[data-style=editorial] .library-nav{padding-top:var(--e-1);padding-bottom:var(--e-1)}[data-style=editorial] .resume-lecture{gap:var(--e-2) var(--e-3)}[data-style=editorial] .filtres{margin-bottom:var(--e-1)}[data-style=editorial] .resume-lecture .resume-titre{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
 [data-style=editorial] .resume-lecture .ph{box-shadow:none}
-[data-style=editorial] :is(.discover-envies,.discover-search) .seg button.on{background:var(--accent-doux);color:var(--sur-accent-doux)}
+/* (lot V1 : un seul état « choisi » en Éditorial, celui des statuts — rose doux et contour rose ; le rose plein reste au bouton principal) */
+[data-style=editorial] :is(.seg button,.chipb).on,[data-style=editorial] .discover-q-par .chipb.on{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
+[data-style=editorial] .seg button.on{box-shadow:inset 0 0 0 1px var(--accent)}
+/* (lot V1 : tuiles de Découvrir et choix d'Ajouter et d'Actions sans contour, distingués par leur fond, comme les autres cartes de l'Éditorial) */
+[data-style=editorial] .tuile{border-color:transparent;background:var(--carte)}
+[data-style=editorial] .ajout button{border-color:transparent;background:var(--surface-2)}   /* (dans une fenêtre, dont le fond est déjà celui des cartes) */
+/* (lot V1 : un seul encart « mis en avant » — Dernière note, Dernière citation, Mon avis : fond gris, filet rose, texte normal) */
+[data-style=editorial] :is(.carnet-repere,.livre-trace,.livre-avis){border:0;border-left:3px solid var(--accent);border-radius:0 var(--r-s) var(--r-s) 0;background:var(--surface-2);color:var(--texte)}
+/* (lot V1 : volets repliables — chevron dessiné partout, qui tourne à l'ouverture ; « Changer » garde son mot, sans chevron) */
+[data-style=editorial] summary{display:flex;align-items:center;gap:var(--e-2);list-style:none}
+[data-style=editorial] summary::-webkit-details-marker{display:none}
+[data-style=editorial] summary::after{content:'';flex:none;margin-left:auto;width:1.1rem;height:1.1rem;background:var(--texte-doux);-webkit-mask:var(--ico) center/contain no-repeat;mask:var(--ico) center/contain no-repeat;transition:transform .2s}
+[data-style=editorial] details[open] > summary::after{transform:rotate(180deg)}
+[data-style=editorial] .discover-surprise > summary::after{content:'Changer';width:auto;height:auto;background:none;-webkit-mask:none;mask:none;transform:none}
+[data-style=editorial] .discover-surprise[open] > summary::after{content:'Réduire';transform:none}
+[data-style=editorial] :is(.discover-search,.livre-resume)[open] summary::after{content:''}
 [data-style=editorial] .ruban{display:block;position:absolute;top:-3px;right:14%;width:14%;min-width:8px;height:26%;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
 [data-style=editorial] .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
 [data-style=editorial] .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
@@ -866,7 +884,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.10.31-9';
+const VERSION = '2026.11.03-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -978,6 +996,10 @@ const ICONES = {
   sauver: "<path d='M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 20h14'/>", restaurer: "<path d='M12 20V9m-4.5 4.5L12 9l4.5 4.5M5 4h14'/>",
   partager: "<circle cx='6' cy='12' r='2.5'/><circle cx='18' cy='6' r='2.5'/><circle cx='18' cy='18' r='2.5'/><path d='m8.3 10.9 7.4-3.7M8.3 13.1l7.4 3.7'/>",
   epingle: "<path d='M9 3h6l-1 6 4 4H6l4-4z'/><path d='M12 13v8'/>",
+  // (lot V1, 03/11/2026 : livre emprunté — livre et flèche entrante)
+  chevron: "<path d='m6 9 6 6 6-6'/>",   // (lot V1 : volets repliables)
+  pret: "<path d='M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z'/><path d='M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3'/><path d='M12 13V7m-2.5 2.5L12 7l2.5 2.5'/>",   // (lot V1 : livre prêté)
+  emprunt: "<path d='M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z'/><path d='M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3'/><path d='M12 7v6m-2.5-2.5L12 13l2.5-2.5'/>",
   de: "<rect x='4' y='4' width='16' height='16' rx='3'/><circle cx='9' cy='9' r='1.3' fill='currentColor'/><circle cx='15' cy='15' r='1.3' fill='currentColor'/><circle cx='15' cy='9' r='1.3' fill='currentColor'/><circle cx='9' cy='15' r='1.3' fill='currentColor'/>",
   lien: "<path d='M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1'/><path d='M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1'/>",
   document: "<path d='M6 3h8l4 4v14H6z'/><path d='M14 3v4h4M9 13h6M9 17h6'/>", tableau: "<rect x='4' y='4' width='16' height='16' rx='2'/><path d='M4 10h16M10 4v16'/>",
@@ -1009,9 +1031,13 @@ const ICONES = {
 // Émoji décoratif d'une catégorie (rayon, thème, source) : gardé dans le style Carnet, masqué ailleurs (lot 5)
 const emo = e => e ? `<span class="emo" aria-hidden="true">${e} </span>` : '';
 const avecEmo = s => { const m = String(s || '').match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u); return m ? emo(m[1]) + esc(m[2]) : esc(s); };
+// Texte avec émojis d'interface : chacun est enveloppé dans .emo (visible seulement dans le style Carnet) ;
+// l'espace avant l'émoji est masqué avec lui, sinon celle d'après — jamais les deux (lot V1)
+const emoTexte = s => esc(s).replace(/(\s?)(\p{Extended_Pictographic}️?)(\s?)/gu,
+  (m, a, e, b) => `<span class="emo" aria-hidden="true">${a}${e}${a ? '' : b}</span>${a ? b : ''}`);
 // Les masques sont produits ici une fois (aucune couleur : un masque ne garde que la forme ; la couleur est celle du texte)
 document.head.insertAdjacentHTML('beforeend', '<style id="icones">' + Object.entries(ICONES).map(([n, d]) =>
-  `.i-${n}{--ico:url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${d}</svg>`)}")}`).join('') + '</style>');
+  `.i-${n}${n === 'chevron' ? ',[data-style=editorial] summary' : ''}{--ico:url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${d}</svg>`)}")}`).join('') + '</style>');
 const safeUrl = u => /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u || '') ? u : '';
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1026,7 +1052,7 @@ function hue(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCode
 function plural(n, w) { return n + ' ' + w + (n > 1 ? 's' : ''); }
 function toast(msg, action) {
   const t = $('#toast');
-  t.innerHTML = esc(msg) + (action ? `<button type="button" id="toastBtn">${esc(action.label)}</button>` : '');
+  t.innerHTML = emoTexte(msg) + (action ? `<button type="button" id="toastBtn">${esc(action.label)}</button>` : '');
   t.classList.toggle('act', !!action);
   t.classList.add('show'); clearTimeout(t._h);
   if (action) $('#toastBtn').onclick = () => { t.classList.remove('show', 'act'); action.fn(); };
@@ -1545,7 +1571,7 @@ function renderTout() {
     ['stats', ico('tableau', '📊') + '<span>Stats</span>', 0]
   ].map(([space, label, count]) => `<button class="tab ${espaceActif === space ? 'on' : ''}" aria-current="${espaceActif === space ? 'page' : 'false'}" data-space="${space}">${label}${count ? `<span class="n">${count}</span>` : ''}</button>`).join('');
   const s = streaks(activity()).cur;
-  $('#flame').hidden = !s; $('#flame').textContent = '🔥 ' + s;
+  $('#flame').hidden = !s; $('#flame').innerHTML = ico('flamme', '🔥') + ' ' + s + `<span class="sr"> ${s > 1 ? 'jours' : 'jour'} de lecture d’affilée</span>`;
   paintNotice(); paintTimerPill();
   if (ui.tab === 'stats') return renderStats();
   if (ui.tab === 'citations') return renderQuotesTab();
@@ -1561,7 +1587,7 @@ function renderTout() {
       <div class="couv-ruban">${coverHtml(reprendre, 'ph')}<i class="ruban" aria-hidden="true"></i></div><div><p class="resume-titre">En ce moment</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
       ${progress(reprendre).tot ? `<div class="meta">Page ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>${resteLecture}` : '<div class="meta">Une page suffit pour reprendre le fil.</div>'}
       </div><div class="acts"><button class="btn pri" type="button" data-open="${esc(reprendre.id)}" aria-label="Reprendre ma lecture">Reprendre</button>
-      <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn" type="button" data-act="plus" aria-label="Autres actions : chrono, citation, j'ai fini">⋯</button></div></section>` : '';
+      <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn btn-ico" type="button" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button></div></section>` : '';
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   const genresConfirmes = [...new Set(books.map(b => (b.classif || {}).genre).filter(Boolean))].sort((a, b) => Taxonomie.nom('genre', a).localeCompare(Taxonomie.nom('genre', b), 'fr'));
   if (ui.genre && !genres.includes(ui.genre)) ui.genre = '';
@@ -1686,10 +1712,10 @@ function progress(b) {
   return {tot, cur, pct: tot ? Math.min(100, Math.round(cur / tot * 100)) : 0};
 }
 function loanChip(b) {
-  if (b.possession === 'prete') return `<span class="chip">📤 Prêté${b.pretNom ? ' à ' + esc(b.pretNom) : ''}</span>`;
+  if (b.possession === 'prete') return `<span class="chip">${ico('pret', '📤')} Prêté${b.pretNom ? ' à ' + esc(b.pretNom) : ''}</span>`;
   if (b.possession === 'emprunte') {
     const late = b.pretRetour && b.pretRetour < today(), soon = b.pretRetour && !late && b.pretRetour <= addDays(3);
-    return `<span class="chip ${late ? 'late' : soon ? 'warn' : ''}">📥 ${b.pretRetour ? (late ? 'En retard ! ' : 'À rendre le ') + fdate(b.pretRetour) : 'Emprunté'}</span>`;
+    return `<span class="chip ${late ? 'late' : soon ? 'warn' : ''}">${ico('emprunt', '📥')} ${b.pretRetour ? (late ? 'En retard ! ' : 'À rendre le ') + fdate(b.pretRetour) : 'Emprunté'}</span>`;
   }
   return '';
 }
@@ -1702,7 +1728,7 @@ function card(b) {
     extra = p.tot ? `<div class="meta">p. ${p.cur} / ${p.tot} · ${p.pct} %${reste}</div><div class="bar"><i style="width:${p.pct}%"></i></div>`
       : (b.dateDebut ? `<div class="meta">Commencé le ${fdate(b.dateDebut)}</div>` : '');
     // (l'action la plus fréquente en grand ; le chrono, les citations et « J'ai fini » dans « ⋯ »)
-    acts = `<button class="btn" data-act="pages"><span class="ico i-livre" aria-hidden="true">📖</span> Où j'en suis</button><button class="btn" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button>`;
+    acts = `<button class="btn" data-act="pages"><span class="ico i-livre" aria-hidden="true">📖</span> Où j'en suis</button><button class="btn btn-ico" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button>`;
   } else if (b.statut === 'a_lire') {
     extra = (b.pagesTotal ? `<div class="meta"${b.pagesSource === 'estimation' ? ` title="${PAGES_SOURCES.estimation}"` : ''}>${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} pages</div>` : '') +
       (b.resume ? `<div class="a resum">${esc(b.resume)}</div>` : '');
@@ -1715,10 +1741,10 @@ function card(b) {
     extra = `<div class="meta">${p.tot && p.cur ? `<span>Arrêté p. ${p.cur} / ${p.tot}</span>` : ''}${b.dateFin ? `<span>le ${fdate(b.dateFin)}</span>` : ''}</div>`;
     acts = `<button class="btn" data-act="resume">Reprendre</button>`;
   }
-  const chips = [b.aCompleter ? '<span class="chip warn">⚠️ À compléter</span>' : '', serieLabel(b) ? `<span class="chip">${esc(serieLabel(b))}</span>` : '',
-    b.genre ? `<span class="chip">${esc(b.genre)}</span>` : '', b.format && b.format !== 'papier' && FORMATS[b.format] ? `<span class="chip">${FORMATS[b.format]}</span>` : '', loanChip(b)].join('');
+  const chips = [b.aCompleter ? `<span class="chip warn">${ico('alerte', '⚠️')} À compléter</span>` : '', serieLabel(b) ? `<span class="chip">${esc(serieLabel(b))}</span>` : '',
+    b.genre ? `<span class="chip">${esc(b.genre)}</span>` : '', b.format && b.format !== 'papier' && FORMATS[b.format] ? `<span class="chip">${avecEmo(FORMATS[b.format])}</span>` : '', loanChip(b)].join('');
   return `<article class="card" data-id="${esc(b.id)}" tabindex="0">${coverHtml(b)}<div class="info">
-      <div class="t">${b.epingle && b.statut === 'a_lire' ? '📌 ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
+      <div class="t">${b.epingle && b.statut === 'a_lire' ? ico('epingle', '📌') + ' ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
       ${chips.trim() ? `<div class="meta">${chips}</div>` : ''}
       ${extra}${acts ? `<div class="acts">${acts}</div>` : ''}</div></article>`;
 }
@@ -1728,7 +1754,7 @@ function gcard(b) {
   // (auteur, puis pages : seul le nom se raccourcit avec « … », le nombre de pages reste toujours visible)
   const pages = b.pagesTotal ? (b.auteur ? '· ' : '') + (b.pagesSource === 'estimation' ? '≈ ' : '') + esc(b.pagesTotal) + ' p.' : '';
   const sous = [b.auteur ? `<span class="g-a">${esc(b.auteur)}</span>` : '', pages ? `<span class="g-p">${pages}</span>` : ''].filter(Boolean).join(' ');
-  return `<article class="gcard" data-id="${esc(b.id)}" tabindex="0">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? '<span class="pin">📌</span>' : ''}
+  return `<article class="gcard" data-id="${esc(b.id)}" tabindex="0">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? `<span class="pin">${ico('epingle', '📌')}</span>` : ''}
     <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${sous ? `<div class="g-sous">${sous}</div>` : ''}${extra}</article>`;
 }
 
@@ -2580,18 +2606,18 @@ function garderEntree(type, id) {
 function paintNotice() {
   const bar = $('#notice');
   if (Store.bloque) {
-    bar.innerHTML = `⚠️ <b>Tes livres ne peuvent pas être lus pour l'instant</b> : rien n'est enregistré tant que ce n'est pas réparé (pour ne rien écraser).
+    bar.innerHTML = `${ico('alerte', '⚠️')} <b>Tes livres ne peuvent pas être lus pour l'instant</b> : rien n'est enregistré tant que ce n'est pas réparé (pour ne rien écraser).
       Ferme complètement l'appli et rouvre-la. <button class="btn pri small" type="button" onclick="location.reload()"><span class="ico i-relire" aria-hidden="true">🔄</span> Réessayer</button>`;
     bar.className = 'notice danger'; bar.hidden = false; return;
   }
   if (Store.erreur) {
-    bar.innerHTML = `⚠️ <b>Tes dernières modifications ne sont pas enregistrées</b> (mémoire du téléphone pleine ?). Libère de la place, puis réessaie. Par précaution, fais une sauvegarde.
+    bar.innerHTML = `${ico('alerte', '⚠️')} <b>Tes dernières modifications ne sont pas enregistrées</b> (mémoire du téléphone pleine ?). Libère de la place, puis réessaie. Par précaution, fais une sauvegarde.
       <button class="btn small" type="button" data-resave>Réessayer</button><button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.className = 'notice danger'; bar.hidden = false; return;
   }
   // Copie de sécurité de la mise à jour impossible : le bandeau reste jusqu'à la prochaine sauvegarde
   if (prefs.copieMigrationEchec && !((prefs.lastBackup || '') >= prefs.copieMigrationEchec)) {
-    bar.innerHTML = `⚠️ <b>La copie de sécurité de la mise à jour n'a pas pu être faite</b> (mémoire du téléphone pleine ?). Fais une sauvegarde maintenant.
+    bar.innerHTML = `${ico('alerte', '⚠️')} <b>La copie de sécurité de la mise à jour n'a pas pu être faite</b> (mémoire du téléphone pleine ?). Fais une sauvegarde maintenant.
       <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.className = 'notice danger'; bar.hidden = false; return;
   }
@@ -2602,7 +2628,7 @@ function paintNotice() {
   if (due) {
     const lateRet = due.pretRetour < today();
     // (une seule ligne : seul le titre se coupe avec « … », la date et « Voir » restent visibles)
-    bar.innerHTML = `<span class="notice-txt">📥 «&nbsp;<span class="notice-titre">${esc(due.titre)}</span>&nbsp;» : ${lateRet ? 'en retard depuis le' : 'à rendre le'} <b>${fdate(due.pretRetour)}</b></span><button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
+    bar.innerHTML = `<span class="notice-txt">${ico('emprunt', '📥')} «&nbsp;<span class="notice-titre">${esc(due.titre)}</span>&nbsp;» : ${lateRet ? 'en retard depuis le' : 'à rendre le'} <b>${fdate(due.pretRetour)}</b></span><button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
     bar.className = 'notice alerte court'; bar.hidden = false;
   } else if (late) {
     bar.innerHTML = `<span class="rappel-txt">${ico('sauver', '💾')} <span class="long">${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'}</span><span class="bref">${last ? 'Sauvegarde à refaire.' : 'Pense à sauvegarder.'}</span></span> <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
@@ -2773,14 +2799,14 @@ function openCategorie(id) {
     pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
   };
   l.sort(by[catView.sort]);
-  $('#modal').innerHTML = `<h2>${cat ? cat.e + ' ' + esc(cat.nom) : '❔ Sans rayon'} <span class="a normal">(${plural(l.length, 'livre')})</span></h2>
+  $('#modal').innerHTML = `<h2>${cat ? emo(cat.e) + esc(cat.nom) : emo('❔') + 'Sans rayon'} <span class="a normal">(${plural(l.length, 'livre')})</span></h2>
     <div class="lbl mb-1">Trier par</div>
     <div class="seg" id="cv_sort">${[['titre', 'Titre'], ['auteur', 'Auteur'], ['pages', 'Pages']].map(([k, v]) => `<button type="button" data-v="${k}" class="${catView.sort === k ? 'on' : ''}">${v}</button>`).join('')}</div>
     ${sous.length ? `<div class="lbl mb-1">Affiner</div><div class="chips" id="cv_sous"><button type="button" data-v="" class="chipb ${!catView.sous ? 'on' : ''}">Tout (${tous.length})</button>${sous.map(z => `<button type="button" data-v="${z.id}" class="chipb ${catView.sous === z.id ? 'on' : ''}">${esc(z.nom)} (${nS[z.id]})</button>`).join('')}</div>` : ''}
-    ${id === '_aucune' ? '<div class="hint">Les catalogues ne donnent pas (encore) de classement pour ces livres. Ouvre un livre → 🏷️ Rayons pour lui en ajouter un à la main.</div>' : ''}
+    ${id === '_aucune' ? '<div class="hint">Les catalogues ne donnent pas (encore) de classement pour ces livres. Ouvre un livre → ' + emo('🏷️') + 'Rayons pour lui en ajouter un à la main.</div>' : ''}
     <div class="catlist">${l.map(b => `<button type="button" class="catline" data-open="${esc(b.id)}">${coverHtml(b, 'mini')}<span class="grow"><b>${esc(b.titre)}</b><br>
       <span class="a">${esc(b.auteur || 'Auteur inconnu')}${b.pagesTotal ? ' · ' + esc(b.pagesTotal) + ' p.' : ''}</span><br>
-      <span class="chip">${STATUT_UN[b.statut] || ''}</span> ${sousDe(b).filter(z => z.rayon === id).map(z => `<span class="chip">› ${esc(z.nom)}</span>`).join(' ')} ${catsDe(b).filter(c => c.id !== id).map(c => `<span class="chip">${c.e} ${esc(c.nom)}</span>`).join(' ')}</span></button>`).join('')}</div>
+      <span class="chip">${STATUT_UN[b.statut] || ''}</span> ${sousDe(b).filter(z => z.rayon === id).map(z => `<span class="chip">› ${esc(z.nom)}</span>`).join(' ')} ${catsDe(b).filter(c => c.id !== id).map(c => `<span class="chip">${emo(c.e)}${esc(c.nom)}</span>`).join(' ')}</span></button>`).join('')}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
   showM();
   $('#cv_sort').onclick = e => { const b = e.target.closest('[data-v]'); if (!b) return; catView.sort = b.dataset.v; openCategorie(id); };
@@ -2935,7 +2961,7 @@ function openNext() {
   if (pick.cat && !nCat[pick.cat]) pick.cat = '';
   const lens = [['', 'Peu importe'], ['court', 'Court'], ['moyen', 'Moyen'], ['long', 'Long']];
   const enLigne = pick.mode === 'ligne';
-  $('#modal').innerHTML = `<h2>🎲 Que lire ensuite ?</h2>
+  $('#modal').innerHTML = `<h2>${ico('de', '🎲')} Que lire ensuite ?</h2>
     <div class="seg" id="nx_mode"><button type="button" data-v="liste" class="${!enLigne ? 'on' : ''}"><span class="ico i-livre" aria-hidden="true">📚</span> Dans ma liste</button><button type="button" data-v="ligne" class="${enLigne ? 'on' : ''}"><span class="ico i-globe" aria-hidden="true">🌍</span> En ligne</button></div>
     ${enLigne ? `<div class="a moyen mb-2">Un livre que tu n'as pas encore, trouvé parmi les prix littéraires, les incontournables, les nouveautés et les livres préférés des lecteurs.</div>
       ${inspiHtml('nx_inspi')}${inspiration() === 'hasard' ? `<div class="lbl mb-1">Thème</div>${themeChips('nx_theme', pick.theme)}` : ''}` : `
@@ -2997,7 +3023,7 @@ async function drawNext() {
   const why = [b.epingle ? '📌 épinglé' : '', b.possession === 'emprunte' && b.pretRetour ? '📥 à rendre le ' + fdate(b.pretRetour) : '',
     b.pagesTotal ? (+b.pagesTotal || 0) + ' pages' + (v ? ' (≈ ' + fdur(b.pagesTotal / v * 60) + ')' : '') : ''].filter(Boolean).join(' · ');
   box.innerHTML = `<div class="nxcard">${coverHtml(b, 'big')}<div class="min0"><div class="t">${esc(b.titre)}</div><div class="a">${esc(b.auteur || '')}</div>
-    ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}${termesClassification(b).map(x => `<span class="chip">${esc(x)}</span>`).join('')}<div class="a moyen mt-1">${why}</div>
+    ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}${termesClassification(b).map(x => `<span class="chip">${esc(x)}</span>`).join('')}<div class="a moyen mt-1">${emoTexte(why)}</div>
     <div class="acts"><button class="btn pri" id="nx_start" type="button"><span class="ico i-livre" aria-hidden="true">📖</span> Je commence</button><button class="btn" id="nx_again" type="button">Un autre</button></div></div></div>`;
   $('#nx_go').disabled = false;
   $('#nx_start').onclick = () => { closeM(); quick('start', b); };
@@ -3426,10 +3452,10 @@ function rechClassementsPerso() {
 }
 function explorateurClassementHtml() {
   const dims = [
-    ['genre', 'Genres', '📚', 'Type de livre', Taxonomie.GENRES],
-    ['sousGenres', 'Sous-genres', '↳', 'Formes et registres', Taxonomie.SOUS_GENRES],
-    ['themes', 'Thèmes', '🏷️', 'Sujets et idées', Taxonomie.THEMES],
-    ['ambiances', 'Ambiances', '🌙', 'Tonalité et ressenti', Taxonomie.AMBIANCES]
+    ['genre', 'Genres', ico('livres', '📚'), 'Type de livre', Taxonomie.GENRES],
+    ['sousGenres', 'Sous-genres', ico('texte', '↳'), 'Formes et registres', Taxonomie.SOUS_GENRES],
+    ['themes', 'Thèmes', ico('etiquette', '🏷️'), 'Sujets et idées', Taxonomie.THEMES],
+    ['ambiances', 'Ambiances', ico('lune', '🌙'), 'Tonalité et ressenti', Taxonomie.AMBIANCES]
   ];
   // (par défaut, la première famille : les genres)
   const [dim, nom, , aide, valeurs] = dims.find(x => x[0] === rech.dimensionClassement) || dims[0];
@@ -4545,12 +4571,12 @@ function paintCats() {
     return opts.length ? `<optgroup label="${r.e} ${esc(r.nom)}">${opts.map(c => `<option value="${c.id}">${c === r ? esc(r.nom) + ' (tout le rayon)' : '› ' + esc(c.nom)}</option>`).join('')}</optgroup>` : '';
   }).join('');
   const puce = (c, txt) => `<span class="chip catchip">${txt}<button type="button" data-catnon="${c.id}" aria-label="Retirer ${esc(c.nom)}" title="Retirer"><span class="ico i-fermer" aria-hidden="true">✕</span></button></span>`;
-  box.innerHTML = (cs.length ? `<div class="meta">${cs.map(c => puce(c, c.e + ' ' + esc(c.nom))).join('')}</div>`
+  box.innerHTML = (cs.length ? `<div class="meta">${cs.map(c => puce(c, emo(c.e) + esc(c.nom))).join('')}</div>`
       : `<div class="a moyen">${form.classTente ? 'Les catalogues ne donnent pas de classement pour ce livre.' : 'Pas encore de rayon : l\'appli cherche le classement du livre dans les catalogues quand tu l\'ajoutes (ou avec Stats → 🏷️ Mes livres par rayon).'} Tu peux en ajouter un à la main.</div>`) +
     (ss.length ? `<div class="a moyen mt-2">Plus précisément :</div><div class="meta">${ss.map(z => puce(z, '› ' + esc(z.nom))).join('')}</div>` : '') +
     `<select id="f_catadd" aria-label="Ajouter un rayon" class="mt-2"><option value="">＋ Ajouter un rayon…</option>${menu}</select>` +
     (cs.length || cl.length ? `<details class="pourquoi"><summary>D'où viennent ces rayons ?</summary>
-      ${cs.length ? `<ul>${cs.map(c => `<li><b>${c.e} ${esc(c.nom)}</b> : ${c.raisons.map(esc).join(' ; ')}</li>`).join('')}${ss.map(z => `<li>› <b>${esc(z.nom)}</b> : ${esc(z.raison)}</li>`).join('')}</ul>` : ''}
+      ${cs.length ? `<ul>${cs.map(c => `<li><b>${emo(c.e)}${esc(c.nom)}</b> : ${c.raisons.map(esc).join(' ; ')}</li>`).join('')}${ss.map(z => `<li>› <b>${esc(z.nom)}</b> : ${esc(z.raison)}</li>`).join('')}</ul>` : ''}
       ${cl.length ? `<div class="lbl mt-2">Classements d'origine des catalogues</div><ul>${cl.map(k => `<li>${esc(k.s || 'Catalogue')} · ${esc(CHAMP[k.c] || k.c)} : ${esc(k.l)}</li>`).join('')}</ul>` : ''}
       <div class="a petit">Les rayons sont des regroupements faits par l'appli, sur le modèle des librairies ; les codes et sujets officiels des catalogues sont gardés tels quels ci-dessus.</div></details>` : '');
 }
@@ -4722,7 +4748,7 @@ function pickResult(i) {
   const x = lastRes[i]; if (!x) return;
   const own = findOwned(x, form.id);
   if (own) {
-    $('#s_res').innerHTML = `<div class="hint">📚 Tu as déjà <b>${esc(own.titre)}</b> dans « ${STATUT_UN[own.statut]} ».
+    $('#s_res').innerHTML = `<div class="hint">${emo('📚')}Tu as déjà <b>${esc(own.titre)}</b> dans « ${STATUT_UN[own.statut]} ».
       <div class="acts"><button class="btn pri small" type="button" data-openown="${esc(own.id)}">Ouvrir sa fiche</button><button class="btn small" type="button" data-anyway="${i}">L'ajouter quand même</button></div></div>`;
     return;
   }

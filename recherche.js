@@ -764,6 +764,17 @@ const Recherche = (() => {
     try { if (v.length) localStorage.setItem('ml-cache-' + key, JSON.stringify({t: Date.now(), v})); } catch (e) {}
     return v;
   }
+  // (lot 27) Au démarrage, les listes périmées ou abîmées sont effacées : cette petite mémoire sert aussi de copie de
+  // secours des livres si la mémoire principale tombe en panne, elle ne doit pas se remplir de vieilles listes
+  function nettoyerMemoire() {
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('ml-cache-')) {
+        let c = null; try { c = JSON.parse(localStorage.getItem(k)); } catch (e) {}
+        if (!c || !(Date.now() - c.t < 15 * 864e5)) localStorage.removeItem(k);
+      }
+    } catch (e) {}
+  }
+  nettoyerMemoire();
   async function wikidata(q) {
     const j = await getJson('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(q), 20000);
     const seen = new Set();
@@ -1382,8 +1393,8 @@ const Recherche = (() => {
   }
 
   const api = {
-    VERSION: '2026.11.03-4',   // (le même numéro que dans index.html)
-    toIsbn13, isbn10, looksLikeIsbn, norm, words, surname, guessGenre,
+    VERSION: '2026.11.04-1',   // (le même numéro que dans index.html)
+    toIsbn13, isbn10, looksLikeIsbn, norm, nettoyerMemoire, words, surname, guessGenre,
     RAYONS, SOUS_RAYONS, classer, rayons, sousRayons, rayonPourTexte, convertirAncienId, deweyCibles,
     THEMES_RECHERCHE, requetesDuRayon, parTheme, classement, unirClassements,
     parIsbn, parTexte, completer, couverture, chercherCouvertures, isbnCovers, placeholder,

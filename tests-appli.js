@@ -3821,6 +3821,151 @@
     finally { fs.deleteRule(k + 1); prefs.view = v0; books = b0; ui.tab = tab0; render(); }
   });
 
+  /* ---------- Lot 27 (04/11/2026) : corrections de l'audit complet (B1, B2, champs sans nom, M1, M2) ---------- */
+  await test('Lot 27 : « Que lire ensuite » fermé pendant le tirage — pas d’erreur, la fenêtre rouverte reste intacte', 'sans erreur|fenêtre rouverte intacte', async () => {
+    const b0 = books, erreurs = [], ecoute = e => erreurs.push(String(e.reason && e.reason.message || e.reason));
+    books = ['A', 'B', 'C'].map(t => fiche('L27 ' + t));
+    Object.assign(pick, {mode: 'liste', len: '', genre: '', genreConfirme: '', cat: '', dispo: false, themeLivre: '', sousGenre: '', ambiance: ''});
+    addEventListener('unhandledrejection', ecoute);
+    try { openNext(); $('#nx_go').click(); await pause(80); closeM(true); await pause(250); openNext(); await pause(1500);
+      const r = $('#nx_res'), go = $('#nx_go');
+      return [erreurs.length ? 'erreur : ' + erreurs[0] : 'sans erreur', r && !r.querySelector('.nxcard, .nxspin') && go && !go.disabled ? 'fenêtre rouverte intacte' : 'fenêtre rouverte touchée'].join('|'); }
+    finally { removeEventListener('unhandledrejection', ecoute); closeM(true); await pause(250); books = b0; }
+  });
+  await test('Lot 27 : scanner avec le lecteur de secours, caméra refusée — le scanner se ferme et dit « Caméra refusée »', 'fermé|Caméra refusée', async () => {
+    const z0 = window.ZXing, l0 = lecteurOk, pk = $('#pick_scan'); pk.click = () => {};   // (pas de choix de photo pendant le test)
+    window.ZXing = {BrowserMultiFormatReader: class { decodeFromConstraints() { return Promise.reject(Object.assign(new Error('refus'), {name: 'NotAllowedError'})); } reset() {} }};
+    lecteurOk = false;
+    try { await openScanner(); await pause(50);
+      return [$('#scanOv').classList.contains('show') ? 'resté ouvert' : 'fermé', /Caméra refusée/.test($('#toast').textContent) ? 'Caméra refusée' : 'message : « ' + $('#toast').textContent + ' »'].join('|'); }
+    finally { closeScanner(); if (z0) window.ZXing = z0; else delete window.ZXing; lecteurOk = l0; delete pk.click; }
+  });
+  await test('Lot 27 : l’objectif de l’année, la citation et sa page ont un nom lu par TalkBack', 'Objectif de livres pour l’année|Citation à ajouter|Page de la citation', async () => {
+    const b0 = books, tab0 = ui.tab, g0 = goal; books = [fiche('L27 cit', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 20})]; goal = 0;
+    const nom = s => { const e = $(s); return !e ? 'absent' : e.getAttribute('aria-label') || [...(e.labels || [])].map(l => l.textContent.trim()).join(' ') || 'sans nom'; };
+    try { ui.year = new Date().getFullYear(); ui.tab = 'stats'; render(); await pause(30); const r = [nom('#goal')];
+      openForm(books[0]); await pause(60); r.push(nom('#f_qt'), nom('#f_qp')); return r.join('|'); }
+    finally { closeM(true); await pause(250); goal = g0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot 27 : export Excel — une tabulation ou un retour chariot devant « = » est aussi neutralisé', 'tab neutralisée|retour neutralisé', () => {
+    const b0 = books; books = [fiche('\t=1+1'), fiche('\r=2+2')];
+    let csv = ''; const dl = window.download; window.download = (n, c) => { csv = c; };
+    try { doExport('excel'); return [csv.includes('"\'\t=1+1"') ? 'tab neutralisée' : 'tab brute', csv.includes('"\'\r=2+2"') ? 'retour neutralisé' : 'retour brut'].join('|'); }
+    finally { window.download = dl; books = b0; }
+  });
+  await test('Lot 27 : mémoire de Découvrir — listes de plus de 15 jours et listes abîmées effacées, récentes gardées', 'vieille effacée|récente gardée|abîmée effacée', () => {
+    const k = n => 'ml-cache-l27-' + n;
+    localStorage.setItem(k('vieille'), JSON.stringify({t: Date.now() - 16 * 864e5, v: [1]}));
+    localStorage.setItem(k('recente'), JSON.stringify({t: Date.now(), v: [1]}));
+    localStorage.setItem(k('abimee'), '{pas du json');
+    try { Recherche.nettoyerMemoire();
+      return [localStorage.getItem(k('vieille')) ? 'vieille gardée' : 'vieille effacée', localStorage.getItem(k('recente')) ? 'récente gardée' : 'récente effacée',
+        localStorage.getItem(k('abimee')) ? 'abîmée gardée' : 'abîmée effacée'].join('|'); }
+    finally { ['vieille', 'recente', 'abimee'].forEach(n => localStorage.removeItem(k(n))); }
+  });
+
+  await test('Lot 27 : scanner fermé pendant que la caméra démarre — la caméra est éteinte (scanner simple et plusieurs livres)', 'scanner:éteinte|plusieurs:éteinte', async () => {
+    const z0 = window.ZXing, l0 = lecteurOk; let arrets = 0;
+    window.ZXing = {BrowserMultiFormatReader: class { decodeFromConstraints() { return new Promise(r => setTimeout(r, 200)); } reset() { arrets++; } }};
+    lecteurOk = false; const r = [];
+    try {
+      arrets = 0; const p1 = openScanner(); await pause(50); closeScanner(); await p1; await pause(50);
+      r.push('scanner:' + (arrets >= 1 && !scanStop ? 'éteinte' : 'restée allumée'));
+      arrets = 0; const p2 = openBulk(); await pause(50); closeBulk(); await p2; await pause(50);
+      r.push('plusieurs:' + (arrets >= 1 && !bulkStop ? 'éteinte' : 'restée allumée'));
+      return r.join('|'); }
+    finally { closeScanner(); closeBulk(); if (z0) window.ZXing = z0; else delete window.ZXing; lecteurOk = l0; }
+  });
+
+  /* ---------- Lot 28 (04/11/2026) : vitesse avec une grande bibliothèque (O1, O2, O4 ; O3 sans changement visible) ---------- */
+  await test('Lot 28 : dates écrites vite (au moins 3 fois plus vite que l’ancienne façon), toujours au même format', '12 oct. 2026|1 janv. 2025|vide|rapide', () => {
+    const r = [fdate('2026-10-12'), fdate('2025-01-01'), fdate('') || 'vide'];
+    // (comparé à l'ancienne façon sur le même ordinateur : le test ne dépend pas de sa vitesse)
+    const jours = Array.from({length: 3000}, (_, i) => addDays(-(i % 300)));
+    let t0 = performance.now(); for (const j of jours) fdate(j); const ms = performance.now() - t0;
+    t0 = performance.now(); for (const j of jours) new Date(j + 'T00:00').toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); const ancien = performance.now() - t0;
+    r.push(ms * 3 <= ancien ? 'rapide' : `${Math.round(ms)} ms contre ${Math.round(ancien)} ms`); return r.join('|');
+  });
+  await test('Lot 28 : livres de la liste et de la grille dessinés quand ils approchent de l’écran ; les 8 derniers toujours', 'liste:auto, fin dessinée|grille:auto, fin dessinée', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = Array.from({length: 20}, (_, i) => fiche('L28 ' + i, {statut: 'lu'})); const r = [];
+    try { for (const [v, sel] of [['liste', '#list > .card'], ['grille', '#list > .gcard']]) { prefs.view = v; ui.tab = 'lu'; render(); await pause(20);
+        const l = [...document.querySelectorAll(sel)], s = getComputedStyle(l[0]), fin = getComputedStyle(l[l.length - 1]).contentVisibility;
+        r.push(v + ':' + (s.contentVisibility === 'auto' && s.containIntrinsicSize !== 'none' ? 'auto' : s.contentVisibility || 'non géré') + (fin === 'visible' ? ', fin dessinée' : ', fin ' + fin)); }
+      return r.join('|'); }
+    finally { prefs.view = v0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot 28 : recherche — chaque livre (texte et couverture dessinée) n’est « nettoyé » qu’une fois, et un titre changé est bien retrouvé', 'peu de travail|titre changé trouvé', async () => {
+    const b0 = books, tab0 = ui.tab, q0 = ui.q, n0 = Recherche.norm; let n = 0;
+    books = Array.from({length: 100}, (_, i) => fiche('L28 livre ' + i, {statut: 'lu'}));
+    try { ui.tab = 'lu'; ui.q = ''; render(); ui.q = 'l'; renderCards();   // (premier passage : chaque livre est préparé)
+      Recherche.norm = s => { n++; return n0(s); }; ui.q = 'li'; renderCards(); ui.q = 'liv'; renderCards(); Recherche.norm = n0;
+      const r = [n <= 10 ? 'peu de travail' : n + ' nettoyages pour 2 lettres'];
+      books[3].titre = 'Zanzibar'; ui.q = 'zanzi'; renderCards();
+      r.push([...document.querySelectorAll('#list .card')].some(c => c.textContent.includes('Zanzibar')) ? 'titre changé trouvé' : 'titre changé introuvable');
+      return r.join('|'); }
+    finally { Recherche.norm = n0; ui.q = q0; books = b0; ui.tab = tab0; render(); }
+  });
+
+  await test('Lot 28 : longue liste (150 livres) — tout en bas, le dernier livre reste au-dessus du ＋ (liste et grille)', 'liste visible|grille visible', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view, r = [];
+    books = Array.from({length: 150}, (_, k) => fiche('L28 pile ' + k, {statut: 'a_lire', pagesTotal: 200, resume: k % 3 ? '' : 'Un résumé assez long pour prendre deux lignes dans la liste des livres à lire.'}));
+    try { for (const vue of ['liste', 'grille']) {
+        ui.tab = 'a_lire'; prefs.view = vue; render(); scrollTo(0, document.documentElement.scrollHeight); await pause(80);
+        const l = [...document.querySelectorAll('#list .card, #list .gcard')].pop(), f = $('.fab');
+        const bas = Math.max(...[l, ...l.querySelectorAll('*')].map(x => x.getBoundingClientRect().bottom)), haut = f.getBoundingClientRect().top;
+        r.push(bas <= haut + 1 ? vue + ' visible' : vue + ' cachée (bas ' + Math.round(bas) + ', ＋ ' + Math.round(haut) + ')'); }
+      return r.join('|'); }
+    finally { prefs.view = v0; books = b0; ui.tab = tab0; render(); scrollTo(0, 0); }
+  });
+
+  /* ---------- Lots 27-28 (relecture) : la liste ne saute pas, la caméra s'éteint toujours ---------- */
+  const pile28 = () => Array.from({length: 150}, (_, k) => fiche('L28r ' + k, {statut: 'a_lire', pagesTotal: 200,
+    resume: k % 3 ? '' : 'Un résumé assez long pour prendre plusieurs lignes dans la liste des livres à lire, et même davantage sur un petit écran.'}));
+  // (le livre qui est à ~200 px du haut de l'écran, et sa position)
+  const repere28 = () => { const c = [...document.querySelectorAll('#list > .card')].find(x => x.getBoundingClientRect().top >= 200); return c && {id: c.dataset.id, top: c.getBoundingClientRect().top}; };
+  const ecart28 = r => { const c = document.querySelector(`#list > .card[data-id="${r.id}"]`); return c ? Math.round(c.getBoundingClientRect().top - r.top) : 'disparu'; };
+  await test('Lots 27-28 (relecture) : défilé au milieu d’une longue liste, un nouvel affichage ne la fait pas sauter', 'immobile', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = pile28(); prefs.view = 'liste';
+    try { ui.tab = 'a_lire'; render(); await pause(30);
+      for (let y = 0; y < 9000; y += 600) { scrollTo(0, y); await pause(16); }   // (on descend peu à peu : les livres vus prennent leur vraie taille)
+      await pause(50); const r = repere28(); render(); await pause(50);
+      const d = ecart28(r); return Math.abs(d) <= 2 ? 'immobile' : 'saut de ' + d + ' px'; }
+    finally { prefs.view = v0; books = b0; ui.tab = tab0; render(); scrollTo(0, 0); }
+  });
+  await test('Lots 27-28 (relecture) : défilé au milieu d’une longue liste, aller dans Stats puis revenir retrouve les mêmes livres', 'mêmes livres', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = pile28(); prefs.view = 'liste';
+    try { ui.tab = 'a_lire'; render(); await pause(30);
+      for (let y = 0; y < 9000; y += 600) { scrollTo(0, y); await pause(16); }
+      await pause(50); const r = repere28();
+      document.querySelector('[data-space="stats"]').click(); await pause(80); document.querySelector('[data-space="bibliotheque"]').click(); await pause(120);
+      const d = ecart28(r); return Math.abs(d) <= 2 ? 'mêmes livres' : 'décalé de ' + d + ' px'; }
+    finally { prefs.view = v0; books = b0; ui.tab = tab0; render(); scrollTo(0, 0); }
+  });
+  // (lecteur de secours imité : chaque démarrage est compté, « actif » tant que la caméra tourne)
+  const camera28 = (demarrer) => { const l = []; window.ZXing = {BrowserMultiFormatReader: class { constructor() { this.actif = false; l.push(this); }
+    decodeFromConstraints() { return demarrer(this); } reset() { this.actif = false; } }}; return l; };
+  await test('Lots 27-28 (relecture) : démarrage de caméra qui n’aboutit jamais — fermer le scanner l’éteint quand même', 'éteinte', async () => {
+    const z0 = window.ZXing, l0 = lecteurOk; lecteurOk = false;
+    const l = camera28(c => { c.actif = true; return new Promise(() => {}); });   // (la caméra tourne, la vidéo ne démarre jamais)
+    try { openScanner(); await pause(50); closeScanner(); await pause(30); return l.some(c => c.actif) ? 'restée allumée' : 'éteinte'; }
+    finally { closeScanner(); if (z0) window.ZXing = z0; else delete window.ZXing; lecteurOk = l0; }
+  });
+  await test('Lots 27-28 (relecture) : fermer puis rouvrir vite le scanner — une seule caméra allumée, puis aucune', '1 allumée|0 allumée', async () => {
+    const z0 = window.ZXing, l0 = lecteurOk; lecteurOk = false;
+    const l = camera28(c => new Promise(r => setTimeout(() => { c.actif = true; r(); }, 150)));
+    try { openScanner(); await pause(40); closeScanner(); openScanner(); await pause(400);
+      const r = [l.filter(c => c.actif).length + ' allumée']; closeScanner(); await pause(30); r.push(l.filter(c => c.actif).length + ' allumée'); return r.join('|'); }
+    finally { closeScanner(); if (z0) window.ZXing = z0; else delete window.ZXing; lecteurOk = l0; }
+  });
+  await test('Lots 27-28 (relecture) : scanner fermé avant le refus de la caméra — ni message, ni choix de photo', 'rien', async () => {
+    const z0 = window.ZXing, l0 = lecteurOk, pk = $('#pick_scan'); let photo = 0; pk.click = () => { photo++; }; lecteurOk = false;
+    camera28(() => new Promise((r, x) => setTimeout(() => x(Object.assign(new Error('refus'), {name: 'NotAllowedError'})), 100)));
+    $('#toast').textContent = '';
+    try { openScanner(); await pause(30); closeScanner(); await pause(200);
+      return photo || /Caméra/.test($('#toast').textContent) ? `photo ${photo}, message « ${$('#toast').textContent} »` : 'rien'; }
+    finally { closeScanner(); if (z0) window.ZXing = z0; else delete window.ZXing; lecteurOk = l0; delete pk.click; }
+  });
+
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

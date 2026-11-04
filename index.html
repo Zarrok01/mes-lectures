@@ -252,6 +252,12 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .rc{width:40px;height:60px;border-radius:var(--r-s);font-size:var(--t-s)}
 .mini{width:32px;height:48px;border-radius:var(--r-s);font-size:var(--t-xs)}
 .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--e-1)}
+/* (lot 28 : une longue liste ne dessine que les livres proches de l'écran — 5 fois plus rapide avec 1 000 livres ;
+   la taille réservée aux autres est celle d'un livre moyen, puis celle vraiment mesurée une fois qu'il a été vu) */
+#list > .card{content-visibility:auto;contain-intrinsic-size:auto var(--h,170px)}
+#list.grid > .gcard{content-visibility:auto;contain-intrinsic-size:auto var(--h,230px)}
+/* (les 8 derniers toujours dessinés pour de vrai : tout en bas, la fin de la liste tombe juste, au-dessus du ＋) */
+#list > :is(.card,.gcard):nth-last-child(-n+8){content-visibility:visible}
 /* (lot 26 : la flèche dit que la ligne ouvre la fiche ; posée au bord droit, à hauteur du titre, elle laisse toute la largeur
    aux boutons et à la barre de progression. La ligne fonce sous le doigt — un voile par-dessus sa couleur, visible dans
    tous les styles —, sauf quand le doigt est sur un de ses boutons) */
@@ -909,7 +915,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.03-4';
+const VERSION = '2026.11.04-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1069,7 +1075,15 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const today = () => iso(new Date());
 const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
-function fdate(s) { if (!s) return ''; const d = new Date(s + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}); }
+// (lot 28 : l'outil qui écrit les dates est préparé une fois, et chaque date déjà écrite est retenue — une longue liste
+// en écrit des centaines, et le recréer à chaque livre prenait la moitié du temps d'affichage)
+const FORMAT_DATE = new Intl.DateTimeFormat('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'}), DATES_ECRITES = new Map();
+function fdate(s) {
+  if (!s) return '';
+  let r = DATES_ECRITES.get(s);
+  if (r === undefined) { const d = new Date(s + 'T00:00'); r = isNaN(d) ? '' : FORMAT_DATE.format(d); if (DATES_ECRITES.size > 5000) DATES_ECRITES.clear(); DATES_ECRITES.set(s, r); }
+  return r;
+}
 function fdur(min) { min = Math.round(min); if (min < 60) return min + ' min'; const h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''); }
 // Note en pastille colorée : 5 = vert … 1 = rouge
 function scoreHtml(n, cls) { n = Math.round(n || 0); return n ? `<span class="score n${n} ${cls || ''}">${n}<small>/5</small></span>` : ''; }
@@ -1125,7 +1139,16 @@ function initiales(titre) {
   const mots = String(titre || '').split(/[\s'’-]+/).filter(m => m && !MOTS_VIDES.has(Recherche.norm(m)));
   return mots.slice(0, 2).map(m => Array.from(m)[0].toUpperCase()).join('') || '?';
 }
+// (lot 28 : une couverture dessinée ne dépend que du titre, de l'auteur et du genre confirmé : elle est retenue,
+// au lieu d'être refaite pour chaque livre à chaque affichage de la liste)
+const COUVS_DESSINEES = new Map();
 function couvGeneree(b) {
+  const cle = [b.titre, b.auteur, (b.classif || {}).genre].join('\u0001');
+  let c = COUVS_DESSINEES.get(cle);
+  if (!c) { if (COUVS_DESSINEES.size > 5000) COUVS_DESSINEES.clear(); COUVS_DESSINEES.set(cle, c = dessinerCouv(b)); }
+  return c;
+}
+function dessinerCouv(b) {
   const titre = String(b.titre || '').trim() || 'Sans titre', auteur = String(b.auteur || '').trim();
   const h = parseInt(empreinte(Recherche.norm(titre) + '|' + Recherche.norm(auteur)), 36);
   const genre = Taxonomie.genre((b.classif || {}).genre), pref = genre && FONDS_GENRE[genre.id];
@@ -1581,7 +1604,23 @@ function speed() {
 const renderBase = avecCache(renderTout);
 // (la fiche du livre, si elle est ouverte, suit chaque nouvel affichage)
 const render = () => { renderBase(); if (fiche.id) peindreFiche(); };
+// (relecture des lots 27-28) Une longue liste ne dessine que les livres proches de l'écran (lot 28) : les autres
+// prennent une taille réservée. Leur vraie hauteur est retenue juste avant chaque nouvel affichage et redonnée aux
+// nouveaux livres (« --h ») : la liste ne saute plus quand elle est redessinée, ni au retour d'un autre onglet.
+const HAUTEURS_LIVRES = new Map();
+function retenirHauteurs() {
+  const l = $('#list'); if (!l) return;
+  const v = l.classList.contains('grid') ? 'g' : 'l';
+  // (la taille réservée est celle du contenu : on retire les marges intérieures et les bordures, les mêmes pour tous)
+  let bord = null;
+  for (const c of l.children) if (c.dataset.id) {
+    if (bord === null) { const st = getComputedStyle(c); bord = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((t, k) => t + (parseFloat(st[k]) || 0), 0); }
+    const h = c.getBoundingClientRect().height - bord; if (h > 0) HAUTEURS_LIVRES.set(v + c.dataset.id, Math.round(h * 100) / 100);
+  }
+}
+const hauteurLivre = (v, id) => { const h = HAUTEURS_LIVRES.get(v + id); return h ? ` style="--h:${h}px"` : ''; };
 function renderTout() {
+  retenirHauteurs();
   if (STATUTS[ui.tab]) ui.libraryStatus = ui.tab;
   if (['notes', 'citations'].includes(ui.tab)) ui.carnetView = ui.tab;
   const c = counts(), nq = allQuotes().length, nn = allNotes().length;
@@ -1688,15 +1727,25 @@ function puceFiltres() {
     (l.length ? '<button type="button" class="chipb" data-effacer>Tout effacer</button>' : '');
 }
 
+// (lot 28) Texte de recherche d'un livre, « nettoyé » une fois (minuscules, sans accents) et retenu ; refait seulement
+// si un de ses champs a changé (une fiche modifiée sur place est donc bien retrouvée)
+const textesRecherche = new WeakMap();
+function texteRecherche(b) {
+  const brut = [b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom, b.resume, ...(b.sujets || []), ...termesClassification(b), ...catsDe(b).map(c => c.nom), ...sousDe(b).map(c => c.nom)].join(' ');
+  const m = textesRecherche.get(b); if (m && m.brut === brut) return m.n;
+  const n = Recherche.norm(brut); textesRecherche.set(b, {brut, n}); return n;
+}
 function dateKey(b) { return ((b.statut === 'lu' || b.statut === 'abandon') ? b.dateFin : b.statut === 'en_cours' ? b.dateDebut : '') || b.ajoute || ''; }
 
+const ORDRE_FR = new Intl.Collator('fr');
 function renderCards() {
+  retenirHauteurs();
   const q = Recherche.norm(ui.q);
   let l = books.filter(b => b.statut === ui.tab);
   const filtresActifs = !!(q || ui.genre || ui.genreConfirme || ui.own || ui.cat || ui.sousGenre || ui.theme || ui.ambiance || ui.etiquette);
   const resume = $('#resumeLecture'), resumeVisible = !!(resume && ui.tab === 'en_cours' && !filtresActifs);
   if (resume) resume.hidden = !resumeVisible;
-  const trouve = b => Recherche.norm([b.titre, b.auteur, b.genre, b.avis, b.serie, b.isbn, b.pretNom, b.resume, ...(b.sujets || []), ...termesClassification(b), ...catsDe(b).map(c => c.nom), ...sousDe(b).map(c => c.nom)].join(' ')).includes(q);
+  const trouve = b => texteRecherche(b).includes(q);
   if (q) l = l.filter(trouve);
   if (resumeVisible) l = l.filter(b => b.id !== resume.dataset.id);
   // La recherche regarde aussi les autres onglets : on dit où se trouvent les autres livres qui correspondent
@@ -1711,14 +1760,15 @@ function renderCards() {
   if (ui.cat) l = l.filter(b => ui.cat === '_aucune' ? !catsDe(b).length : ui.cat.startsWith('sous:') ? sousDe(b).some(z => z.id === ui.cat.slice(5)) : catsDe(b).some(c => c.id === ui.cat));
   if (ui.own) l = l.filter(b => ui.own === 'completer' ? b.aCompleter : ['numerique', 'audio'].includes(ui.own) ? b.format === ui.own : b.possession === ui.own);
   const fa = $('#filtresActifs'); if (fa) { fa.innerHTML = puceFiltres(); fa.hidden = !fa.innerHTML; }
+  const fr = ORDRE_FR.compare;   // (lot 28 : préparée une fois, pas à chaque comparaison)
   const by = {
     recent: (a, b) => dateKey(b).localeCompare(dateKey(a)),
-    titre: (a, b) => a.titre.localeCompare(b.titre, 'fr'),
-    auteur: (a, b) => (a.auteur || '').localeCompare(b.auteur || '', 'fr'),
-    serie: (a, b) => (a.serie || '~').localeCompare(b.serie || '~', 'fr') || (+a.tome || 0) - (+b.tome || 0) || a.titre.localeCompare(b.titre, 'fr'),
+    titre: (a, b) => fr(a.titre, b.titre),
+    auteur: (a, b) => fr(a.auteur || '', b.auteur || ''),
+    serie: (a, b) => fr(a.serie || '~', b.serie || '~') || (+a.tome || 0) - (+b.tome || 0) || fr(a.titre, b.titre),
     note: (a, b) => (b.note || 0) - (a.note || 0),
     // (les livres dont on ne connaît pas le nombre de pages à la fin)
-    pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || a.titre.localeCompare(b.titre, 'fr')
+    pages: (a, b) => (+a.pagesTotal || 1e9) - (+b.pagesTotal || 1e9) || fr(a.titre, b.titre)
   };
   l.sort((a, b) => (ui.tab === 'a_lire' ? (b.epingle ? 1 : 0) - (a.epingle ? 1 : 0) : 0) || by[ui.sort](a, b));
   vitesseAffichage = ui.tab === 'en_cours' ? speed() : null;
@@ -1771,7 +1821,7 @@ function card(b) {
   }
   const chips = [b.aCompleter ? `<span class="chip warn">${ico('alerte', '⚠️')} À compléter</span>` : '', serieLabel(b) ? `<span class="chip">${esc(serieLabel(b))}</span>` : '',
     b.genre ? `<span class="chip">${esc(b.genre)}</span>` : '', b.format && b.format !== 'papier' && FORMATS[b.format] ? `<span class="chip">${avecEmo(FORMATS[b.format])}</span>` : '', loanChip(b)].join('');
-  return `<article class="card" data-id="${esc(b.id)}" tabindex="0">${coverHtml(b)}<div class="info"><span class="ico i-suite card-suite" aria-hidden="true">›</span>
+  return `<article class="card" data-id="${esc(b.id)}" tabindex="0"${hauteurLivre('l', b.id)}>${coverHtml(b)}<div class="info"><span class="ico i-suite card-suite" aria-hidden="true">›</span>
       <div class="t">${b.epingle && b.statut === 'a_lire' ? ico('epingle', '📌') + ' ' : ''}${esc(b.titre)}</div>${b.auteur ? `<div class="a">${esc(b.auteur)}</div>` : ''}
       ${chips.trim() ? `<div class="meta">${chips}</div>` : ''}
       ${extra}${acts ? `<div class="acts">${acts}</div>` : ''}</div></article>`;
@@ -1782,7 +1832,7 @@ function gcard(b) {
   // (auteur, puis pages : seul le nom se raccourcit avec « … », le nombre de pages reste toujours visible)
   const pages = b.pagesTotal ? (b.auteur ? '· ' : '') + (b.pagesSource === 'estimation' ? '≈ ' : '') + esc(b.pagesTotal) + '\u00a0p.' : '';
   const sous = [b.auteur ? `<span class="g-a">${esc(b.auteur)}</span>` : '', pages ? `<span class="g-p">${pages}</span>` : ''].filter(Boolean).join(' ');
-  return `<article class="gcard" data-id="${esc(b.id)}" tabindex="0">${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? `<span class="pin">${ico('epingle', '📌')}</span>` : ''}
+  return `<article class="gcard" data-id="${esc(b.id)}" tabindex="0"${hauteurLivre('g', b.id)}>${b.statut === 'lu' && b.note ? scoreHtml(b.note, 'gscore') : ''}${coverHtml(b, '')}${b.epingle && b.statut === 'a_lire' ? `<span class="pin">${ico('epingle', '📌')}</span>` : ''}
     <div class="t">${esc(b.titre)}${b.tome ? ' <span class="a">T.' + esc(b.tome) + '</span>' : ''}</div>${sous ? `<div class="g-sous">${sous}</div>` : ''}${extra}</article>`;
 }
 
@@ -2765,7 +2815,7 @@ function renderStatsTout() {
     ${y === thisYear ? `<div class="panel"><h3>Mon objectif ${y}</h3>
       ${goal ? `<div class="meta mb-2">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
              : '<div class="a">Pas encore d\'objectif. Combien de livres veux-tu lire cette année ?</div>'}
-      <div class="search mt-3"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
+      <div class="search mt-3"><input id="goal" type="number" min="0" inputmode="numeric" placeholder="Nombre de livres" aria-label="Objectif de livres pour l’année" value="${goal || ''}"><button class="btn" data-goal>${goal ? 'Changer' : 'Valider'}</button></div></div>` : ''}
     ${defisPanel(y)}
     <div class="panel"><h3>Pages lues par semaine</h3>
       <div class="a sous-titre">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
@@ -3047,10 +3097,11 @@ function nextCandidates() {
 async function drawNext() {
   let c = nextCandidates();
   if (c.length > 1) c = c.filter(b => b.id !== pick.last);
-  const box = $('#nx_res');
+  const box = $('#nx_res'), go = $('#nx_go');
   if (!c.length) { box.innerHTML = '<div class="hint">Aucun livre ne correspond à ces envies. Essaie d\'élargir un peu.</div>'; return; }
-  $('#nx_go').disabled = true;
-  for (let k = 0; k < 12; k++) { box.innerHTML = `<div class="nxspin">${esc(c[Math.floor(Math.random() * c.length)].titre)}</div>`; await new Promise(r => setTimeout(r, 55 + k * 14)); }
+  go.disabled = true;
+  // (lot 27 : fenêtre remplacée — rouverte ou autre fenêtre — pendant que les titres défilent → le tirage s'arrête, sans y toucher)
+  for (let k = 0; k < 12; k++) { box.innerHTML = `<div class="nxspin">${esc(c[Math.floor(Math.random() * c.length)].titre)}</div>`; await new Promise(r => setTimeout(r, 55 + k * 14)); if (!box.isConnected) return; }
   // Un peu plus de chances pour les livres épinglés et ceux à rendre bientôt
   const w = b => 1 + (b.epingle ? 2 : 0) + (b.possession === 'emprunte' && b.pretRetour ? 3 : 0);
   let r = Math.random() * c.reduce((s, b) => s + w(b), 0), b = c[0];
@@ -3062,9 +3113,9 @@ async function drawNext() {
   box.innerHTML = `<div class="nxcard">${coverHtml(b, 'big')}<div class="min0"><div class="t">${esc(b.titre)}</div><div class="a">${esc(b.auteur || '')}</div>
     ${b.genre ? `<span class="chip">${esc(b.genre)}</span>` : ''}${termesClassification(b).map(x => `<span class="chip">${esc(x)}</span>`).join('')}<div class="a moyen mt-1">${emoTexte(why)}</div>
     <div class="acts"><button class="btn pri" id="nx_start" type="button"><span class="ico i-livre" aria-hidden="true">📖</span> Je commence</button><button class="btn" id="nx_again" type="button">Un autre</button></div></div></div>`;
-  $('#nx_go').disabled = false;
-  $('#nx_start').onclick = () => { closeM(); quick('start', b); };
-  $('#nx_again').onclick = drawNext;
+  go.disabled = false;
+  box.querySelector('#nx_start').onclick = () => { closeM(); quick('start', b); };
+  box.querySelector('#nx_again').onclick = drawNext;
 }
 
 /* ---------- ✨ Découvrir : tirage en ligne et sélection du mois ---------- */
@@ -3900,7 +3951,7 @@ function doExport(kind) {
       .concat(sortedBooks().map(b => [b.titre, b.auteur, b.serie, b.tome, STATUT_UN[b.statut], b.genre, (b.classif || {}).genre ? Taxonomie.nom('genre', b.classif.genre) : '',
         listeClassif(b, 'sousGenres'), listeClassif(b, 'themes'), listeClassif(b, 'ambiances'), (b.etiquettes || []).join(' · '), rayonsTexte(b), b.note || '', fdShort(b.dateDebut), fdShort(b.dateFin),
         b.pagesTotal, b.editeur, b.annee, b.isbn, (FORMATS[b.format] || '').slice(3), POSSESSION[b.possession] + (b.pretNom ? ' : ' + b.pretNom : ''), b.avis]));
-    const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/^([=+\-@])/, "'$1").replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/^([=+\-@\t\r])/, "'$1").replace(/"/g, '""') + '"').join(';')).join('\r\n');
     download('mes-lectures.csv', csv, 'text/csv;charset=utf-8');
     toast('Fichier Excel téléchargé');
   } else if (kind === 'pdf') {
@@ -4378,8 +4429,8 @@ function openForm(b, opts) {
     <details id="catBox"><summary><span class="ico i-etiquette" aria-hidden="true">🏷️</span> Rayons <span id="f_catsn"></span></summary><div id="f_cats" class="mt-1 mb-3"></div></details>
     <div class="f"><label for="f_avis">Mon avis / mes notes</label><textarea id="f_avis" rows="3" placeholder="Ce que j'en retiens…">${esc(form.avis)}</textarea></div>
     <div class="f"><span class="lbl">Citations</span><div class="qlist" id="f_quotes"></div>
-      <textarea id="f_qt" rows="2" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
-      <div class="search"><input id="f_qp" type="number" min="0" inputmode="numeric" placeholder="Page" class="champ-page"><button class="btn" id="f_qadd" type="button"><span class="ico i-ajouter" aria-hidden="true">＋</span> Ajouter la citation</button></div></div>
+      <textarea id="f_qt" rows="2" aria-label="Citation à ajouter" placeholder="Ajouter une phrase qui t'a marqué…"></textarea>
+      <div class="search"><input id="f_qp" type="number" min="0" inputmode="numeric" placeholder="Page" aria-label="Page de la citation" class="champ-page"><button class="btn" id="f_qadd" type="button"><span class="ico i-ajouter" aria-hidden="true">＋</span> Ajouter la citation</button></div></div>
     <details ${form.possession === 'prete' || form.possession === 'emprunte' ? 'open' : ''}><summary><span class="ico i-colis" aria-hidden="true">📦</span> Format, prêt et infos d'édition</summary>
       <div class="row">
         <div class="f"><label for="f_format">Format</label><select id="f_format">${Object.entries(FORMATS).map(([k, v]) => `<option value="${k}" ${k === form.format ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
@@ -4895,12 +4946,15 @@ async function lecteurIntegre() {
   return lecteurOk;
 }
 // Un code n'est accepté que s'il est lu 2 fois de suite et que son chiffre de contrôle est bon.
-async function startCamera(video, onCode) {
+// « demarrage.arreter » éteint la caméra même si elle n'a pas fini de démarrer (relecture des lots 27-28)
+async function startCamera(video, onCode, demarrage = {}) {
   if (await lecteurIntegre()) {
     const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720}}, audio: false});
+    let alive = true, last = '', n = 0;
+    const arreter = () => { alive = false; stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
+    demarrage.arreter = arreter;
     video.srcObject = stream; await video.play();
     const det = new BarcodeDetector({formats: ['ean_13', 'ean_8', 'upc_a']});
-    let alive = true, last = '', n = 0;
     const loop = async () => {
       if (!alive) return;
       try {
@@ -4911,36 +4965,47 @@ async function startCamera(video, onCode) {
       if (alive) setTimeout(loop, 120);
     };
     loop();
-    return () => { alive = false; stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
+    return arreter;
   }
   await loadZXing();
   const reader = new ZXing.BrowserMultiFormatReader();
   let stopped = false;
-  reader.decodeFromConstraints({video: {facingMode: 'environment'}}, video, res => { if (res && !stopped) onCode(res.getText()); });
-  return () => { stopped = true; reader.reset(); };
+  const arreter = () => { stopped = true; reader.reset(); };
+  demarrage.arreter = arreter;
+  // (lot 27 : on attend la caméra, pour qu'un refus ou une caméra absente soit dit, comme avec le lecteur intégré)
+  try { await reader.decodeFromConstraints({video: {facingMode: 'environment'}}, video, res => { if (res && !stopped) onCode(res.getText()); }); }
+  catch (e) { reader.reset(); throw e; }
+  return arreter;
 }
 function cameraError(err) {
   toast(err && err.name === 'NotAllowedError' ? 'Caméra refusée : autorise-la dans les réglages de Chrome' : 'Caméra indisponible : prends une photo');
 }
 const isBookCode = c => /^97[89]\d{10}$/.test(c) && !!Recherche.toIsbn13(c);
 
-let scanStop = null;
+let scanStop = null, scanDemarrage = null;
 async function openScanner() {
   $('#scanOv').classList.add('show');
   $('#scanMsg').textContent = 'Vise le code-barres au dos du livre (celui qui commence par 978 ou 979).';
+  const d = scanDemarrage = {};
   try {
-    scanStop = await startCamera($('#cam'), c => {
+    const stop = await startCamera($('#cam'), c => {
       if (!isBookCode(c)) { $('#scanMsg').textContent = 'Ce code-barres n\'est pas celui du livre. Vise celui qui commence par 978 ou 979.'; return; }
       closeScanner();
       if (navigator.vibrate) navigator.vibrate(80);
       $('#s_q').value = c; doSearch(true);
-    });
+    }, d);
+    // (scanner fermé, ou rouvert, pendant que la caméra démarrait : celle-ci est éteinte aussitôt)
+    if (scanDemarrage !== d) return stop();
+    scanDemarrage = null; scanStop = stop;
   } catch (err) {
+    if (scanDemarrage !== d) return;   // (scanner déjà fermé : ni message, ni choix de photo)
     closeScanner(); cameraError(err);
     $('#pick_scan').value = ''; $('#pick_scan').click();
   }
 }
 function closeScanner() {
+  const d = scanDemarrage; scanDemarrage = null;
+  if (d && d.arreter) try { d.arreter(); } catch (e) {}
   if (scanStop) { const s = scanStop; scanStop = null; try { s(); } catch (e) {} }
   $('#scanOv').classList.remove('show');
 }
@@ -4948,7 +5013,7 @@ $('#scanClose').onclick = closeScanner;
 $('#scanPhoto').onclick = () => { closeScanner(); $('#pick_scan').value = ''; $('#pick_scan').click(); };
 
 /* ---------- Scan rapide : plusieurs livres d'affilée ---------- */
-let bulkStop = null, bulkSeen = new Set(), bulkAdded = 0;
+let bulkStop = null, bulkDemarrage = null, bulkSeen = new Set(), bulkAdded = 0;
 async function openBulk() {
   if (Store.bloque) return toast('Impossible d\'ajouter des livres : la mémoire du téléphone ne répond pas. Ferme l\'appli et rouvre-la.');
   bulkSeen = new Set(); bulkAdded = 0;
@@ -4956,10 +5021,13 @@ async function openBulk() {
   document.querySelectorAll('#bulkDest button').forEach(b => b.classList.toggle('on', b.dataset.dest === prefs.bulkDest));
   $('#bulkMsg').textContent = 'Vise le code-barres au dos du livre.';
   $('#bulkOv').classList.add('show');
-  try { bulkStop = await startCamera($('#cam2'), bulkCode); }
-  catch (err) { closeBulk(); cameraError(err); }
+  const d = bulkDemarrage = {};
+  try { const stop = await startCamera($('#cam2'), bulkCode, d); if (bulkDemarrage !== d) return stop(); bulkDemarrage = null; bulkStop = stop; }   // (comme le scanner)
+  catch (err) { if (bulkDemarrage !== d) return; closeBulk(); cameraError(err); }
 }
 function closeBulk() {
+  const d = bulkDemarrage; bulkDemarrage = null;
+  if (d && d.arreter) try { d.arreter(); } catch (e) {}
   if (bulkStop) { const s = bulkStop; bulkStop = null; try { s(); } catch (e) {} }
   $('#bulkOv').classList.remove('show');
   if (bulkAdded) toast(`${plural(bulkAdded, 'livre')} ajouté${bulkAdded > 1 ? 's' : ''} ✓`);

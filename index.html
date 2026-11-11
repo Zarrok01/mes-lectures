@@ -310,6 +310,59 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .tiles .tile > span{font-size:var(--t-s);font-weight:600;color:var(--texte);line-height:1.25}   /* (relecture : jamais coupé par « … », il passe à la ligne avec le texte agrandi) */
 .tiles .tile > small{margin-top:auto;padding-top:var(--e-1);font-size:var(--t-xs);line-height:1.3;color:var(--texte-doux)}
 .tiles{grid-auto-rows:1fr}
+/* (lot 31) Le ciel de l'année : voûte = surface du style, étoiles = accent */
+.ciel{position:relative;margin:0 0 var(--e-3);border-radius:var(--r-l);overflow:hidden;background:radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--accent) 14%,var(--surface)),var(--surface) 70%)}
+.ciel svg{display:block;width:100%;height:auto}
+.ciel-fond circle{fill:var(--texte-doux);opacity:.5}
+.ciel-fond.scintille circle{animation:ciel-scintille 4s ease-in-out infinite alternate}
+@keyframes ciel-scintille{from{opacity:.15}to{opacity:.75}}
+.ciel-point{fill:var(--accent);filter:drop-shadow(0 0 3px var(--accent))}
+.ciel.beaucoup .ciel-point{filter:none}   /* (plus de 60 étoiles : petites et serrées, le halo coûterait sans se voir) */
+.ciel-trace{fill:none;stroke:var(--accent);stroke-opacity:.55;stroke-width:1}
+.ciel-trace.anime{stroke-dasharray:1;stroke-dashoffset:1;animation:ciel-trace 2.6s .3s ease-out forwards}
+@keyframes ciel-trace{to{stroke-dashoffset:0}}
+.ciel-etoile{position:absolute;width:var(--toucher);height:var(--toucher);transform:translate(-50%,-50%);border:0;border-radius:50%;background:none;padding:0;cursor:pointer}
+.ciel-etoile:focus-visible{outline:2px solid var(--accent);outline-offset:-6px}
+.ciel-vide{position:absolute;left:var(--e-4);right:var(--e-4);bottom:var(--e-4);margin:0;font-size:var(--t-s);color:var(--texte-doux);text-align:center}
+.ciel-chiffres{display:grid;grid-template-columns:repeat(3,1fr);border-block:1px solid var(--trait);margin-bottom:var(--e-3)}
+.ciel-chiffres > div{padding:var(--e-3) var(--e-1);text-align:center;min-width:0}
+.ciel-chiffres > div + div{border-left:1px solid var(--trait)}
+.ciel-chiffres b{display:block;font:700 var(--t-xl)/1.1 var(--police-titres);font-variant-numeric:tabular-nums lining-nums}
+.ciel-chiffres span{font-size:var(--t-xs);color:var(--texte-doux)}
+.ciel-phrase{font-family:var(--police-titres);font-style:italic;color:var(--texte-doux);margin:0 0 var(--e-4)}
+.ciel-phrase b{font-style:normal;color:var(--texte)}
+@media (prefers-reduced-motion:reduce){.ciel-trace.anime{animation:none;stroke-dashoffset:0}.ciel-fond.scintille circle{animation:none}}
+/* (lot 31) Calque « la fleur devient étoile » : au-dessus des fenêtres, sous le toast (z-index 50, qui garde ses boutons) */
+#feteOv{z-index:45;align-items:stretch;background:color-mix(in srgb,var(--fond) 94%,transparent)}
+.fete-scene{position:relative;width:100%;max-width:420px;margin:0 auto;height:100%;overflow:hidden;display:flex;flex-direction:column;align-items:center}
+/* (de haut en bas : le ciel, la plante qui prend la place restante, le texte, les boutons — rien ne se chevauche, même à 130 %) */
+.fete-ciel{flex:none;width:100%;margin-top:4vh}
+.fete-pot{position:relative;flex:1 1 auto;min-height:72px;width:100%}
+.fete-trace{fill:none;stroke:var(--accent);stroke-opacity:.5;stroke-width:1}
+.fete-neuve{fill:var(--accent);filter:drop-shadow(0 0 6px var(--accent))}
+.fete-plante{position:absolute;left:50%;bottom:0;height:min(170px,100%);width:auto;aspect-ratio:80/170;transform:translateX(-50%)}
+.fete-tige{fill:none;stroke:var(--texte-doux);stroke-width:2.5;stroke-linecap:round}
+.fete-feuille{fill:var(--texte-doux)}
+.fete-fleur circle{fill:var(--accent-doux)} .fete-fleur .fete-coeur{fill:var(--accent)}
+.fete-lueur{position:absolute;left:50%;bottom:calc(min(170px,100%) * .918 - 6px);width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--accent);box-shadow:0 0 16px 6px color-mix(in srgb,var(--accent) 60%,transparent);opacity:0}
+.fete-texte{flex:none;align-self:stretch;margin:var(--e-3) var(--e-5) 0;text-align:center}
+.fete-sur{font-size:var(--t-xs);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0}
+.fete-texte h2{font-family:var(--police-titres);font-size:var(--t-xl);margin:var(--e-1) 0}
+.fete-texte p{color:var(--texte-doux);margin:0}
+.fete-acts{flex:none;align-self:stretch;margin:var(--e-4) var(--e-5) calc(var(--e-6) + env(safe-area-inset-bottom));display:flex;gap:var(--e-2)}
+.fete-acts .btn{flex:1}
+/* Complète : la fleur éclot, la lumière monte, l'étoile s'allume (≈ 2 s), puis le texte */
+#feteOv.complete .fete-fleur{transform-box:fill-box;transform-origin:center;animation:fete-eclot .6s cubic-bezier(.3,1.4,.4,1) both}
+#feteOv.complete .fete-lueur{animation:fete-monte 1.1s .5s cubic-bezier(.45,.05,.3,1) both}
+#feteOv.complete .fete-neuve{transform-box:fill-box;transform-origin:center;animation:fete-neuve .5s 1.5s ease-out both}
+#feteOv.complete .fete-texte,#feteOv.complete .fete-acts{animation:fete-texte .4s 1.8s ease both}
+@keyframes fete-eclot{from{transform:scale(.3)}}
+@keyframes fete-monte{0%{opacity:0;transform:none}15%{opacity:1}90%{opacity:1;transform:translate(var(--dx,0px),var(--dy,-38vh)) scale(.7)}100%{opacity:0;transform:translate(var(--dx,0px),var(--dy,-38vh)) scale(.3)}}
+@keyframes fete-neuve{from{transform:scale(0)}60%{transform:scale(2)}}
+@keyframes fete-texte{from{opacity:0;transform:translateY(8px)}}
+/* Simple : un fondu, sans mouvement */
+#feteOv.simple .fete-scene{animation:fete-texte .3s ease both}
+@media (prefers-reduced-motion:reduce){#feteOv *{animation:none!important}}
 .chart{display:flex;gap:var(--e-1);height:140px}
 .chart>div{flex:1;display:flex;flex-direction:column;align-items:center;font-size:var(--t-xs);color:var(--texte-doux);min-width:0}
 .chart .col{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
@@ -946,6 +999,9 @@ button{-webkit-touch-callout:none}
   <div class="mfoot"><span class="sp"></span><button class="btn" id="askNon" type="button">Non</button><button class="btn pri" id="askOui" type="button">Oui</button></div>
 </div></div>
 
+<!-- (lot 31) Un livre fini : la fleur devient étoile -->
+<div class="ov fete" id="feteOv" role="dialog" aria-modal="true" aria-labelledby="feteTitre"><div class="fete-scene" id="feteScene"></div></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="pick_cover" accept="image/*" hidden>
 <input type="file" id="pick_scan" accept="image/*" capture="environment" hidden>
@@ -962,7 +1018,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.10-1';
+const VERSION = '2026.11.11-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -974,6 +1030,7 @@ const POSSESSIONS = [['', 'Tous les livres'], ['a_moi', 'Ceux que j\'ai'], ['emp
 const POSSESSION = {a_moi: 'Je l\'ai', emprunte: 'Emprunté (médiathèque, ami…)', prete: 'Prêté à quelqu\'un', non: 'Je ne l\'ai pas'};
 const PAGES_SOURCES = {edition: 'nombre de pages de cette édition (d\'après son ISBN)', estimation: 'estimé : nombre de pages d\'une autre édition du livre', manuel: 'nombre de pages tapé à la main'};
 const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+const MOIS_LONG = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 // État d'un écran (vide, erreur, chargement) : une icône, un titre, une phrase, une ou deux actions
 function etat({icone, emoji, titre, texte, actions, ton}) {
@@ -1082,6 +1139,7 @@ const ICONES = {
   de: "<rect x='4' y='4' width='16' height='16' rx='3'/><circle cx='9' cy='9' r='1.3' fill='currentColor'/><circle cx='15' cy='15' r='1.3' fill='currentColor'/><circle cx='15' cy='9' r='1.3' fill='currentColor'/><circle cx='9' cy='15' r='1.3' fill='currentColor'/>",
   lien: "<path d='M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1'/><path d='M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1'/>",
   document: "<path d='M6 3h8l4 4v14H6z'/><path d='M14 3v4h4M9 13h6M9 17h6'/>", tableau: "<rect x='4' y='4' width='16' height='16' rx='2'/><path d='M4 10h16M10 4v16'/>",
+  ciel: "<path d='m12 3 1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z'/><circle cx='18.5' cy='18' r='1.2'/><circle cx='6' cy='17' r='.9'/>",
   texte: "<path d='M5 6h14M5 10h14M5 14h10M5 18h7'/>", etiquette: "<path d='M3 12V4h8l10 10-8 8z'/><circle cx='7.5' cy='7.5' r='1.5'/>",
   relire: "<path d='M20 11a8 8 0 0 0-14.3-4.9L4 8M4 13a8 8 0 0 0 14.3 4.9L20 16'/><path d='M4 3v5h5M20 21v-5h-5'/>",
   panier: "<path d='M3 4h2l2.4 11h11.1L21 7H6.5'/><circle cx='9' cy='19.5' r='1.5'/><circle cx='17' cy='19.5' r='1.5'/>",
@@ -1684,7 +1742,7 @@ function renderTout() {
     ['bibliotheque', ico('livre', '📚') + '<span>Bibliothèque</span>' + lu(plural(total, 'livre')), 0],
     ['decouvrir', ico('etincelle', '✨') + '<span>Découvrir</span>' + (neuf ? `<span class="n neuf">${sel.items.length} nouveaux livres</span>` : ''), 0],
     ['carnet', ico('texte', '✍️') + '<span>Carnet</span>' + lu(plural(nn + nq, 'entrée')), 0],
-    ['stats', ico('tableau', '📊') + '<span>Stats</span>', 0]
+    ['stats', ico('ciel', '✨') + '<span>Ciel</span>' + '<span class="sr">, tes statistiques</span>', 0]
   ].map(([space, label, count]) => `<button class="tab ${espaceActif === space ? 'on' : ''}" aria-current="${espaceActif === space ? 'page' : 'false'}" data-space="${space}">${label}${count ? `<span class="n">${count}</span>` : ''}</button>`).join('');
   const s = streaks(activity()).cur;
   $('#flame').hidden = !s; $('#flame').innerHTML = ico('flamme', '🔥') + ' ' + s + `<span class="sr"> ${s > 1 ? 'jours' : 'jour'} de lecture d’affilée</span>`;
@@ -2814,6 +2872,126 @@ function renderQuotes() {
     : `${q ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucune citation ne correspond', texte: 'Essaie d’autres mots ou efface la recherche.', actions: '<button class="btn" type="button" data-effacer-citations>Effacer la recherche</button>'}) : ETATS.citations()}`;
 }
 
+/* ---------- ✨ Le ciel de l'année (lot 31) ---------- */
+// Une étoile par lecture terminée dans l'année. Horizontale : la date de fin (janvier à gauche). Verticale : tirée du
+// titre (stable : un livre garde sa place). Taille : selon les pages. Unités du dessin : 320 × 200 ; le bas (horizon) reste libre.
+const CIEL = {l: 320, h: 200, marge: 16, horizon: 34, proche: 54};
+function etoilesCiel(ly, y) {
+  const debut = new Date(y, 0, 1), duree = new Date(y + 1, 0, 1) - debut;
+  const tri = ly.filter(r => r.fin && r.fin.startsWith(String(y)))
+    .slice().sort((a, b) => a.fin.localeCompare(b.fin) || a.b.titre.localeCompare(b.b.titre, 'fr'));
+  const beaucoup = tri.length > 60, rMin = beaucoup ? 1.8 : 2.5, rMax = beaucoup ? 3.5 : 5;
+  const arr = v => Math.round(v * 10) / 10;
+  return tri.map((r, i) => {
+    const t = Math.min(1, Math.max(0, (new Date(r.fin + 'T12:00') - debut) / duree));
+    const p = +r.b.pagesTotal || 0;
+    return {b: r.b, fin: r.fin, i,
+      x: arr(CIEL.marge + t * (CIEL.l - 2 * CIEL.marge)),
+      y: arr(CIEL.marge + hue(r.b.titre) / 359 * (CIEL.h - CIEL.marge - CIEL.horizon)),
+      r: arr(p ? rMin + (rMax - rMin) * Math.min(1, p / 800) : (rMin + rMax) / 2)};
+  });
+}
+// Étoiles trop proches pour un doigt (48 px ≈ 54 unités quand le ciel fait 288 px de large, à 320 px d'écran) : un seul bouton
+function groupesCiel(etoiles) {
+  const g = [];
+  etoiles.forEach(e => {
+    const x = g.find(k => Math.hypot(k.etoiles[0].x - e.x, k.etoiles[0].y - e.y) < CIEL.proche);
+    if (x) x.etoiles.push(e); else g.push({etoiles: [e]});
+  });
+  return g.map(k => ({etoiles: k.etoiles, x: k.etoiles.reduce((s, e) => s + e.x, 0) / k.etoiles.length, y: k.etoiles.reduce((s, e) => s + e.y, 0) / k.etoiles.length}));
+}
+// Points décoratifs fixes du fond (toujours les mêmes, pour que l'écran ne « saute » pas)
+const CIEL_FOND = [[20,26],[64,80],[118,18],[150,120],[206,30],[262,96],[300,20],[36,150],[176,66],[290,140],[90,40],[240,60],[130,90],[280,170],[60,120],[200,150],[10,90],[310,60],[170,20],[110,160]];
+// Le ciel dessiné : SVG décoratif résumé en une phrase, et des boutons HTML (48 px) posés sur les étoiles pour les toucher.
+// Le trait qui relie les étoiles se trace en animation une fois par jour, sur l'année en cours, en mode Animations « complète ».
+const listeCiel = et => et.map(e => `<button type="button" class="catline" data-open="${esc(e.b.id)}">${coverHtml(e.b, 'mini')}<span class="grow"><b>${esc(e.b.titre)}</b><br><span class="a">fini le ${fdate(e.fin)}</span></span></button>`).join('');
+function cielHtml(et, gr, y, thisYear) {
+  const n = et.length;
+  const resume = n ? `${plural(n, 'livre')} fini${n > 1 ? 's' : ''} en ${y}, de ${et[0].b.titre} à ${et[n - 1].b.titre}` : `Aucun livre fini en ${y}`;
+  const mode = modeAnimation(), anime = y === thisYear && prefs.cielTrace !== today() && mode === 'complete';
+  // (les points du fond scintillent doucement — opacité seule, chacun à son rythme — en Complète et Simple ; fixes sinon)
+  const scintille = mode === 'complete' || mode === 'simple';
+  const trace = n > 1 ? `<path class="ciel-trace${anime ? ' anime' : ''}" pathLength="1" d="M${et.map(e => e.x + ' ' + e.y).join(' L')}"/>` : '';
+  const pct = (v, t) => (v / t * 100).toFixed(2) + '%';
+  return `<section id="ciel" class="ciel${n > 60 ? ' beaucoup' : ''}">
+    <svg viewBox="0 0 ${CIEL.l} ${CIEL.h}" role="img" aria-label="${esc(resume)}">
+      <g class="ciel-fond${scintille ? ' scintille' : ''}" aria-hidden="true">${CIEL_FOND.map(([a, b], i) => `<circle cx="${a}" cy="${b}" r=".8"${scintille ? ` style="animation-duration:${(3 + (i * 7) % 5 * .6).toFixed(1)}s;animation-delay:-${((i * 1.3) % 5).toFixed(1)}s"` : ''}/>`).join('')}</g>
+      ${trace}${et.map(e => `<circle class="ciel-point" cx="${e.x}" cy="${e.y}" r="${e.r}"/>`).join('')}
+    </svg>
+    ${gr.map((g, k) => g.etoiles.length === 1
+      ? `<button type="button" class="ciel-etoile" data-open="${esc(g.etoiles[0].b.id)}" style="left:${pct(g.x, CIEL.l)};top:${pct(g.y, CIEL.h)}" aria-label="${esc(g.etoiles[0].b.titre)}, fini le ${fdate(g.etoiles[0].fin)}"></button>`
+      : `<button type="button" class="ciel-etoile ciel-groupe" data-ciel-groupe="${k}" style="left:${pct(g.x, CIEL.l)};top:${pct(g.y, CIEL.h)}" aria-label="${plural(g.etoiles.length, 'livre')} : ${esc(g.etoiles.map(e => e.b.titre).join(', '))}"></button>`).join('')}
+    ${n ? '' : `<p class="ciel-vide">Ton ciel ${y} est encore vide. Ton premier livre fini allumera la première étoile.</p>`}
+  </section>`;
+}
+
+/* ---------- ✨ Un livre fini : la fleur devient étoile (lot 31, signature du style Jardin de nuit) ---------- */
+// Complète : la fleur éclot, une lueur monte, l'étoile neuve s'allume dans le ciel. Simple (ou téléphone qui saccade) :
+// la même scène en fondu, sans mouvement. Aucune, ou mouvement réduit : un simple message. Se ferme seule après 4 s.
+let feteMinuteur = 0, feteFocus = null;
+function celebrerEtoile(b) {
+  const m = Ouverture.reduit() ? 'aucune' : modeAnimation();   // ('fondu' = téléphone qui saccade : version Simple)
+  const msg = 'Une étoile de plus dans ton ciel ✨';
+  if (m === 'aucune') return toast(msg);
+  const y = +(b.dateFin || today()).slice(0, 4);
+  // (l'étoile de CETTE lecture : un livre relu a aussi l'étoile de sa lecture précédente ; on montre les 7 qui la précèdent)
+  const tous = etoilesCiel(readings(), y), k = tous.findLastIndex(e => e.b.id === b.id && e.fin === b.dateFin);
+  if (k < 0) return toast(`Rangé dans « ${STATUTS.lu} »`);
+  const et = tous.slice(Math.max(0, k - 7), k + 1), neuve = tous[k];
+  $('#feteScene').innerHTML = `
+    <svg class="fete-ciel" viewBox="0 0 ${CIEL.l} ${CIEL.h}" aria-hidden="true">
+      ${et.length > 1 ? `<path class="fete-trace" d="M${et.map(e => e.x + ' ' + e.y).join(' L')}"/>` : ''}
+      ${et.map(e => `<circle class="${e === neuve ? 'fete-neuve' : 'ciel-point'}" cx="${e.x}" cy="${e.y}" r="${e.r}"/>`).join('')}
+    </svg>
+    <div class="fete-pot"><svg class="fete-plante" viewBox="0 0 80 170" aria-hidden="true">
+      <path class="fete-tige" d="M40 170C40 130 35 110 41 70 45 45 39 30 40 14"/>
+      <path class="fete-feuille" d="M40 120C25 118 15 108 13 96c12 0 24 8 27 24zM41 92c14-2 24-12 26-24-12 0-24 8-26 24z"/>
+      <g class="fete-fleur"><circle cx="40" cy="14" r="10"/><circle class="fete-coeur" cx="40" cy="14" r="4"/></g>
+    </svg>
+    <span class="fete-lueur" aria-hidden="true"></span></div>
+    <div class="fete-texte"><p class="fete-sur">Livre fini</p><h2 id="feteTitre">Une étoile de plus dans ton ciel</h2>
+      <p>« ${esc(b.titre)} » a fleuri${+b.pagesTotal ? `, ${b.pagesTotal} pages` : ''}.</p></div>
+    <div class="fete-acts"><button type="button" class="btn pri" id="feteCiel">Voir mon ciel</button><button type="button" class="btn" id="feteFermer">Fermer</button></div>`;
+  const ov = $('#feteOv'); ov.classList.remove('complete', 'simple'); ov.classList.add(m === 'complete' ? 'complete' : 'simple', 'show');
+  // La lueur part de la fleur et monte jusqu'à l'étoile neuve : trajet mesuré une fois la scène posée (taille d'écran, texte agrandi)
+  const lueur = $('#feteScene .fete-lueur'), cible = $('#feteScene .fete-neuve');
+  if (cible) {
+    const a = lueur.getBoundingClientRect(), c = cible.getBoundingClientRect();
+    lueur.style.setProperty('--dx', Math.round(c.left + c.width / 2 - a.left - a.width / 2) + 'px');
+    lueur.style.setProperty('--dy', Math.round(c.top + c.height / 2 - a.top - a.height / 2) + 'px');
+  }
+  ov.onclick = e => { if (!e.target.closest('#feteCiel')) fermerFete(); };
+  $('#feteCiel').onclick = async () => {
+    fermerFete();
+    if ($('#livreOv').classList.contains('show')) await fermerFiche();
+    await retourFait();   // (la fermeture rend l'étape de retour, et le navigateur remet l'ancien défilement : on passe après lui)
+    quitterEspace(); ui.tab = 'stats'; ui.year = y; render(); window.scrollTo(0, 0);
+  };
+  clearTimeout(feteMinuteur); feteMinuteur = setTimeout(fermerFete, 4000);
+  feteFocus = document.activeElement; $('#feteFermer').focus();
+}
+// Attend que l'étape de retour rendue par une fenêtre fermée soit consommée (au plus 1 s), puis une image
+async function retourFait() {
+  await new Promise(r => setTimeout(r));   // (syncRetour part d'un MutationObserver : on le laisse d'abord passer)
+  const t0 = performance.now();
+  while (retourIgnore && performance.now() - t0 < 1000) await new Promise(r => setTimeout(r, 20));
+  await new Promise(r => { requestAnimationFrame(() => r()); setTimeout(r, 50); });   // (une image, ou 50 ms si la page n'en dessine pas)
+}
+// On quitte un espace : il garde sa position de défilement (et la Bibliothèque, son onglet) pour le retour
+function quitterEspace() {
+  const precedent = ui.tab, y = window.scrollY;
+  const actuel = STATUTS[precedent] ? 'bibliotheque' : ['notes', 'citations'].includes(precedent) ? 'carnet' : precedent;
+  scrollEspaces[actuel] = y;
+  if (STATUTS[precedent]) { scrollBibliotheque[precedent] = y; ui.libraryStatus = precedent; }
+}
+function fermerFete() {
+  clearTimeout(feteMinuteur);
+  const ov = $('#feteOv'); if (!ov || !ov.classList.contains('show')) return false;
+  ov.classList.remove('show');
+  if (feteFocus && document.contains(feteFocus) && (ov.contains(document.activeElement) || document.activeElement === document.body)) feteFocus.focus({preventScroll: true});
+  feteFocus = null; return true;
+}
+
 /* ---------- Statistiques ---------- */
 const renderStats = avecCache(renderStatsTout);
 function renderStatsTout() {
@@ -2855,9 +3033,18 @@ function renderStatsTout() {
   };
   const pct = goal ? Math.min(100, Math.round(ly.length / goal * 100)) : 0;
   const s = ly.length > 1 ? 's' : '';
+  // (lot 31) Le ciel : étoiles et groupes calculés une fois (les groupes servent aussi au toucher, « Quel livre ? »)
+  const etoiles = etoilesCiel(ly, y); ui.cielGroupes = groupesCiel(etoiles);
+  const lumMax = Math.max(...perM), moisLum = lumMax > 1 ? perM.indexOf(lumMax) : -1;
+  const phrase = !ly.length ? '' : moisLum >= 0 ? `<b>${MOIS_LONG[moisLum]}</b> est ton mois le plus lumineux : ${plural(lumMax, 'étoile')}.`
+    : `${plural(ly.length, 'étoile')} brille${ly.length > 1 ? 'nt' : ''} dans ton ciel ${y}.`;
 
   $('#main').innerHTML = `
-    ${teteEcran('Stats', 'Mes lectures de l’année', `<select id="year" class="puce-annee" aria-label="Année">${years.map(v2 => `<option ${v2 === y ? 'selected' : ''}>${v2}</option>`).join('')}</select>`)}
+    ${teteEcran('Ciel', 'Tes statistiques ' + y, `<select id="year" class="puce-annee" aria-label="Année">${years.map(v2 => `<option ${v2 === y ? 'selected' : ''}>${v2}</option>`).join('')}</select>`)}
+    ${cielHtml(etoiles, ui.cielGroupes, y, thisYear)}
+    <div class="ciel-chiffres"><div><b>${ly.length}</b><span>livre${s} fini${s}</span></div><div><b>${pages.toLocaleString('fr-FR')}</b><span>pages</span></div><div><b>${minY ? fdur(minY) : '–'}</b><span>${minY ? 'chronométrées' : 'pas de chrono'}</span></div></div>
+    ${phrase ? `<p class="ciel-phrase">${phrase}</p>` : ''}
+    <details class="panel stats-plus"${ui.statsPlus ? ' open' : ''}><summary>Plus de chiffres</summary>
     <div class="tiles">
       <!-- (lot V5, U7 : le chiffre, ce qu'il compte en une ligne, puis le détail en petit ; même hauteur pour toutes les tuiles) -->
       <div class="tile"><b>${ly.length}</b><span>livre${s} lu${s}</span><small>en ${y}</small></div>
@@ -2872,6 +3059,8 @@ function renderStatsTout() {
       <p>Les livres et notes suivent leur date de fin. Le total des pages reprend la pagination renseignée pour chaque lecture terminée ; les valeurs estimées sont comptées et signalées, les valeurs absentes ne sont pas inventées.</p>
       <p>Les jours d’activité viennent des changements de page et des séances chronométrées. Le temps et la vitesse utilisent uniquement le chrono ; la vitesse n’apparaît qu’après au moins 15 minutes enregistrées.</p>
       <p>Les pages par semaine s’appuient sur les changements de page et les séances. Un même livre peut apparaître plusieurs fois s’il a été terminé plusieurs fois.</p>
+    </details>
+    ${etoiles.length ? `<h3>Les livres de mon ciel</h3><div class="ciel-liste catlist">${ui.statsPlus ? listeCiel(etoiles) : ''}</div>` : ''}
     </details>
     ${y === thisYear ? `<div class="panel"><h3>Mon objectif ${y}</h3>
       ${goal ? `<div class="meta mb-2">${ly.length} / ${goal} livres · ${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>`
@@ -2903,6 +3092,29 @@ function renderStatsTout() {
       ${sauvegardeEtPartage()}</div>`;
   // (le volet « Ma bibliothèque en détail » garde son état d'un rendu à l'autre)
   $('#main .stats-detail').ontoggle = e => { ui.statsDetail = e.target.open; };
+  // (la liste « Les livres de mon ciel » ne se construit qu'à l'ouverture du volet : une grande année coûterait sinon à chaque affichage)
+  $('#main .stats-plus').ontoggle = e => {
+    ui.statsPlus = e.target.open; const l = $('#main .ciel-liste');
+    if (e.target.open && l && !l.childElementCount) l.innerHTML = listeCiel(etoiles);
+  };
+  // (lot 31, D5) Toucher le ciel : on cherche les étoiles à moins de 24 px du doigt. Une seule → son livre ; plusieurs →
+  // « Quel livre ? ». Rien sous le doigt (ou clavier, TalkBack) → le bouton touché décide : un livre (clic global
+  // [data-open], qui ferme aussi ce choix) ou un groupe d'étoiles voisines.
+  $('#ciel').onclick = e => {
+    let l = [];
+    const q = $('#ciel svg').getBoundingClientRect();
+    if (e.detail > 0 && q.width) {
+      const ux = (e.clientX - q.left) / q.width * CIEL.l, uy = (e.clientY - q.top) / q.height * CIEL.h, rayon = 24 / q.width * CIEL.l;
+      l = etoiles.filter(x => Math.hypot(x.x - ux, x.y - uy) <= rayon);
+    }
+    if (l.length) { e.stopPropagation(); if (l.length === 1) return ouvrirFiche(l[0].b.id); }
+    else { const g = e.target.closest('[data-ciel-groupe]'); if (!g) return; l = ui.cielGroupes[+g.dataset.cielGroupe].etoiles; }
+    $('#modal').innerHTML = `<h2 id="modalTitre">Quel livre ?</h2><div class="catlist">${l.map(x => `<button type="button" class="catline" data-open="${esc(x.b.id)}">${coverHtml(x.b, 'mini')}<span class="grow"><b>${esc(x.b.titre)}</b><br><span class="a">fini le ${fdate(x.fin)}</span></span></button>`).join('')}</div>
+      <div class="mfoot"><span class="sp"></span><button class="btn" data-close type="button">Fermer</button></div>`;
+    showM();
+  };
+  // (lot 31) le trait du ciel ne se trace en animation qu'une fois par jour
+  if ($('#ciel .ciel-trace.anime')) { prefs.cielTrace = today(); savePrefs(); }
   // Calendrier : on fait défiler jusqu'à aujourd'hui
   const cal = $('#cal'), now = $('#cal .now');
   if (cal && now) cal.scrollLeft = now.offsetLeft - cal.clientWidth + 60;
@@ -4376,6 +4588,7 @@ function erreurChamp(id, message) {
 // (élément qui avait le focus avant la fenêtre : il le retrouve à la fermeture)
 let focusAvant = null;
 function showM() {
+  fermerFete();   // (lot 31 : une fenêtre ouverte depuis le calque — « ＋ Tome suivant » — ne doit pas rester dessous)
   if (!$('#ov').classList.contains('show')) focusAvant = document.activeElement;
   $('#ov').classList.add('show'); $('#modal').scrollTop = 0; modalModifie = false;
   const h = $('#modal h2'); if (h) { h.id = 'modalTitre'; h.tabIndex = -1; h.focus({preventScroll: true}); }
@@ -4449,7 +4662,7 @@ function openForm(b, opts) {
   const hist = form.historique || [];
   const searchOpen = isNew || form.aCompleter;
   $('#modal').innerHTML = `
-    <h2>${opts.finish ? 'Bravo, livre terminé ! 🎉' : isNew ? 'Ajouter un livre' : 'Modifier le livre'}</h2>
+    <h2>${opts.finish ? 'Livre terminé !' : isNew ? 'Ajouter un livre' : 'Modifier le livre'}</h2>
     <details ${searchOpen ? 'open' : ''}><summary><span class="ico i-chercher" aria-hidden="true">🔎</span> ${isNew ? 'Chercher le livre (remplit tout seul)' : 'Compléter les infos depuis internet'}</summary>
       <div class="search"><input id="s_q" type="search" placeholder="Titre, auteur ou ISBN…" enterkeyhint="search" value="${esc(opts.query || (isNew ? '' : (form.aCompleter && form.isbn ? form.isbn : (form.isbn || (form.titre + ' ' + (form.auteur || ''))))))}">
       <button class="btn pri" id="s_go" type="button">Chercher</button></div>
@@ -4609,13 +4822,17 @@ function openForm(b, opts) {
     if (f.statut === 'en_cours' && (orig.statut !== 'en_cours' || +orig.pageActuelle !== +f.pageActuelle)) logPage(f, f.pageActuelle || 0);
     if (f.statut === 'lu' && orig.statut !== 'lu' && f.pagesTotal) logPage(f, f.pagesTotal);
     const moved = orig.statut && orig.statut !== f.statut;
+    // (lot 31) Un livre de la bibliothèque passe à « Lu » : la signature remplace le message « Rangé dans « Lus » »
+    // (un livre ajouté directement comme déjà lu garde son message : ce n'est pas une lecture qui s'achève)
+    const finitIci = f.statut === 'lu' && orig.statut !== 'lu', fete = finitIci && !!orig.statut && !!f.dateFin;   // (sans date de fin : pas d'étoile, donc pas de fête)
     closeM();
-    save(f, !orig.statut || moved ? `Rangé dans « ${STATUTS[f.statut]} »` : 'Enregistré ✓');
+    save(f, fete ? '' : !orig.statut || moved ? `Rangé dans « ${STATUTS[f.statut]} »` : 'Enregistré ✓');
     if (f.couverture) brokenCovers.delete(f.id);
     if (!f.couverture) autoCover(f.id);
     if (!f.resume && !f.resumeTente) autoResume(f.id);
     else if (!f.classTente && !(f.classements || []).length) autoClass(f.id);
-    if (f.statut === 'lu' && orig.statut !== 'lu') afterFinish(f);
+    if (fete) celebrerEtoile(f);
+    if (finitIci) afterFinish(f);
   };
   const del = $('#f_del');
   if (del) del.onclick = () => supprimerLivre(form.id);
@@ -5408,10 +5625,7 @@ $('#settingsBtn').onclick = openSettings;
 document.addEventListener('click', e => {
   const space = e.target.closest('[data-space]');
   if (space) {
-    const precedent = ui.tab, y = window.scrollY;
-    const actuel = STATUTS[precedent] ? 'bibliotheque' : ['notes', 'citations'].includes(precedent) ? 'carnet' : precedent;
-    scrollEspaces[actuel] = y;
-    if (STATUTS[precedent]) { scrollBibliotheque[precedent] = y; ui.libraryStatus = precedent; }
+    quitterEspace();
     const destination = space.dataset.space;
     ui.tab = destination === 'bibliotheque' ? ui.libraryStatus : destination === 'carnet' ? ui.carnetView : destination;
     render();
@@ -5528,7 +5742,7 @@ document.addEventListener('keydown', e => {
 
 /* ---------- Touche « retour » d'Android : ferme la fenêtre ouverte (et non toute l'appli) ---------- */
 // Quand une fenêtre s'ouvre, on ajoute une étape dans l'historique : « retour » la consomme et ferme la fenêtre.
-const FENETRES = ['#askOv', '#scanOv', '#bulkOv', '#timerOv', '#ov', '#livreOv'];
+const FENETRES = ['#feteOv', '#askOv', '#scanOv', '#bulkOv', '#timerOv', '#ov', '#livreOv'];   // (la plus haute en premier)
 let modalModifie = false, retourPose = false, retourIgnore = 0, retourDepuis = 0, retourAttente = 0;
 const fenetreOuverte = () => FENETRES.find(sel => $(sel).classList.contains('show'));
 function syncRetour() {
@@ -5563,7 +5777,8 @@ async function fermerFenetre() {
 }
 function fermerDessus() {
   const o = fenetreOuverte(); if (!o) return false;
-  if (o === '#askOv') { if (reponseQuestion) reponseQuestion(false); }
+  if (o === '#feteOv') fermerFete();
+  else if (o === '#askOv') { if (reponseQuestion) reponseQuestion(false); }
   else if (o === '#scanOv') closeScanner();
   else if (o === '#bulkOv') closeBulk();
   else if (o === '#timerOv') { $('#timerOv').classList.remove('show'); paintTimerPill(); }

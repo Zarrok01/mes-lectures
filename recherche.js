@@ -1393,7 +1393,7 @@ const Recherche = (() => {
   }
 
   const api = {
-    VERSION: '2026.11.10-1',   // (le même numéro que dans index.html)
+    VERSION: '2026.11.11-1',   // (le même numéro que dans index.html)
     toIsbn13, isbn10, looksLikeIsbn, norm, nettoyerMemoire, words, surname, guessGenre,
     RAYONS, SOUS_RAYONS, classer, rayons, sousRayons, rayonPourTexte, convertirAncienId, deweyCibles,
     THEMES_RECHERCHE, requetesDuRayon, parTheme, classement, unirClassements,

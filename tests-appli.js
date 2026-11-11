@@ -3707,27 +3707,27 @@
   await test('Lot V3 : sans séance chronométrée, une ligne discrète au lieu de deux tuiles « – » ; les tuiles reviennent avec une séance', 'sans tuile vide|ligne|tuiles revenues', async () => {
     const b0 = books, tab0 = ui.tab;
     books = [fiche('V3 c', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 50})];
-    try { ui.tab = 'stats'; render(); await pause(30);
-      const vides = [...document.querySelectorAll('#main .tile b')].filter(b => b.textContent.trim() === '–' && /chrono/.test(b.nextElementSibling.textContent)).length;
+    try { ui.tab = 'stats'; ui.statsPlus = true; render(); await pause(30);
+      const vides = [...document.querySelectorAll('#main .stats-plus .tile b')].filter(b => b.textContent.trim() === '–' && /chrono/.test(b.nextElementSibling.textContent)).length;
       const r = [vides ? `${vides} tuiles vides` : 'sans tuile vide', /Pas encore de séance chronométrée/.test($('#main').textContent) ? 'ligne' : 'pas de ligne'];
       books = [fiche('V3 c', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 50, sessions: [{date: today(), min: 30, pages: 20}]})]; render(); await pause(30);
-      r.push([...document.querySelectorAll('#main .tile small')].some(s => /chronométrées en/.test(s.textContent)) ? 'tuiles revenues' : 'tuiles absentes');
+      r.push([...document.querySelectorAll('#main .stats-plus .tile small')].some(s => /chronométrées en/.test(s.textContent)) ? 'tuiles revenues' : 'tuiles absentes');
       return r.join('|'); }
-    finally { books = b0; ui.tab = tab0; render(); }
+    finally { ui.statsPlus = false; books = b0; ui.tab = tab0; render(); }
   });
   // (lot V5, U7 : libellé court + détail en petit — « note moyenne » / « sur 5 », « jour d’affilée » / « record : 1 jour »)
   await test('Lot V3 : tuiles — « note moyenne sur 5 » ; série dite comme la flamme (« jour d’affilée · record : … »)', 'note moyenne sur 5|jour d’affilée record : 1 jour', async () => {
     const b0 = books, tab0 = ui.tab;
     books = [...livresV3(), fiche('V3 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
-    try { ui.tab = 'stats'; render(); await pause(30); const tuiles = [...document.querySelectorAll('#main .tile')].map(t => [...t.querySelectorAll(':scope > span, :scope > small')].map(x => x.textContent).join(' ').replace(/\s+/g, ' ').trim());
+    try { ui.tab = 'stats'; ui.statsPlus = true; render(); await pause(30); const tuiles = [...document.querySelectorAll('#main .stats-plus .tile')].map(t => [...t.querySelectorAll(':scope > span, :scope > small')].map(x => x.textContent).join(' ').replace(/\s+/g, ' ').trim());
       return [tuiles.find(t => /note moyenne/.test(t)) || '?', tuiles.find(t => /affilée|consécutif/.test(t)) || '?'].join('|'); }
-    finally { books = b0; ui.tab = tab0; render(); }
+    finally { ui.statsPlus = false; books = b0; ui.tab = tab0; render(); }
   });
   await test('Lot V3 : défis — barres de progression toutes de la même longueur', 'alignées', async () => {
     const b0 = books, tab0 = ui.tab; books = livresV3();
-    try { ui.tab = 'stats'; render(); await pause(30); const l = [...document.querySelectorAll('#main .defis-prochains .bar')].map(b => Math.round(b.getBoundingClientRect().width));
+    try { ui.tab = 'stats'; ui.statsPlus = true; render(); await pause(30); const l = [...document.querySelectorAll('#main .defis-prochains .bar')].map(b => Math.round(b.getBoundingClientRect().width));
       return l.length < 2 ? 'pas assez de défis' : Math.max(...l) - Math.min(...l) <= 1 ? 'alignées' : l.join(' / '); }
-    finally { books = b0; ui.tab = tab0; render(); }
+    finally { ui.statsPlus = false; books = b0; ui.tab = tab0; render(); }
   });
   await test('Lot V3 : Réglages (Éditorial) — le choix actif est une pilule arrondie, détachée du bord', 'Clair:ok|Confortable:ok|Aucune:ok|Fiche de lecture:ok', () => enStyle('editorial', async () => {
     const th0 = prefs.theme, d0 = prefs.density, a0 = prefs.animation;
@@ -4056,7 +4056,7 @@
     books = [fiche('V5 t1'), fiche('V5 t2', {statut: 'lu', note: 4, dateDebut: addDays(-5), dateFin: addDays(-1), notes: [{id: 'n1', texte: 'Une note', date: today()}],
       citations: [{id: 'c1', texte: 'Une', page: '1', date: today(), commentaire: ''}, {id: 'c2', texte: 'Deux', page: '2', date: today(), commentaire: ''}]})];
     const ecrans = [['a_lire', 'bibliothèque', 'À lire', /^1 livre · 2 en tout$/], ['decouvrir', 'découvrir', 'Découvrir', /^Une piste pour ce soir$/],
-      ['notes', 'carnet', 'Carnet', /^1 note · 2 citations$/], ['stats', 'stats', 'Stats', /^Mes lectures de l’année$/]];
+      ['notes', 'carnet', 'Carnet', /^1 note · 2 citations$/], ['stats', 'stats', 'Ciel', /^Tes statistiques \d{4}$/]];
     try {
       for (const [tab, nom, titre, ligne] of ecrans) { ui.tab = tab; render(); await pause(30);
         const h = $('#main .ecran-tete .ecran-titre'), l = $('#main .ecran-tete .ecran-ligne');
@@ -4092,16 +4092,16 @@
     const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, y = today().slice(0, 4), r = [];
     books = [...[1, 2, 3, 4].map(i => fiche('V5 lu ' + i, {statut: 'lu', note: 4, pagesTotal: 100 * i, dateDebut: addDays(-30 - i), dateFin: addDays(-i)})),
       fiche('V5 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
-    try { ui.tab = 'stats'; render(); await pause(30);
-      const t = [...document.querySelectorAll('#main .tiles .tile')].slice(0, 4), lib = t.map(x => (x.querySelector(':scope > span') || {textContent: '?'}).textContent.trim()), det = t.map(x => (x.querySelector(':scope > small') || {textContent: '?'}).textContent.trim());
+    try { ui.tab = 'stats'; ui.statsPlus = true; render(); await pause(30);
+      const t = [...document.querySelectorAll('#main .stats-plus .tiles .tile')].slice(0, 4), lib = t.map(x => (x.querySelector(':scope > span') || {textContent: '?'}).textContent.trim()), det = t.map(x => (x.querySelector(':scope > small') || {textContent: '?'}).textContent.trim());
       r.push(lib.slice(0, 3).join(',') === 'livres lus,pages lues,note moyenne' && /^jours? d’affilée$/.test(lib[3]) ? 'libellés' : 'libellés : ' + lib.join(','));
       r.push(det[0] === 'en ' + y && det[1] === '4 livres sur 4 renseignés' && det[2] === 'sur 5' && /^record : \d+ jours?$/.test(det[3]) ? 'détails' : 'détails : ' + det.join(','));
       r.push(t.every(x => { const s = x.querySelector(':scope > span'); return s && s.getClientRects().length === 1 && s.getBoundingClientRect().height < parseFloat(getComputedStyle(s).fontSize) * 1.8; }) ? 'une ligne' : 'sur deux lignes');
       const h = []; for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; render(); await pause(30);
-        const hs = [...document.querySelectorAll('#main .tiles .tile')].slice(0, 4).map(x => Math.round(x.getBoundingClientRect().height)); if (Math.max(...hs) - Math.min(...hs) > 1) h.push(taille + ' ' + hs.join('/')); }
+        const hs = [...document.querySelectorAll('#main .stats-plus .tiles .tile')].slice(0, 4).map(x => Math.round(x.getBoundingClientRect().height)); if (Math.max(...hs) - Math.min(...hs) > 1) h.push(taille + ' ' + hs.join('/')); }
       r.push(h.length ? 'hauteurs : ' + h.join(' ; ') : 'même hauteur');
       return r.join('|'); }
-    finally { document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
+    finally { ui.statsPlus = false; document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
   });
   await test('Lot V5 : fiche — action principale pleine largeur, puis Note, Citation, Feuilleter sur une rangée de même largeur (texte 100 % et 130 %)', 'pleine largeur|une rangée|même largeur|nom lu|sans débordement', async () => {
     const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, ko = {plein: [], rangee: [], largeur: [], nom: [], deborde: []};
@@ -4171,14 +4171,284 @@
   await test('Lot V5 : Stats — aucun libellé de tuile coupé par « … » (texte 100 % et 130 %, avec chrono) ; pas de « 0 livre sur 0 »', 'libellés entiers|sans lecture', async () => {
     const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, ko = [], r = [];
     books = [fiche('V5 tuiles', {statut: 'lu', note: 3, pagesTotal: 200, dateDebut: addDays(-3), dateFin: today(), sessions: [{date: today(), de: 1, a: 60, min: 40}]})];
-    try { for (const t of ['100%', '130%']) { document.documentElement.style.fontSize = t; ui.tab = 'stats'; render(); await pause(40);
-        const s = [...document.querySelectorAll('#main .tiles .tile > span')]; if (s.length < 6) ko.push(t + ' ' + s.length + ' tuiles');
+    try { for (const t of ['100%', '130%']) { document.documentElement.style.fontSize = t; ui.tab = 'stats'; ui.statsPlus = true; render(); await pause(40);
+        const s = [...document.querySelectorAll('#main .stats-plus .tiles .tile > span')]; if (s.length < 6) ko.push(t + ' ' + s.length + ' tuiles');
         s.filter(x => x.scrollWidth > x.clientWidth + 1).forEach(x => ko.push(t + ' ' + x.textContent)); }
       r.push(ko.length ? 'coupés : ' + ko.join(',') : 'libellés entiers');
       document.documentElement.style.fontSize = f0; books = [fiche('V5 rien')]; render(); await pause(30);
-      r.push(/0 livre sur 0/.test($('#main .tiles').textContent) ? '« 0 livre sur 0 »' : 'sans lecture');
+      r.push(/0 livre sur 0/.test($('#main .stats-plus .tiles').textContent) ? '« 0 livre sur 0 »' : 'sans lecture');
       return r.join('|'); }
-    finally { document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
+    finally { ui.statsPlus = false; document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
+  });
+  /* ---------- Lot 31 (11/11/2026) : Ciel ---------- */
+  await test('Lot 31 : l’onglet s’appelle « Ciel » (4 styles), sa tête dit « Tes statistiques », la clé reste stats', 'barre:Ciel|tête:Ciel|ligne:ok|clé:stats|icône:ok', async () => {
+    const st0 = prefs.style, r = [];
+    try {
+      const noms = [];
+      for (const s of ['editorial', 'android', 'actuel', 'carnet']) {
+        prefs.style = s; document.documentElement.dataset.style = s; ui.tab = 'stats'; render(); await pause(20);
+        noms.push($('#tabs [data-space="stats"] > span:not(.sr):not(.ico)').textContent.trim());
+      }
+      r.push('barre:' + ([...new Set(noms)].join(',')));
+      r.push('tête:' + $('#main .ecran-titre').textContent.trim());
+      r.push(/^Tes statistiques \d{4}$/.test($('#main .ecran-ligne').textContent.trim()) ? 'ligne:ok' : 'ligne:' + $('#main .ecran-ligne').textContent);
+      r.push('clé:' + $('#tabs .tab.on').dataset.space);
+      r.push(getComputedStyle($('#tabs [data-space="stats"] .ico')).getPropertyValue('--ico').includes('svg') ? 'icône:ok' : 'icône:absente');
+    } finally { prefs.style = st0; document.documentElement.dataset.style = st0; render(); }
+    return r.join('|');
+  });
+  await test('Lot 31 : étoiles — une par lecture finie dans l’année, ordre des dates, positions stables, tailles selon les pages, voisines groupées', 'compte:3|ordre:ok|stable:ok|bornes:ok|tailles:ok|relecture:2|groupes:ok', async () => {
+    const A = fiche('Alpha', {statut: 'lu', dateFin: '2026-03-02', pagesTotal: 120});
+    const B = fiche('Bêta', {statut: 'lu', dateFin: '2026-01-15', pagesTotal: 900});
+    const C = fiche('Gamma', {statut: 'lu', dateFin: '2025-12-30', pagesTotal: 300});            // autre année
+    const D = fiche('Delta', {statut: 'en_cours'});                                                // pas fini
+    const E = fiche('Epsilon', {statut: 'lu', dateFin: '2026-11-01', historique: [{debut: '2026-01-02', fin: '2026-02-01', note: 3}]}); // relu
+    const ly = [A, B, C, D, E].flatMap(b => [...(b.historique || []).filter(h => h.fin).map(h => ({b, fin: h.fin})), ...(b.statut === 'lu' && b.dateFin ? [{b, fin: b.dateFin}] : [])])
+      .filter(r => r.fin.startsWith('2026'));
+    const e1 = etoilesCiel(ly, 2026), e2 = etoilesCiel(ly.slice().reverse(), 2026), r = [];
+    r.push('compte:' + new Set(e1.map(e => e.b.titre)).size);
+    r.push(egal(e1.map(e => e.fin), e1.map(e => e.fin).slice().sort()) ? 'ordre:ok' : 'ordre:ko');
+    r.push(egal(e1.map(e => [e.x, e.y, e.r]), e2.map(e => [e.x, e.y, e.r])) ? 'stable:ok' : 'stable:ko');
+    r.push(e1.every(e => e.x >= CIEL.marge && e.x <= CIEL.l - CIEL.marge && e.y >= CIEL.marge && e.y <= CIEL.h - CIEL.horizon) ? 'bornes:ok' : 'bornes:ko');
+    const rA = e1.find(e => e.b.titre === 'Alpha').r, rB = e1.find(e => e.b.titre === 'Bêta').r, rE = e1.find(e => e.b.titre === 'Epsilon').r;
+    r.push(rB > rA && rE > rA && rE < rB ? 'tailles:ok' : `tailles:${rA}/${rB}/${rE}`);   // (pages inconnues → taille moyenne)
+    r.push('relecture:' + e1.filter(e => e.b.titre === 'Epsilon').length);
+    const proches = [{x: 100, y: 50}, {x: 120, y: 60}, {x: 250, y: 50}].map((p, i) => ({...p, r: 3, i, b: {titre: 'P' + i}}));
+    const g = groupesCiel(proches);
+    r.push(g.length === 2 && g[0].etoiles.length === 2 && g[1].etoiles.length === 1 ? 'groupes:ok' : 'groupes:' + g.map(x => x.etoiles.length).join(','));
+    return r.join('|');
+  });
+  await test('Lot 31 : écran Ciel — dessin résumé, trois chiffres, phrase, état vide, rien de perdu, tuiles dans « Plus de chiffres »', 'résumé:ok|étoiles:3|chiffres:3|phrase:ok|vide:ok|blocs:ok|plus:replié|tuiles:6', async () => {
+    await vider();
+    const y = new Date().getFullYear(), r = [];
+    books = ['Un', 'Deux', 'Trois'].map((t, i) => fiche(t, {statut: 'lu', dateFin: `${y}-0${i + 3}-10`, pagesTotal: 100 * (i + 1)}));
+    books.push(fiche('Quatre', {statut: 'en_cours', sessions: [{date: `${y}-03-01`, min: 30, de: 1, a: 20}]}));
+    ui.tab = 'stats'; ui.year = y; ui.statsPlus = false; render(); await pause(30);
+    r.push(/^3 livres finis en \d{4}/.test($('#ciel svg').getAttribute('aria-label')) ? 'résumé:ok' : 'résumé:' + $('#ciel svg').getAttribute('aria-label'));
+    r.push('étoiles:' + document.querySelectorAll('#ciel .ciel-point').length);
+    r.push('chiffres:' + document.querySelectorAll('#main .ciel-chiffres > div').length);
+    r.push($('#main .ciel-phrase') && $('#main .ciel-phrase').textContent.trim().length > 10 ? 'phrase:ok' : 'phrase:absente');
+    const plus = $('#main details.stats-plus');
+    r.push(['Mon objectif', 'Pages lues par semaine', 'Livres finis par mois', 'Ma bibliothèque en détail', 'Exporter ma liste', 'Sauvegarde'].every(t => $('#main').textContent.includes(t)) ? 'blocs:ok' : 'blocs:manquants');
+    r.push(plus && !plus.open ? 'plus:replié' : 'plus:ouvert');
+    r.push('tuiles:' + plus.querySelectorAll('.tiles .tile').length);
+    books = []; render(); await pause(20);
+    r.splice(4, 0, /encore vide/.test($('#ciel').textContent) && !$('#ciel .ciel-trace') ? 'vide:ok' : 'vide:ko');
+    return r.join('|');
+  });
+  await test('Lot 31 : étoiles touchables — 48 px, nom lu échappé, ouvre le bon livre ; voisines → « Quel livre ? » ; liste de secours', 'cibles:ok|nom:ok|ouvre:ok|choix:2|choix-ouvre:ok|liste:ok', async () => {
+    await vider();
+    const y = new Date().getFullYear(), r = [];
+    books = [fiche('Seul <b>« loin »</b>', {statut: 'lu', dateFin: `${y}-01-05`}), fiche('Voisin A', {statut: 'lu', dateFin: `${y}-11-01`}), fiche('Voisin B', {statut: 'lu', dateFin: `${y}-11-01`})];
+    // (positions verticales forcées proches : on remplace hue() le temps du test)
+    const h0 = window.hue; window.hue = s => /Voisin/.test(s) ? 100 : 300;
+    try {
+      ui.tab = 'stats'; ui.year = y; render(); await pause(30);
+      const bt = [...document.querySelectorAll('#ciel .ciel-etoile')];
+      r.push(bt.every(b => { const q = b.getBoundingClientRect(); return q.width >= 48 && q.height >= 48; }) ? 'cibles:ok' : 'cibles:ko');
+      const seul = bt.find(b => !b.classList.contains('ciel-groupe'));
+      r.push(seul.getAttribute('aria-label').startsWith('Seul <b>« loin »</b>, fini le') && !seul.querySelector('b') ? 'nom:ok' : 'nom:' + seul.getAttribute('aria-label'));
+      const ouverte = t => $('#livreOv').classList.contains('show') && $('#livreOv').textContent.includes(t);
+      seul.click(); await pause(60);
+      r.push(ouverte('Seul') ? 'ouvre:ok' : 'ouvre:ko'); fermerFiche(); await pause(30);
+      $('#ciel .ciel-groupe').click(); await pause(30);
+      r.push('choix:' + document.querySelectorAll('#modal [data-open]').length);
+      $('#modal [data-open]').click(); await pause(60);
+      r.push(ouverte('Voisin') && !$('#ov').classList.contains('show') ? 'choix-ouvre:ok' : 'choix-ouvre:ko');
+      fermerFiche(); await pause(30);
+      ui.statsPlus = true; render(); await pause(20);
+      r.push(document.querySelectorAll('#main .ciel-liste [data-open]').length === 3 ? 'liste:ok' : 'liste:ko');
+    } finally { window.hue = h0; ui.statsPlus = false; }
+    return r.join('|');
+  });
+  await test('Lot 31 : fin d’un livre — calque fleur → étoile (Complète), fondu (Simple), toast (Aucune) ; retour le ferme ; pas deux fois', 'complete:calque|ferme 4 s|simple:calque fondu|aucune:toast|retour:fermé, fiche ok|modifier:calque|déjà lu:rien|titre:Livre terminé !', async () => {
+    await vider();
+    const a0 = prefs.animation, lents = [prefs.anim3dLent, prefs.anim2dLent], r = [];
+    // (un test d'ouverture précédent a pu juger le téléphone « lent » : modeAnimation() rabattrait Complète sur Simple)
+    prefs.anim3dLent = prefs.anim2dLent = false;
+    const finir = async (titre, mode, via) => {
+      prefs.animation = mode; savePrefs();
+      const b = fiche(titre, {statut: 'en_cours', pagesTotal: 100, pageActuelle: 90}); books.push(b); render();
+      openForm({...b, statut: 'lu', dateFin: today()}, via === 'modifier' ? {} : {finish: true}); await pause(20);
+      const t = $('#modal h2').textContent; $('#f_save').click(); await pause(80); return t;
+    };
+    try {
+      const titre = await finir('Un', 'complete');
+      r.push($('#feteOv').classList.contains('show') && $('#feteOv').classList.contains('complete') ? 'complete:calque' : 'complete:rien');
+      await pause(4200); r.push(!$('#feteOv').classList.contains('show') ? 'ferme 4 s' : 'reste ouvert');
+      await finir('Deux', 'simple'); r.push($('#feteOv').classList.contains('simple') ? 'simple:calque fondu' : 'simple:ko'); fermerFete();
+      await finir('Trois', 'aucune'); r.push(!$('#feteOv').classList.contains('show') && /étoile de plus/.test($('#toast').textContent) ? 'aucune:toast' : 'aucune:ko');
+      // Retour : ouvrir une fiche, puis finir depuis elle ; le retour ferme seulement le calque
+      await finir('Quatre', 'complete'); ouvrirFiche(books.find(b => b.titre === 'Quatre').id); await pause(40);
+      fermerDessus(); await pause(30);
+      r.push(!$('#feteOv').classList.contains('show') && $('#livreOv').classList.contains('show') ? 'retour:fermé, fiche ok' : 'retour:ko'); fermerFiche();
+      await finir('Cinq', 'complete', 'modifier'); r.push($('#feteOv').classList.contains('show') ? 'modifier:calque' : 'modifier:rien'); fermerFete();
+      const deja = books.find(b => b.titre === 'Cinq'); openForm(deja); await pause(20); $('#f_save').click(); await pause(80);
+      r.push(!$('#feteOv').classList.contains('show') ? 'déjà lu:rien' : 'déjà lu:rejoue');
+      r.push('titre:' + titre.trim());
+    } finally { prefs.animation = a0; [prefs.anim3dLent, prefs.anim2dLent] = lents; savePrefs(); if (window.fermerFete) fermerFete(); }
+    return r.join('|');
+  });
+  await test('Lot 31 : ciel lisible dans les 4 styles × clair/sombre — étoiles ≥ 3, textes ≥ 4,5 ; rien ne déborde à 130 %', 'contrastes:ok|débord:aucun', async () => {
+    const st0 = document.documentElement.dataset.style, th0 = document.documentElement.dataset.theme, ko = [];
+    const y = new Date().getFullYear();
+    books = [fiche('Un titre assez long pour la ligne', {statut: 'lu', dateFin: `${y}-03-10`, pagesTotal: 400}), fiche('Deux', {statut: 'lu', dateFin: `${y}-03-20`})];
+    // (contraste() lit des couleurs « rgb(…) » : on passe par les couleurs calculées, jamais par les codes « #… » des variables)
+    const sonde = document.createElement('div'); document.body.appendChild(sonde);
+    const couleur = v => { sonde.style.background = `var(${v})`; return getComputedStyle(sonde).backgroundColor; };
+    try {
+      for (const s of ['editorial', 'android', 'actuel', 'carnet']) for (const th of ['light', 'dark']) {
+        document.documentElement.dataset.style = s; document.documentElement.dataset.theme = th; ui.tab = 'stats'; ui.year = y; render(); await pause(20);
+        const etoile = getComputedStyle($('#ciel .ciel-point')).fill, c0 = contraste(etoile, couleur('--surface'));
+        if (c0 < 3) ko.push(`${s}/${th} étoile ${c0.toFixed(2)}`);
+        for (const el of document.querySelectorAll('#main .ciel-chiffres span, #main .ciel-phrase, #main .ecran-ligne')) {
+          const c = contraste(getComputedStyle(el).color, couleur('--fond'));
+          if (c < 4.5) ko.push(`${s}/${th} ${el.className} ${c.toFixed(2)}`);
+        }
+      }
+      document.documentElement.style.fontSize = '130%'; render(); await pause(20);
+      const deb = [...document.querySelectorAll('#main .ciel-chiffres > div, #main .ciel-phrase')].filter(e => e.scrollWidth > e.clientWidth + 1);
+      return [ko.length ? 'contrastes:' + ko.join(';') : 'contrastes:ok', deb.length ? 'débord:' + deb.length : 'débord:aucun'].join('|');
+    } finally { sonde.remove(); document.documentElement.style.fontSize = ''; document.documentElement.dataset.style = st0; document.documentElement.dataset.theme = th0; render(); }
+  });
+  await test('Lot 31 : vitesse — la liste « Les livres de mon ciel » ne se construit qu’à l’ouverture du volet ; plus de 60 étoiles : sans halo', 'replié:vide|ouvert:65|beaucoup:sans halo', async () => {
+    const y = new Date().getFullYear(), r = [];
+    books = Array.from({length: 65}, (_, i) => fiche('Beaucoup ' + i, {statut: 'lu', dateFin: `${y}-01-${String(1 + i % 28).padStart(2, '0')}`}));
+    try {
+      ui.tab = 'stats'; ui.year = y; ui.statsPlus = false; render(); await pause(20);
+      r.push($('#main .ciel-liste').childElementCount ? 'replié:' + $('#main .ciel-liste').childElementCount : 'replié:vide');
+      $('#main details.stats-plus').open = true; await pause(40);
+      r.push('ouvert:' + document.querySelectorAll('#main .ciel-liste [data-open]').length);
+      r.push(getComputedStyle($('#ciel .ciel-point')).filter === 'none' ? 'beaucoup:sans halo' : 'beaucoup:halo');
+    } finally { ui.statsPlus = false; }
+    return r.join('|');
+  });
+  await test('Lot 31 : calque — ciel, plante, texte et boutons ne se chevauchent pas et restent dans l’écran (texte 100 % et 130 %)', 'sans chevauchement', async () => {
+    const a0 = prefs.animation, f0 = document.documentElement.style.fontSize, ko = [];
+    const b = fiche('Un titre de livre assez long pour passer sur deux lignes', {statut: 'lu', dateFin: today(), pagesTotal: 320});
+    books = [b, fiche('Avant', {statut: 'lu', dateFin: today().slice(0, 4) + '-01-05'})];
+    try {
+      for (const t of ['100%', '130%']) {
+        document.documentElement.style.fontSize = t; prefs.animation = 'simple'; celebrerEtoile(b); await pause(400);
+        const q = s => $('#feteOv ' + s).getBoundingClientRect(), z = ['.fete-ciel', '.fete-plante', '.fete-texte', '.fete-acts'].map(s => [s, q(s)]);
+        for (let i = 0; i < z.length; i++) {
+          const [n, r] = z[i];
+          if (r.top < -1 || r.bottom > innerHeight + 1) ko.push(`${t} ${n} hors écran`);
+          for (let j = i + 1; j < z.length; j++) { const [m, s] = z[j]; if (r.bottom > s.top + 1 && s.bottom > r.top + 1 && r.right > s.left + 1 && s.right > r.left + 1) ko.push(`${t} ${n}/${m}`); }
+        }
+        fermerFete();
+      }
+      return ko.length ? 'chevauchements : ' + ko.join(', ') : 'sans chevauchement';
+    } finally { prefs.animation = a0; document.documentElement.style.fontSize = f0; fermerFete(); }
+  });
+  await test('Lot 31 : calque Complète — la lueur monte jusqu’à l’étoile neuve (à 4 px près), quelle que soit sa place dans le ciel', 'vise l’étoile', async () => {
+    const a0 = prefs.animation, lents = [prefs.anim3dLent, prefs.anim2dLent], ko = [];
+    prefs.anim3dLent = prefs.anim2dLent = false;
+    const y = today().slice(0, 4);
+    try {
+      for (const d of ['01-10', '06-15', '12-20']) {
+        const b = fiche('Lueur ' + d, {statut: 'lu', dateFin: `${y}-${d}`, pagesTotal: 300});
+        books = [fiche('Avant', {statut: 'lu', dateFin: `${y}-01-02`}), b];
+        prefs.animation = 'complete'; celebrerEtoile(b); await pause(30);
+        const l = $('#feteOv .fete-lueur'), e = $('#feteOv .fete-neuve').getBoundingClientRect(), r = l.getBoundingClientRect();
+        const cs = getComputedStyle(l), dx = parseFloat(cs.getPropertyValue('--dx')), dy = parseFloat(cs.getPropertyValue('--dy'));
+        const ex = e.left + e.width / 2, ey = e.top + e.height / 2, lx = r.left + r.width / 2 + dx, ly = r.top + r.height / 2 + dy;
+        if (!(Math.abs(ex - lx) <= 4 && Math.abs(ey - ly) <= 4)) ko.push(`${d} écart ${Math.round(ex - lx)},${Math.round(ey - ly)}`);
+        fermerFete();
+      }
+      return ko.length ? ko.join(' ; ') : 'vise l’étoile';
+    } finally { prefs.animation = a0; [prefs.anim3dLent, prefs.anim2dLent] = lents; fermerFete(); }
+  });
+  /* (lot 31, relecture finale) */
+  await test('Lot 31 : toucher une étoile visible ouvre CE livre, même près d’un groupe ; toucher le vide ne fait rien', 'A:A|C:C|vide:rien', async () => {
+    const y = new Date().getFullYear(), r = [];
+    books = [fiche('Chaîne A', {statut: 'lu', dateFin: `${y}-01-10`}), fiche('Chaîne B', {statut: 'lu', dateFin: `${y}-03-02`}), fiche('Chaîne C', {statut: 'lu', dateFin: `${y}-04-22`})];
+    const h0 = window.hue; window.hue = s => /Chaîne/.test(s) ? 100 : h0(s);
+    const toucher = (x, y2) => { const el = document.elementFromPoint(x, y2); el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, clientX: x, clientY: y2, detail: 1})); };
+    const ouverte = () => $('#livreOv').classList.contains('show') ? ($('#livreOv').textContent.match(/Chaîne [ABC]/) || ['?'])[0].slice(-1) : $('#ov').classList.contains('show') ? 'choix' : 'rien';
+    try {
+      ui.tab = 'stats'; ui.year = y; render(); scrollTo(0, 0); await pause(30);
+      const pts = [...document.querySelectorAll('#ciel .ciel-point')].map(c => { const q = c.getBoundingClientRect(); return [q.left + q.width / 2, q.top + q.height / 2]; });
+      for (const [k, i] of [['A', 0], ['C', 2]]) {
+        toucher(...pts[i]); await pause(60); r.push(k + ':' + ouverte());
+        try { closeM(); } catch (e) {} await fermerFiche(); render(); scrollTo(0, 0); await pause(30);
+      }
+      const s = $('#ciel svg').getBoundingClientRect();
+      toucher(s.left + s.width / 2, s.bottom - 4); await pause(60); r.push('vide:' + ouverte());
+    } finally { window.hue = h0; try { closeM(); } catch (e) {} await fermerFiche(); }
+    return r.join('|');
+  });
+  await test('Lot 31 : le calque allume l’étoile de CETTE lecture (relecture, date ancienne) ; sans date de fin, pas de fête', 'relu:ok|ancienne:ok|sans date:rangé', async () => {
+    const a0 = prefs.animation, lents = [prefs.anim3dLent, prefs.anim2dLent], y = today().slice(0, 4), r = [];
+    prefs.anim3dLent = prefs.anim2dLent = false; prefs.animation = 'complete';
+    const cxDe = (b, fin) => String(etoilesCiel(readings(), +y).find(e => e.b.id === b.id && e.fin === fin).x);
+    try {
+      const R = fiche('Relu', {statut: 'en_cours', pagesTotal: 100, historique: [{debut: `${y}-01-02`, fin: `${y}-02-01`, note: 3}]});
+      books = [R]; render(); openForm({...R, statut: 'lu', dateFin: today()}, {finish: true}); await pause(20); $('#f_save').click(); await pause(80);
+      r.push($('#feteOv .fete-neuve') && $('#feteOv .fete-neuve').getAttribute('cx') === cxDe(books.find(b => b.id === R.id), today()) ? 'relu:ok' : 'relu:ko'); fermerFete();
+      const apres = Array.from({length: 9}, (_, i) => fiche('Après ' + i, {statut: 'lu', dateFin: `${y}-0${2 + (i % 7)}-1${i % 9}`}));
+      const V = fiche('Vieux', {statut: 'en_cours'}); books = [...apres, V]; render();
+      openForm({...V, statut: 'lu', dateFin: `${y}-01-03`}, {finish: true}); await pause(20); $('#f_save').click(); await pause(80);
+      r.push($('#feteOv .fete-neuve') && $('#feteOv .fete-neuve').getAttribute('cx') === cxDe(books.find(b => b.id === V.id), `${y}-01-03`) ? 'ancienne:ok' : 'ancienne:ko'); fermerFete();
+      const S = fiche('Sans date', {statut: 'en_cours'}); books = [S]; render();
+      openForm({...S, statut: 'lu', dateFin: ''}, {}); await pause(20); $('#f_dateFin') && ($('#f_dateFin').value = ''); $('#f_save').click(); await pause(80);
+      r.push(!$('#feteOv').classList.contains('show') && /Rangé/.test($('#toast').textContent) ? 'sans date:rangé' : 'sans date:' + ($('#feteOv').classList.contains('show') ? 'fête' : $('#toast').textContent));
+    } finally { prefs.animation = a0; [prefs.anim3dLent, prefs.anim2dLent] = lents; fermerFete(); }
+    return r.join('|');
+  });
+  await test('Lot 31 : « Voir mon ciel » depuis la fiche ferme la fiche et montre le ciel en haut de l’écran', 'fiche:fermée|onglet:stats|haut:ok|liste:haut', async () => {
+    const a0 = prefs.animation, y = today().slice(0, 4), r = [];
+    try {
+      books = Array.from({length: 30}, (_, i) => fiche('Long ' + i, {statut: 'en_cours'})); ui.tab = 'en_cours'; render(); await pause(20); scrollTo(0, 400);
+      const b = books[3]; ouvrirFiche(b.id); await pause(40);
+      Object.assign(b, {statut: 'lu', dateFin: today()}); prefs.animation = 'simple'; celebrerEtoile(b); await pause(30);
+      $('#feteCiel').click(); await pause(80);
+      await pause(150);
+      r.push($('#livreOv').classList.contains('show') ? 'fiche:ouverte' : 'fiche:fermée', 'onglet:' + ui.tab, scrollY < 5 && $('#ciel') ? 'haut:ok' : 'haut:' + Math.round(scrollY));
+      // (depuis la liste défilée, sans fiche ouverte)
+      ui.tab = 'en_cours'; render(); await pause(20); scrollTo(0, 600); await pause(20);
+      celebrerEtoile(books[5]); await pause(30); $('#feteCiel').click(); await pause(150);
+      r.push(scrollY < 5 && $('#ciel') ? 'liste:haut' : 'liste:' + Math.round(scrollY));
+    } finally { prefs.animation = a0; fermerFete(); await fermerFiche(); }
+    return r.join('|');
+  });
+  await test('Lot 31 : tracé animé — le pointillé couvre tout le trait, même avec 100 livres', 'trait entier', async () => {
+    const a0 = prefs.animation, t0 = prefs.cielTrace, lents = [prefs.anim3dLent, prefs.anim2dLent], y = new Date().getFullYear();
+    prefs.anim3dLent = prefs.anim2dLent = false; prefs.animation = 'complete'; prefs.cielTrace = '';
+    books = Array.from({length: 100}, (_, i) => fiche('Cent ' + i * 7, {statut: 'lu', dateFin: `${y}-${String(1 + i % 10).padStart(2, '0')}-${String(1 + i % 27).padStart(2, '0')}`}));
+    try {
+      ui.tab = 'stats'; ui.year = y; render(); await pause(20);
+      const p = $('#ciel .ciel-trace.anime'); if (!p) return 'pas de tracé animé';
+      const L = p.getAttribute('pathLength') ? +p.getAttribute('pathLength') : p.getTotalLength(), d = parseFloat(getComputedStyle(p).strokeDasharray);
+      return d >= L ? 'trait entier' : `pointillé ${d} pour ${Math.round(L)}`;
+    } finally { prefs.animation = a0; prefs.cielTrace = t0; [prefs.anim3dLent, prefs.anim2dLent] = lents; }
+  });
+  await test('Lot 31 : le calque rend le focus en se fermant ; une fenêtre qui s’ouvre ferme le calque', 'focus:rendu|fenêtre:calque fermé', async () => {
+    const a0 = prefs.animation, r = [];
+    try {
+      books = [fiche('Focus', {statut: 'lu', dateFin: today()})]; ui.tab = 'en_cours'; render(); await pause(20);
+      const bt = $('#fab'); bt.hidden = false; bt.focus(); prefs.animation = 'simple';
+      celebrerEtoile(books[0]); await pause(20); fermerFete(); await pause(20);
+      r.push(document.activeElement === bt ? 'focus:rendu' : 'focus:' + (document.activeElement.id || document.activeElement.tagName));
+      celebrerEtoile(books[0]); await pause(20);
+      $('#modal').innerHTML = '<h2>Essai</h2>'; showM(); await pause(20);
+      r.push(!$('#feteOv').classList.contains('show') ? 'fenêtre:calque fermé' : 'fenêtre:sous le calque'); closeM();
+    } finally { prefs.animation = a0; fermerFete(); }
+    return r.join('|');
+  });
+  await test('Lot 31 : points de fond qui scintillent en Complète et Simple (chacun à son rythme), fixes en Aucune', 'complete:scintille|simple:scintille|aucune:fixe|rythmes:variés', async () => {
+    const a0 = prefs.animation, lents = [prefs.anim3dLent, prefs.anim2dLent], y = new Date().getFullYear(), r = [];
+    prefs.anim3dLent = prefs.anim2dLent = false;
+    books = [fiche('Scintille', {statut: 'lu', dateFin: `${y}-02-02`})];
+    try {
+      for (const m of ['complete', 'simple', 'aucune']) {
+        prefs.animation = m; ui.tab = 'stats'; ui.year = y; render(); await pause(20);
+        const c = [...document.querySelectorAll('#ciel .ciel-fond circle')].map(x => getComputedStyle(x));
+        r.push(m + ':' + (c.length && c.every(x => x.animationName === 'ciel-scintille') ? 'scintille' : c.every(x => x.animationName === 'none') ? 'fixe' : 'mélangé'));
+        if (m === 'complete') { const rythmes = new Set(c.map(x => x.animationDelay + '/' + x.animationDuration)); r.push(rythmes.size >= 10 ? 'rythmes:variés' : 'rythmes:' + rythmes.size); }
+      }
+    } finally { prefs.animation = a0; [prefs.anim3dLent, prefs.anim2dLent] = lents; }
+    return [r[0], r[2], r[3], r[1]].join('|');
   });
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;

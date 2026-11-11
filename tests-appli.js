@@ -274,12 +274,14 @@
     return r;
   });
   // (ergonomie, défaut 3 : notes en pastille blanc sur jaune ou vert clair, contraste 2,2 à 3,4 pour 4,5 exigés)
-  await test('Notes en pastille : contraste lisible (au moins 4,5) pour les notes 1 à 5', [], async () => {
+  // (lot V5, U2 : la pastille colorée est devenue « ★★★★☆ 4/5 » ; on vérifie le chiffre écrit, ≥ 4,5 sur le fond réel)
+  await test('Notes : « n/5 » lisible (au moins 4,5) pour les notes 1 à 5', [], async () => {
     books = [1, 2, 3, 4, 5].map(n => fiche('Note ' + n, {statut: 'lu', note: n}));
     ui.tab = 'lu'; render();
     const lum = c => { const v = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(x => +x / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
-    const ratio = el => { const s = getComputedStyle(el), a = lum(s.color), b = lum(s.backgroundColor); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
-    const faibles = [1, 2, 3, 4, 5].map(n => [n, document.querySelector('#list .score.n' + n)]).filter(([, el]) => !el || ratio(el) < 4.5)
+    const fond = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return 'rgb(255, 255, 255)'; };
+    const ratio = el => { const a = lum(getComputedStyle(el).color), b = lum(fond(el)); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
+    const faibles = [1, 2, 3, 4, 5].map(n => [n, [...document.querySelectorAll('#list .card .note b')].find(b => b.textContent === n + '/5')]).filter(([, el]) => !el || ratio(el) < 4.5)
       .map(([n, el]) => 'note ' + n + ' : ' + (el ? ratio(el).toFixed(2) : 'absente'));
     ui.tab = 'en_cours'; render();
     return faibles;
@@ -1092,8 +1094,8 @@
     const c0 = prefs.consultation, a0 = prefs.animation;
     try {
       prefs.consultation = 'continue'; prefs.animation = 'aucune'; books = [fiche('Libellé', {statut: 'en_cours'})]; ouvrirFiche(books[0].id);
-      const b = $('#livre [data-fiche="ouvrir-carnet"]'), r = [b && b.textContent.includes('Feuilleter comme un livre') ? 'Feuilleter comme un livre' : b ? b.textContent.trim() : '?']; await fermerFiche(); openSettings();
-      r.push(($('#st_consult').parentElement.textContent || '').includes('« Feuilleter comme un livre »') ? 'réglage expliqué' : '?'); closeM(); await pause(250); return r.join('|');
+      const b = $('#livre [data-fiche="ouvrir-carnet"]'), r = [b && (b.getAttribute('aria-label') || b.textContent).includes('Feuilleter comme un livre') ? 'Feuilleter comme un livre' : b ? b.textContent.trim() : '?']; await fermerFiche(); openSettings();   // (lot V5, U8 : « Feuilleter » écrit, nom complet lu)
+      r.push(($('#st_consult').parentElement.textContent || '').includes('« Feuilleter »') ? 'réglage expliqué' : '?'); closeM(); await pause(250); return r.join('|');
     } finally { prefs.consultation = c0; prefs.animation = a0; savePrefs(); }
   });
   // (lot 1 de la refonte, 31/10/2026 : design system — icônes sans couleur d'émoji, couvertures générées lisibles en petit, Noto Serif, ＋)
@@ -2752,11 +2754,12 @@
   });
   await test('Bandeau de prêt : une seule ligne ; la date et « Voir » restent visibles même avec un très long titre', '1 ligne|date visible|Voir visible', () => {
     books = [fiche('Un titre vraiment très très long qui ne pourra jamais tenir sur la ligne du bandeau', {possession: 'emprunte', pretRetour: addDays(2)})]; paintNotice();
-    const bar = $('#notice'), d = bar.querySelector('b').getBoundingClientRect(), v = bar.querySelector('[data-open]').getBoundingClientRect(), br = bar.getBoundingClientRect();
+    // (lot V5, U4 : la « date » est devenue l'écart en jours, « à rendre dans 2 j » (.notice-quand) ; le titre est en gras)
+    const bar = $('#notice'), q = bar.querySelector('.notice-quand'), d = q.getBoundingClientRect(), v = bar.querySelector('[data-open]').getBoundingClientRect(), br = bar.getBoundingClientRect();
     // (une ligne = le bandeau n'est pas plus haut que le bouton « Voir » et ses marges ; comparer la date et le bouton ne suffit pas :
     //  sans le code, le titre prend une ligne entière et la date se retrouve à côté de « Voir », sur la ligne suivante)
     const r = [br.height <= v.height + 20 ? '1 ligne' : 'plusieurs lignes',
-      d.right <= v.left + 1 && d.left >= br.left && bar.querySelector('b').scrollWidth <= Math.ceil(d.width) + 1 ? 'date visible' : 'date coupée',
+      d.right <= v.left + 1 && d.left >= br.left && q.scrollWidth <= Math.ceil(d.width) + 1 ? 'date visible' : 'date coupée',
       v.right <= br.right + 1 ? 'Voir visible' : 'Voir caché'];
     books = []; paintNotice(); return r.join('|');
   });
@@ -3624,11 +3627,12 @@
       return r.join('|'); }
     finally { books = b0; render(); }
   });
-  await test('Lot V2 : bibliothèque — le titre suit l’onglet (« En cours ») ; le total dit « en tout »', 'En cours|2 livres en tout', async () => {
+  // (lot V5, U1 : la ligne sous le titre dit aussi le nombre de l'onglet : « 1 livre · 2 en tout »)
+  await test('Lot V2 : bibliothèque — le titre suit l’onglet (« En cours ») ; le total dit « en tout »', 'En cours|1 livre · 2 en tout', async () => {
     const b0 = books, tab0 = ui.tab;
     books = [fiche('V2 a', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10}), fiche('V2 b')];
     try { ui.tab = 'en_cours'; render(); await pause(30);
-      return [$('#main .library-intro h2').textContent.trim(), $('#main .library-intro > p').textContent.trim()].join('|'); }
+      return [$('#main .library-intro h2').textContent.trim(), $('#main .library-intro .ecran-ligne').textContent.trim()].join('|'); }
     finally { books = b0; ui.tab = tab0; render(); }
   });
   await test('Lot V2 : progression écrite « p. X sur Y · Z % » (carte et liste) ; jamais d’espace sécable avant « p. »', 'carte:p. X sur Y · Z %|liste:p. X sur Y · Z %|insécables', async () => {
@@ -3667,7 +3671,7 @@
     const b0 = books, f0 = document.documentElement.style.fontSize, ko = [];
     books = [fiche('Les Furtifs', {possession: 'emprunte', pretRetour: addDays(-2)})];
     try { for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; render(); paintNotice(); await pause(40);
-        const bar = $('#notice'), b = bar.getBoundingClientRect(), t = $('#notice .notice-titre'), d = $('#notice .notice-txt b');
+        const bar = $('#notice'), b = bar.getBoundingClientRect(), t = $('#notice .notice-titre'), d = $('#notice .notice-quand');
         if (!t || t.getBoundingClientRect().width + 1 < Math.min(t.scrollWidth, 60)) ko.push('titre ' + taille);
         if (!d || d.getClientRects().length > 1 || d.getBoundingClientRect().right > b.right + 1) ko.push('date ' + taille);
         if (bar.scrollWidth > bar.clientWidth + 1 || [...bar.querySelectorAll('*')].some(c => c.getBoundingClientRect().right > b.right + 1)) ko.push('déborde ' + taille);
@@ -3707,14 +3711,15 @@
       const vides = [...document.querySelectorAll('#main .tile b')].filter(b => b.textContent.trim() === '–' && /chrono/.test(b.nextElementSibling.textContent)).length;
       const r = [vides ? `${vides} tuiles vides` : 'sans tuile vide', /Pas encore de séance chronométrée/.test($('#main').textContent) ? 'ligne' : 'pas de ligne'];
       books = [fiche('V3 c', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 50, sessions: [{date: today(), min: 30, pages: 20}]})]; render(); await pause(30);
-      r.push([...document.querySelectorAll('#main .tile span')].some(s => /chronométrées en/.test(s.textContent)) ? 'tuiles revenues' : 'tuiles absentes');
+      r.push([...document.querySelectorAll('#main .tile small')].some(s => /chronométrées en/.test(s.textContent)) ? 'tuiles revenues' : 'tuiles absentes');
       return r.join('|'); }
     finally { books = b0; ui.tab = tab0; render(); }
   });
-  await test('Lot V3 : tuiles — « note moyenne sur 5 » ; série dite comme la flamme (« jour de lecture d’affilée · record : … »)', 'note moyenne sur 5|jour de lecture d’affilée · record : 1 jour', async () => {
+  // (lot V5, U7 : libellé court + détail en petit — « note moyenne » / « sur 5 », « jour d’affilée » / « record : 1 jour »)
+  await test('Lot V3 : tuiles — « note moyenne sur 5 » ; série dite comme la flamme (« jour d’affilée · record : … »)', 'note moyenne sur 5|jour d’affilée record : 1 jour', async () => {
     const b0 = books, tab0 = ui.tab;
     books = [...livresV3(), fiche('V3 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
-    try { ui.tab = 'stats'; render(); await pause(30); const tuiles = [...document.querySelectorAll('#main .tile > span')].map(t => t.textContent.replace(/\s+/g, ' ').trim());
+    try { ui.tab = 'stats'; render(); await pause(30); const tuiles = [...document.querySelectorAll('#main .tile')].map(t => [...t.querySelectorAll(':scope > span, :scope > small')].map(x => x.textContent).join(' ').replace(/\s+/g, ' ').trim());
       return [tuiles.find(t => /note moyenne/.test(t)) || '?', tuiles.find(t => /affilée|consécutif/.test(t)) || '?'].join('|'); }
     finally { books = b0; ui.tab = tab0; render(); }
   });
@@ -3966,6 +3971,215 @@
     finally { closeScanner(); if (z0) window.ZXing = z0; else delete window.ZXing; lecteurOk = l0; delete pk.click; }
   });
 
+  /* ---------- Lot V5 (10/11/2026) : Rythme éditorial (contrat UI/UX du 10/11, plan 2026-11-10-lot-v5) ---------- */
+  const fondV5 = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return getComputedStyle(document.body).backgroundColor; };
+  const couleurV5 = v => { const i = document.createElement('i'); i.style.color = getComputedStyle(document.documentElement).getPropertyValue(v).trim(); document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };
+  await test('Lot V5 : note — mêmes étoiles + « 4/5 » dans la liste et la fiche, sans feu tricolore, nom lu (4 styles, clair et sombre)', 'liste:ok|fiche:ok|grille:ok|couleurs:ok|nom:ok', async () => {
+    const b0 = books, tab0 = ui.tab, th0 = prefs.theme, v0 = prefs.view, ko = {liste: [], fiche: [], grille: [], couleurs: [], nom: []};
+    books = [fiche('V5 note', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-1)})];
+    const forme = (n, ou, cle) => {
+      if (!n) return ko[cle].push(ou + ' absente');
+      if (n.getAttribute('aria-label') !== 'Note : 4 sur 5') ko.nom.push(ou);
+      const p = n.querySelector('.pleines'), v = n.querySelector('.vides'), t = n.querySelector('b');
+      if (cle !== 'grille' && (!p || p.textContent !== '★★★★' || !v || v.textContent !== '☆' || !t || t.textContent !== '4/5')) ko[cle].push(ou + ' forme');
+      if (cle === 'grille' && (!p || p.textContent !== '★' || !t || t.textContent !== '4')) ko[cle].push(ou + ' forme');
+      if (p && getComputedStyle(p).color !== couleurV5('--accent')) ko.couleurs.push(ou + ' pleines');
+      for (const e of [p, v].filter(Boolean)) if (contraste(getComputedStyle(e).color, fondV5(e)) < 3) ko.couleurs.push(ou + ' contraste ' + contraste(getComputedStyle(e).color, fondV5(e)).toFixed(2));
+    };
+    try {
+      for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const th of ['light', 'dark']) {
+        prefs.theme = th; applyTheme(); const ou = st + '-' + th;
+        prefs.view = 'liste'; ui.tab = 'lu'; render(); await pause(20); forme($('#list .card .note'), ou, 'liste');
+        if (document.querySelector('#main .score')) ko.couleurs.push(ou + ' pastille .score');
+        prefs.view = 'grille'; render(); await pause(20); forme($('#list .gcard .gscore'), ou, 'grille');
+        prefs.view = 'liste'; render(); ouvrirFiche(books[0].id); await pause(60); forme(document.querySelector('.livre-garde .note'), ou, 'fiche');
+        try { fermerFiche(); } catch (e) {} await pause(30); } });
+      const k = c => ko[c].length ? c + ':' + ko[c].slice(0, 3).join(',') : c + ':ok';
+      return ['liste', 'fiche', 'grille', 'couleurs', 'nom'].map(k).join('|'); }
+    finally { try { fermerFiche(); } catch (e) {} prefs.theme = th0; prefs.view = v0; applyTheme(); books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : petites couvertures — décor visible et jamais sur les initiales (géométrique, illustrée, classique ; liste et mini)', 'geometrique:ok|illustree:ok|classique:ok', async () => {
+    const vus = {}; for (let i = 0; i < 400 && Object.keys(vus).length < 3; i++) { const b = {titre: 'V5 couv ' + i, auteur: 'Auteur Test'}, f = dessinerCouv(b).famille;
+      if (['geometrique', 'illustree', 'classique'].includes(f) && !vus[f]) vus[f] = b; }
+    const boite = document.createElement('div'); boite.className = 'list'; document.body.append(boite); const ko = {geometrique: [], illustree: [], classique: []};
+    const coupe = (a, b) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+    try { for (const [f, b] of Object.entries(vus)) for (const cls of ['cover', 'ph mini']) {
+        boite.innerHTML = `<article class="card">${coverHtml(b, cls)}</article>`; await pause(10);
+        const c = boite.querySelector('.cg'), ini = c.querySelector('.cg-ini').getBoundingClientRect(), taille = cls === 'cover' ? 'liste' : 'mini';
+        const decor = [...c.querySelectorAll(f === 'geometrique' ? '.cg-disque,.cg-bande' : f === 'illustree' ? '.cg-motif' : '.cg-cadre')];
+        if (!decor.length || decor.some(d => !d.checkVisibility() || d.getBoundingClientRect().width * d.getBoundingClientRect().height < 4)) ko[f].push(taille + ' décor caché');
+        if (f !== 'classique' && decor.some(d => coupe(d.getBoundingClientRect(), ini))) ko[f].push(taille + ' décor sur les initiales');
+        if (ini.top < c.getBoundingClientRect().top - 1 || ini.bottom > c.getBoundingClientRect().bottom + 1) ko[f].push(taille + ' initiales coupées'); } }
+    finally { boite.remove(); }
+    return Object.keys(ko).map(f => !vus[f] ? f + ':introuvable' : f + ':' + (ko[f].length ? ko[f].join(',') : 'ok')).join('|');
+  });
+
+  await test('Lot V5 : rappel de prêt — une ligne (deux au plus à 130 %), « en retard de 2 j », seulement dans la Bibliothèque ; alertes de sauvegarde partout', 'une ligne|textes|bibliothèque:oui|découvrir:non|carnet:non|stats:non|sauvegarde partout', async () => {
+    const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, lb0 = prefs.lastBackup, r = [];
+    const pret = j => [fiche('Les Furtifs', {possession: 'emprunte', pretRetour: addDays(j)})];
+    try {
+      books = pret(-2); ui.tab = 'a_lire'; const lignes = [];
+      for (const t of ['100%', '130%']) { document.documentElement.style.fontSize = t; render(); paintNotice(); await pause(30);
+        const tx = $('#notice .notice-txt'), h = parseFloat(getComputedStyle(tx).fontSize) * 1.6;
+        if (!tx || tx.getBoundingClientRect().height > h * (t === '100%' ? 1.4 : 2.4)) lignes.push(t + ' ' + Math.round(tx ? tx.getBoundingClientRect().height : 0)); }   // (130 % : la date peut passer sous le titre pour qu'il reste lisible, test V2)
+      document.documentElement.style.fontSize = f0; r.push(lignes.length ? 'deux lignes ' + lignes.join(',') : 'une ligne');
+      const txt = [];
+      for (const [j, att] of [[-2, 'en retard de 2 j'], [0, 'à rendre aujourd’hui'], [1, 'à rendre demain'], [3, 'à rendre dans 3 j']]) {
+        books = pret(j); render(); paintNotice(); const t = $('#notice').textContent.replace(/\s+/g, ' ').trim(); if ($('#notice').hidden || !t.includes(att)) txt.push(j + ' : ' + t); }
+      r.push(txt.length ? txt.join(' ; ') : 'textes');
+      books = pret(-2);
+      for (const [tab, nom] of [['a_lire', 'bibliothèque'], ['decouvrir', 'découvrir'], ['notes', 'carnet'], ['stats', 'stats']]) { ui.tab = tab; render(); paintNotice(); await pause(20); r.push(nom + ':' + ($('#notice').hidden ? 'non' : 'oui')); }
+      books = [1, 2, 3].map(i => fiche('V5 s' + i)); delete prefs.lastBackup; const ko = [];
+      for (const tab of ['a_lire', 'decouvrir', 'notes', 'stats']) { ui.tab = tab; render(); paintNotice(); if ($('#notice').hidden) ko.push(tab); }
+      r.push(ko.length ? 'sauvegarde absente : ' + ko.join(',') : 'sauvegarde partout');
+      return r.join('|'); }
+    finally { document.documentElement.style.fontSize = f0; if (lb0) prefs.lastBackup = lb0; else delete prefs.lastBackup; books = b0; ui.tab = tab0; render(); paintNotice(); }
+  });
+  await test('Lot V5 : « À lire » — épingle en bouton rond nommé, « Commencer » sur la même ligne, pages avec l’auteur (4 styles, texte 100 % et 130 %)', 'nom|état|même ligne|48 px|pages avec l’auteur', async () => {
+    const b0 = books, tab0 = ui.tab, v0 = prefs.view, f0 = document.documentElement.style.fontSize, ko = {nom: [], etat: [], ligne: [], taille: [], pages: []};
+    books = [fiche('Sapiens', {pagesTotal: 512, epingle: true}), fiche('Le Mage du Kremlin', {pagesTotal: 288})];
+    try { for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const t of ['100%', '130%']) {
+        document.documentElement.style.fontSize = t; prefs.view = 'liste'; ui.tab = 'a_lire'; render(); await pause(30); const ou = st + ' ' + t;
+        for (const c of document.querySelectorAll('#list .card')) {
+          const b = books.find(x => x.id === c.dataset.id), pin = c.querySelector('[data-act=pin]'), go = c.querySelector('[data-act=start]');
+          if (!pin || pin.getAttribute('aria-label') !== 'Épingler ' + b.titre || /Épingl/.test(pin.textContent)) ko.nom.push(ou);
+          if (pin && pin.getAttribute('aria-pressed') !== String(!!b.epingle)) ko.etat.push(ou);
+          if (pin && go && Math.abs(pin.getBoundingClientRect().top - go.getBoundingClientRect().top) > 2) ko.ligne.push(ou);
+          if (pin && (pin.getBoundingClientRect().width < 47.5 || pin.getBoundingClientRect().height < 47.5)) ko.taille.push(ou + ' ' + Math.round(pin.getBoundingClientRect().width));
+          const a = c.querySelector('.info > .a'); if (!a || !new RegExp('Auteur Test · ' + b.pagesTotal + ' p\.').test(a.textContent)) ko.pages.push(ou + ' « ' + (a ? a.textContent : '') + ' »'); } } });
+      const k = (c, n) => ko[c].length ? n + ' : ' + [...new Set(ko[c])].slice(0, 3).join(',') : n;
+      return [k('nom', 'nom'), k('etat', 'état'), k('ligne', 'même ligne'), k('taille', '48 px'), k('pages', 'pages avec l’auteur')].join('|'); }
+    finally { document.documentElement.style.fontSize = f0; prefs.view = v0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : têtes d’écran — Bibliothèque, Découvrir, Carnet et Stats ont un titre de même taille et une ligne douce ; année nommée', 'bibliothèque|découvrir|carnet|stats|même taille|année nommée|autres styles|Bibliothèque sur une ligne', async () => {
+    const b0 = books, tab0 = ui.tab, r = [], tailles = new Set();
+    books = [fiche('V5 t1'), fiche('V5 t2', {statut: 'lu', note: 4, dateDebut: addDays(-5), dateFin: addDays(-1), notes: [{id: 'n1', texte: 'Une note', date: today()}],
+      citations: [{id: 'c1', texte: 'Une', page: '1', date: today(), commentaire: ''}, {id: 'c2', texte: 'Deux', page: '2', date: today(), commentaire: ''}]})];
+    const ecrans = [['a_lire', 'bibliothèque', 'À lire', /^1 livre · 2 en tout$/], ['decouvrir', 'découvrir', 'Découvrir', /^Une piste pour ce soir$/],
+      ['notes', 'carnet', 'Carnet', /^1 note · 2 citations$/], ['stats', 'stats', 'Stats', /^Mes lectures de l’année$/]];
+    try {
+      for (const [tab, nom, titre, ligne] of ecrans) { ui.tab = tab; render(); await pause(30);
+        const h = $('#main .ecran-tete .ecran-titre'), l = $('#main .ecran-tete .ecran-ligne');
+        r.push(h && h.textContent.trim() === titre && l && ligne.test(l.textContent.trim()) && h.checkVisibility() && l.checkVisibility() ? nom : `${nom} : « ${h ? h.textContent.trim() : '?'} » « ${l ? l.textContent.trim() : '?'} »`);
+        if (h) tailles.add(getComputedStyle(h).fontSize + ' ' + getComputedStyle(h).fontWeight); }
+      r.push(tailles.size === 1 ? 'même taille' : 'tailles : ' + [...tailles].join(' / '));
+      // (place : avec un bandeau, le premier livre doit rester visible — titre et ligne côte à côte quand ils tiennent)
+      ui.tab = 'a_lire'; render(); await pause(20); const ht = $('#main .ecran-tete .ecran-titre').getBoundingClientRect(), lt = $('#main .ecran-tete .ecran-ligne').getBoundingClientRect();
+      ui.tab = 'stats'; render(); await pause(20); const y = $('#main .ecran-tete #year');
+      r.push(y && y.getAttribute('aria-label') === 'Année' && y.getBoundingClientRect().height >= 40 ? 'année nommée' : 'année : ' + (y ? Math.round(y.getBoundingClientRect().height) : 'absente'));
+      const ko = []; for (const st of ['android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const [tab, , titre] of ecrans.slice(1)) { ui.tab = tab; render(); await pause(10);
+        const h = $('#main .ecran-tete .ecran-titre'); if (!h || h.textContent.trim() !== titre || !h.checkVisibility()) ko.push(st + ' ' + tab); } });
+      r.push(ko.length ? 'manque : ' + ko.join(',') : 'autres styles');
+      r.push(lt.top < ht.bottom && lt.bottom > ht.top ? 'Bibliothèque sur une ligne' : 'Bibliothèque sur deux lignes');
+      return r.join('|'); }
+    finally { books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : Carnet — plus d’encart « Dernière note/citation » ; chaque carte montre la couverture de son livre ; l’encart reste dans la fiche', 'notes:sans encart|citations:sans encart|couvertures|fiche:encart', async () => {
+    const b0 = books, tab0 = ui.tab, r = [], ko = [];
+    books = [fiche('V5 carnet', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 20, notes: [{id: 'n1', texte: 'Une note du carnet', date: today()}],
+      citations: [{id: 'c1', texte: 'Une citation du carnet', page: '3', date: today(), commentaire: ''}]})];
+    const couv = (sel, ou) => { const l = [...document.querySelectorAll(sel)]; if (!l.length) ko.push(ou + ' vide');
+      for (const c of l) { const p = c.querySelector('.ph'), b = p && p.getBoundingClientRect(); if (!p || b.width < 30 || b.width > 48 || b.height < 45 || b.height > 70) ko.push(ou + ' ' + (b ? Math.round(b.width) + '×' + Math.round(b.height) : 'sans couverture')); } };
+    try { ui.tab = 'notes'; render(); await pause(30); r.push('notes:' + ($('#main .carnet-repere') ? 'encart' : 'sans encart')); couv('#nlist .carnet-entry', 'notes');
+      ui.tab = 'citations'; render(); await pause(30); r.push('citations:' + ($('#main .carnet-repere') ? 'encart' : 'sans encart')); couv('#qlist .quote', 'citations');
+      r.push(ko.length ? ko.join(',') : 'couvertures');
+      ui.tab = 'en_cours'; render(); ouvrirFiche(books[0].id); await pause(60);
+      r.push('fiche:' + (/Dernière note/i.test(($('.livre-garde') || {textContent: ''}).textContent) ? 'encart' : 'sans encart'));
+      return r.join('|'); }
+    finally { try { fermerFiche(); } catch (e) {} books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : Stats — chiffre, libellé court sur une ligne, détail en petit ; tuiles de même hauteur (texte 100 % et 130 %)', 'libellés|détails|une ligne|même hauteur', async () => {
+    const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, y = today().slice(0, 4), r = [];
+    books = [...[1, 2, 3, 4].map(i => fiche('V5 lu ' + i, {statut: 'lu', note: 4, pagesTotal: 100 * i, dateDebut: addDays(-30 - i), dateFin: addDays(-i)})),
+      fiche('V5 série', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 20, journal: [{date: addDays(-1), page: 10}, {date: today(), page: 20}]})];
+    try { ui.tab = 'stats'; render(); await pause(30);
+      const t = [...document.querySelectorAll('#main .tiles .tile')].slice(0, 4), lib = t.map(x => (x.querySelector(':scope > span') || {textContent: '?'}).textContent.trim()), det = t.map(x => (x.querySelector(':scope > small') || {textContent: '?'}).textContent.trim());
+      r.push(lib.slice(0, 3).join(',') === 'livres lus,pages lues,note moyenne' && /^jours? d’affilée$/.test(lib[3]) ? 'libellés' : 'libellés : ' + lib.join(','));
+      r.push(det[0] === 'en ' + y && det[1] === '4 livres sur 4 renseignés' && det[2] === 'sur 5' && /^record : \d+ jours?$/.test(det[3]) ? 'détails' : 'détails : ' + det.join(','));
+      r.push(t.every(x => { const s = x.querySelector(':scope > span'); return s && s.getClientRects().length === 1 && s.getBoundingClientRect().height < parseFloat(getComputedStyle(s).fontSize) * 1.8; }) ? 'une ligne' : 'sur deux lignes');
+      const h = []; for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; render(); await pause(30);
+        const hs = [...document.querySelectorAll('#main .tiles .tile')].slice(0, 4).map(x => Math.round(x.getBoundingClientRect().height)); if (Math.max(...hs) - Math.min(...hs) > 1) h.push(taille + ' ' + hs.join('/')); }
+      r.push(h.length ? 'hauteurs : ' + h.join(' ; ') : 'même hauteur');
+      return r.join('|'); }
+    finally { document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : fiche — action principale pleine largeur, puis Note, Citation, Feuilleter sur une rangée de même largeur (texte 100 % et 130 %)', 'pleine largeur|une rangée|même largeur|nom lu|sans débordement', async () => {
+    const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, ko = {plein: [], rangee: [], largeur: [], nom: [], deborde: []};
+    books = [fiche('V5 fiche', {statut: 'en_cours', pagesTotal: 206, pageActuelle: 40}), fiche('V5 fiche lu', {statut: 'lu', note: 5, avis: 'Bien.', dateDebut: addDays(-9), dateFin: addDays(-1)})];
+    try { for (const taille of ['100%', '130%']) for (const b of books) {
+        document.documentElement.style.fontSize = taille; ui.tab = b.statut; render(); ouvrirFiche(b.id); await pause(80); const ou = b.statut + ' ' + taille;
+        const zone = $('#livre .livre-actions-hero'), z = zone.getBoundingClientRect(), pri = zone.querySelector('.pri').getBoundingClientRect();
+        const trois = [...zone.querySelectorAll('[data-fiche="ajouter"],[data-fiche="ouvrir-carnet"]')].map(x => x.getBoundingClientRect());
+        if (Math.abs(pri.width - z.width) > 2) ko.plein.push(ou + ' ' + Math.round(pri.width) + '/' + Math.round(z.width));
+        if (trois.length !== 3 || Math.max(...trois.map(x => x.top)) - Math.min(...trois.map(x => x.top)) > 2) ko.rangee.push(ou);
+        if (trois.length === 3 && Math.max(...trois.map(x => x.width)) - Math.min(...trois.map(x => x.width)) > 2) ko.largeur.push(ou);
+        const f = zone.querySelector('[data-fiche="ouvrir-carnet"]'); if (!f || f.getAttribute('aria-label') !== 'Feuilleter comme un livre') ko.nom.push(ou);
+        if ([...zone.querySelectorAll('.btn')].some(x => x.scrollWidth > x.clientWidth + 1 || x.getBoundingClientRect().right > z.right + 1)) ko.deborde.push(ou);
+        await fermerFiche(); await pause(30); }
+      const k = (c, n) => ko[c].length ? n + ' : ' + ko[c].join(',') : n;
+      return [k('plein', 'pleine largeur'), k('rangee', 'une rangée'), k('largeur', 'même largeur'), k('nom', 'nom lu'), k('deborde', 'sans débordement')].join('|'); }
+    finally { try { await fermerFiche(); } catch (e) {} document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : « Que lire ensuite ? » — « Tous » au lieu de « Peu importe », aide de longueur en texte normal, choix de longueur sur une ligne', 'pas de « Peu importe »|Tous partout|aide normale|une ligne', async () => {
+    const b0 = books, tab0 = ui.tab, m0 = pick.mode;
+    books = [fiche('V5 ensuite A', {statut: 'a_lire', genre: 'Roman', pagesTotal: 200}), fiche('V5 ensuite B', {statut: 'a_lire', genre: 'Essai', pagesTotal: 500})];
+    try { pick.mode = 'liste'; ui.tab = 'a_lire'; render(); await pause(30); openNext(); await pause(60);
+      const m = $('#modal'), r = [];
+      r.push(/Peu importe/.test(m.textContent) ? 'encore « Peu importe »' : 'pas de « Peu importe »');
+      const premiers = [...m.querySelectorAll('#nx_len, #nx_genre')].map(g => g.querySelector('button') && g.querySelector('button').textContent.trim());
+      r.push(premiers.length === 2 && premiers.every(t => t === 'Tous') ? 'Tous partout' : 'premiers choix : ' + premiers.join(','));
+      const aide = [...m.querySelectorAll('*')].find(e => e.children.length === 0 && /^Court : moins de 250 p\. · Long : plus de 450 p\.$/.test(e.textContent.trim()));
+      r.push(aide && getComputedStyle(aide).textTransform === 'none' ? 'aide normale' : aide ? 'aide en ' + getComputedStyle(aide).textTransform : 'aide absente');
+      const coupes = [...m.querySelectorAll('#nx_len button')].filter(x => { const g = document.createRange(); g.selectNodeContents(x); return [...g.getClientRects()].map(c => Math.round(c.top)).filter((t, i, a) => a.indexOf(t) === i).length > 1; });
+      r.push(coupes.length ? 'coupés : ' + coupes.map(x => x.textContent.trim()).join(',') : 'une ligne');
+      return r.join('|'); }
+    finally { closeM(); pick.mode = m0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : sélecteurs — texte 100 % et 130 % : tous les choix sur une ligne ou tous empilés, jamais un choix seul ni un mot coupé', 'thème|densité|animations|longueur', async () => {
+    const b0 = books, tab0 = ui.tab, m0 = pick.mode, f0 = document.documentElement.style.fontSize, ko = {};
+    const NOMS = {st_theme: 'thème', st_density: 'densité', st_anim: 'animations', nx_len: 'longueur'};
+    const lignes = el => { const g = document.createRange(); g.selectNodeContents(el); return [...g.getClientRects()].filter(c => c.width > 0).map(c => Math.round(c.top)).filter((t, i, a) => !a.some((u, j) => j < i && Math.abs(u - t) < 3)).length; };
+    const juger = (id, taille) => { const s = $('#' + id); if (!s) { (ko[id] = ko[id] || []).push(taille + ' absent'); return; }
+      const bs = [...s.querySelectorAll('button')], r = bs.map(x => x.getBoundingClientRect()), hauts = r.map(x => Math.round(x.top));
+      const uneLigne = Math.max(...hauts) - Math.min(...hauts) < 3;
+      const empiles = new Set(hauts).size === bs.length && Math.max(...r.map(x => x.width)) - Math.min(...r.map(x => x.width)) < 2;
+      if (!uneLigne && !empiles) (ko[id] = ko[id] || []).push(taille + ' bancal ' + hauts.join('/'));
+      const coupes = bs.filter(x => lignes(x) > 1 || x.scrollWidth > x.clientWidth + 1); if (coupes.length) (ko[id] = ko[id] || []).push(taille + ' coupé : ' + coupes.map(x => x.textContent.trim()).join(','));
+      if (taille.endsWith('100%') && innerWidth >= 360 && !uneLigne) (ko[id] = ko[id] || []).push('100 % pas sur une ligne'); };
+    books = [fiche('V5 seg', {statut: 'a_lire', pagesTotal: 200})];
+    try { for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; const ou = st + ' ' + taille;
+        ui.tab = 'a_lire'; render(); openSettings(); await pause(60); ['st_theme', 'st_density', 'st_anim'].forEach(id => juger(id, ou)); closeM(); await pause(30);
+        pick.mode = 'liste'; openNext(); await pause(60); juger('nx_len', ou); closeM(); await pause(30); } });
+      return Object.keys(NOMS).map(id => ko[id] ? NOMS[id] + ' : ' + ko[id].join(' ; ') : NOMS[id]).join('|'); }
+    finally { try { closeM(); } catch (e) {} document.documentElement.style.fontSize = f0; pick.mode = m0; books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : citations — « et » restent collés au texte par une espace insécable (Carnet, fiche feuilletable, formulaire)', 'carnet|fiche|formulaire', async () => {
+    const b0 = books, tab0 = ui.tab, r = [], T = 'Écrire, c’est reprendre le pouvoir sur ce qui a été pris en silence';
+    const colle = el => { if (!el) return 'absent'; const t = el.textContent.trim(); if (!t.startsWith('« ') || !t.includes(' »')) return 'espaces ordinaires';
+      const n = [...el.childNodes].find(x => x.nodeType === 3 && x.textContent.includes('»')) || el.firstChild, i = n.textContent.lastIndexOf('»'), g = document.createRange();
+      g.setStart(n, Math.max(0, n.textContent.lastIndexOf(' ', i - 2) + 1)); g.setEnd(n, i + 1); const tops = [...g.getClientRects()].filter(c => c.width > 0).map(c => Math.round(c.top));
+      return Math.max(...tops) - Math.min(...tops) > 3 ? '» seul sur sa ligne' : 'ok'; };
+    books = [fiche('V5 citation', {statut: 'en_cours', pagesTotal: 206, pageActuelle: 40, citations: [{id: 'v5c', texte: T, page: '32', date: today(), commentaire: ''}]})];
+    try { ui.tab = 'citations'; render(); await pause(40); const c = colle($('#qlist .quote-texte')); r.push(c === 'ok' ? 'carnet' : 'carnet : ' + c);
+      ui.tab = 'en_cours'; render(); ouvrirFiche(books[0].id); await pause(80); $('#livre [data-fiche="ouvrir-carnet"]').click(); await pause(120); montrerPage(debutsSections(Feuille.pages).citations); await pause(60);
+      const f = colle([...document.querySelectorAll('#lvPages .entree.citation p')].find(p => p.textContent.includes('pouvoir'))); r.push(f === 'ok' ? 'fiche' : 'fiche : ' + f);
+      await fermerFiche(); await pause(30); openForm(books[0]); await pause(80);
+      const q = colle([...document.querySelectorAll('#modal .q p')].find(p => p.textContent.includes('pouvoir'))); r.push(q === 'ok' ? 'formulaire' : 'formulaire : ' + q);
+      return r.join('|'); }
+    finally { try { closeM(); } catch (e) {} try { await fermerFiche(); } catch (e) {} books = b0; ui.tab = tab0; render(); }
+  });
+  await test('Lot V5 : Stats — aucun libellé de tuile coupé par « … » (texte 100 % et 130 %, avec chrono) ; pas de « 0 livre sur 0 »', 'libellés entiers|sans lecture', async () => {
+    const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, ko = [], r = [];
+    books = [fiche('V5 tuiles', {statut: 'lu', note: 3, pagesTotal: 200, dateDebut: addDays(-3), dateFin: today(), sessions: [{date: today(), de: 1, a: 60, min: 40}]})];
+    try { for (const t of ['100%', '130%']) { document.documentElement.style.fontSize = t; ui.tab = 'stats'; render(); await pause(40);
+        const s = [...document.querySelectorAll('#main .tiles .tile > span')]; if (s.length < 6) ko.push(t + ' ' + s.length + ' tuiles');
+        s.filter(x => x.scrollWidth > x.clientWidth + 1).forEach(x => ko.push(t + ' ' + x.textContent)); }
+      r.push(ko.length ? 'coupés : ' + ko.join(',') : 'libellés entiers');
+      document.documentElement.style.fontSize = f0; books = [fiche('V5 rien')]; render(); await pause(30);
+      r.push(/0 livre sur 0/.test($('#main .tiles').textContent) ? '« 0 livre sur 0 »' : 'sans lecture');
+      return r.join('|'); }
+    finally { document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
+  });
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

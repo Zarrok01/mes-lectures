@@ -888,13 +888,15 @@
     [...document.styleSheets].some(s => { try { return [...s.cssRules].some(r => r.media && /prefers-reduced-motion:\s*reduce/.test(r.media.mediaText) && /slide-l/.test(r.cssText)); } catch (e) { return false; } }));
 
   /* ---------- 10. Phase 1 : styles et palettes ---------- */
-  const COMBOS = [['editorial', 'light'], ['editorial', 'dark'], ['android', 'light'], ['android', 'dark'], ['actuel', 'light'], ['actuel', 'dark'], ['carnet', 'light'], ['carnet', 'dark']];
+  const COMBOS = [['jardin', 'light'], ['jardin', 'dark'], ['editorial', 'light'], ['editorial', 'dark'], ['android', 'light'], ['android', 'dark'], ['actuel', 'light'], ['actuel', 'dark'], ['carnet', 'light'], ['carnet', 'dark']];
   const avecStyle = async (style, theme, fn) => {
     const s0 = prefs.style, t0 = prefs.theme; prefs.style = style; prefs.theme = theme; applyTheme();
     try { return await fn(); } finally { prefs.style = s0; prefs.theme = t0; applyTheme(); }
   };
   // (valeurs du §3 du design : fond, texte, accent, texte sur accent)
   const PALETTE_ATTENDUE = {
+    // (lot 32 : Jardin de nuit, contrat §2.1 et §2.2)
+    'jardin/light': '#FAF7F1 #161412 #A8341F #FFFFFF', 'jardin/dark': '#0D1020 #ECEEF6 #F2D08A #0D1020',
     // (plan maître, phase 1 : style Éditorial, design 01-design-system.md §7)
     'editorial/light': '#F7F5F0 #1E1D1F #9A3F55 #FFFFFF', 'editorial/dark': '#141416 #F2EFEC #E3A9B4 #1A1416',
     'android/light': '#f5faf4 #191c19 #1b6c3d #ffffff', 'android/dark': '#101410 #e0e4dc #9bd5a8 #00391a',
@@ -903,19 +905,19 @@
     'carnet/light': '#F6F1E8 #252723 #843F4B #ffffff', 'carnet/dark': '#191A18 #F6F1E8 #D69AA4 #191A18'
   };
   const lirePalette = el => ['--fond', '--texte', '--accent', '--sur-accent'].map(v => getComputedStyle(el).getPropertyValue(v).trim()).join(' ');
-  await test('Style : Éditorial par défaut (préférence absente ou inconnue)', 'editorial|editorial', () => {
+  await test('Style : Jardin de nuit par défaut (préférence absente ou inconnue)', 'jardin|jardin', () => {
     const s0 = prefs.style; delete prefs.style; applyTheme(); const a = document.documentElement.dataset.style;
     prefs.style = 'xyz'; applyTheme(); const b = document.documentElement.dataset.style;
     prefs.style = s0; applyTheme(); return a + '|' + b;
   });
-  await test('Style : les 8 palettes ont les valeurs du design', [], async () => {
+  await test('Style : les 10 palettes ont les valeurs du design', [], async () => {
     const fautes = [];
     for (const [s, t] of COMBOS) await avecStyle(s, t, () => { const v = lirePalette(document.documentElement); if (v !== PALETTE_ATTENDUE[s + '/' + t]) fautes.push(s + '/' + t + ' : ' + v); });
     return fautes;
   });
   await test('Style : un aperçu garde sa palette même si la page est dans un autre style', '#F6F1E8 #252723 #843F4B #ffffff', async () =>
     avecStyle('android', 'dark', () => { const s = document.createElement('span'); s.dataset.style = 'carnet'; s.dataset.theme = 'light'; document.body.appendChild(s); const v = lirePalette(s); s.remove(); return v; }));
-  await test('Style : choix dans les Réglages, immédiat et gardé', 'carnet|carnet|4 aperçus|editorial', async () => {
+  await test('Style : choix dans les Réglages, immédiat et gardé', 'carnet|carnet|5 aperçus|jardin', async () => {
     const s0 = prefs.style; openSettings(); await pause(50);
     document.querySelector('#st_style [data-st="carnet"]').click();
     const r = document.documentElement.dataset.style + '|' + JSON.parse(localStorage.getItem(CLE + '-prefs')).style + '|' + document.querySelectorAll('#st_style .apercu').length + ' aperçus'
@@ -923,16 +925,20 @@
     prefs.style = s0; savePrefs(); applyTheme(); closeM(); await pause(250);
     return r;
   });
-  await test('Style : la barre du navigateur prend la couleur de l\'en-tête', '#f5faf4|#141414|#FFFDF9|#141416', async () => {
+  await test('Style : la barre du navigateur prend la couleur de l\'en-tête', '#f5faf4|#141414|#FFFDF9|#141416|#FAF7F1|#0D1020', async () => {
     const lire = () => document.querySelector('meta[name="theme-color"]').content;
     return (await avecStyle('android', 'light', lire)) + '|' + (await avecStyle('actuel', 'light', lire))
-      + '|' + (await avecStyle('editorial', 'light', lire)) + '|' + (await avecStyle('editorial', 'dark', lire));
+      + '|' + (await avecStyle('editorial', 'light', lire)) + '|' + (await avecStyle('editorial', 'dark', lire))
+      + '|' + (await avecStyle('jardin', 'light', lire)) + '|' + (await avecStyle('jardin', 'dark', lire));
   });
   /* ---------- 10 bis A. Plan maître, phase 1 : style Éditorial ---------- */
   const VARS_PALETTE = ['--fond', '--surface', '--surface-2', '--texte', '--texte-doux', '--trait', '--accent', '--sur-accent', '--accent-doux', '--sur-accent-doux',
     '--barre', '--texte-barre', '--texte-barre-doux', '--barre-2', '--danger', '--alerte'];
   // (Éditorial : design §7 ; les 6 autres : instantané du 25/10/2026, ils ne doivent pas bouger)
   const PALETTE_COMPLETE = {
+    // (lot 32 : Jardin de nuit — barre = fond, comme l'Éditorial ; danger Jour plus sombre que le vermillon, D9)
+    'jardin/light': '#FAF7F1 #FFFDF9 #F1ECE2 #161412 #5F5A54 #E2DBCF #A8341F #FFFFFF #F6E0DA #7A2414 #FAF7F1 #161412 #5F5A54 #F1ECE2 #8C1D18 #7A5A00',
+    'jardin/dark': '#0D1020 #151A2E #1E2440 #ECEEF6 #A3AAC2 #262D4A #F2D08A #0D1020 #3A3424 #F6E2B5 #0D1020 #ECEEF6 #A3AAC2 #1E2440 #FF9F95 #F4B183',
     'editorial/light': '#F7F5F0 #FFFDF9 #EEEAE3 #1E1D1F #5A5658 #E0DBD3 #9A3F55 #FFFFFF #F6E4E8 #6B2738 #FFFDF9 #1E1D1F #5A5658 #EEEAE3 #B3261E #7A5A00',
     'editorial/dark': '#141416 #1C1C1F #26262A #F2EFEC #B9B3AF #36363C #E3A9B4 #1A1416 #3B2A30 #F4CDD4 #141416 #F2EFEC #B9B3AF #26262A #FF9B91 #E5C07B',
     'android/light': '#f5faf4 #ffffff #e6f2e8 #191c19 #414941 #c1c9be #1b6c3d #ffffff #b6f1c4 #00210e #f5faf4 #191c19 #414941 #e6f2e8 #ba1a1a #7a5900',
@@ -942,7 +948,7 @@
     'carnet/light': '#F6F1E8 #FFFCF6 #EDE4D7 #252723 #5E574C #DED5C8 #843F4B #ffffff #F1E1E2 #642B36 #EDE4D7 #252723 #5E574C #DED5C8 #A52A2A #6E5A2E',
     'carnet/dark': '#191A18 #252723 #302F2A #F6F1E8 #C4BFB5 #41413B #D69AA4 #191A18 #41272D #F1C4CC #191A18 #F6F1E8 #C4BFB5 #302F2A #FF9B91 #C5A775'
   };
-  await test('Éditorial : les 16 couleurs des 8 palettes (Éditorial du design, 3 anciens styles inchangés)', [], async () => {
+  await test('Éditorial : les 16 couleurs des 10 palettes (Jardin et Éditorial du design, 3 anciens styles inchangés)', [], async () => {
     const fautes = [];
     for (const [s, t] of COMBOS) await avecStyle(s, t, () => {
       const v = VARS_PALETTE.map(x => getComputedStyle(document.documentElement).getPropertyValue(x).trim()).join(' ');
@@ -953,6 +959,35 @@
   await test('Éditorial : formes du design (angles, ombre, bordure, couvertures)', '6px 12px 20px 999px none 0px 30% 34%', () =>
     avecStyle('editorial', 'light', () => ['--r-s', '--r-m', '--r-l', '--r-pilule', '--ombre-1', '--bordure-carte', '--couv-s', '--couv-l']
       .map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim()).join(' ')));
+  /* ---------- Lot 32 : style Jardin de nuit (palettes) ---------- */
+  const hexVersRgb = h => { const n = parseInt(h.replace('#', ''), 16); return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`; };
+  await test('Jardin : formes de l’Éditorial (angles, ombre, bordure, couvertures)', '6px 12px 20px 999px none 0px 30% 34%', () =>
+    avecStyle('jardin', 'light', () => ['--r-s', '--r-m', '--r-l', '--r-pilule', '--ombre-1', '--bordure-carte', '--couv-s', '--couv-l']
+      .map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim()).join(' ')));
+  await test('Jardin : contours de champs ≥ 3 (fond, surface, surface 2), clair et sombre', 'light ok|dark ok', async () => {
+    const r = [];
+    for (const t of ['light', 'dark']) await avecStyle('jardin', t, () => {
+      const v = x => getComputedStyle(document.documentElement).getPropertyValue(x).trim();
+      const k = ['--fond', '--surface', '--surface-2'].map(f => contraste(hexVersRgb(v('--trait-champ')), hexVersRgb(v(f))));
+      r.push(t + (k.every(c => c >= 3) ? ' ok' : ' ' + k.map(c => c.toFixed(2)).join('/')));
+    });
+    return r.join('|');
+  });
+  await test('Jardin : aperçus des Réglages — chacun garde sa palette, quel que soit le style de la page', 'jardin dans carnet ok|carnet dans jardin ok', async () => {
+    const lireDans = (st, th) => { const s = document.createElement('span'); s.dataset.style = st; s.dataset.theme = th; document.body.appendChild(s); const v = lirePalette(s); s.remove(); return v; };
+    const a = await avecStyle('carnet', 'light', () => lireDans('jardin', 'dark'));
+    const b = await avecStyle('jardin', 'dark', () => lireDans('carnet', 'light'));
+    return [a === PALETTE_ATTENDUE['jardin/dark'] ? 'jardin dans carnet ok' : a, b === PALETTE_ATTENDUE['carnet/light'] ? 'carnet dans jardin ok' : b].join('|');
+  });
+  await test('Jardin : Réglages — 5 cartes de style, « Jardin de nuit » en premier sur toute la largeur, rien ne dépasse', 'pleine largeur|2 colonnes dessous|rien ne dépasse', () => avecStyle('jardin', 'light', async () => {
+    openSettings(); await pause(60);
+    // (« toute la largeur » = de la gauche de la 2e carte à la droite de la 3e : le cadre du sélecteur a sa marge intérieure)
+    const b = [...document.querySelectorAll('#st_style [data-st]')], R = b.map(x => x.getBoundingClientRect());
+    const r = [b[0].dataset.st === 'jardin' && Math.abs(R[0].left - R[1].left) < 1 && Math.abs(R[0].right - R[2].right) < 1 ? 'pleine largeur' : b[0].dataset.st + ' ' + R[0].left + '-' + R[0].right,
+      b.length === 5 && b[1].getBoundingClientRect().top === b[2].getBoundingClientRect().top ? '2 colonnes dessous' : 'pas en colonnes',
+      b.every(x => x.scrollWidth <= x.clientWidth + 1) ? 'rien ne dépasse' : 'texte coupé'];
+    closeM(); await pause(250); return r.join('|');
+  }));
   await test('Éditorial : un aperçu des Réglages garde sa palette dans un autre style', '#141416 #F2EFEC #E3A9B4 #1A1416', async () =>
     avecStyle('carnet', 'light', () => { const s = document.createElement('span'); s.dataset.style = 'editorial'; s.dataset.theme = 'dark'; document.body.appendChild(s); const v = lirePalette(s); s.remove(); return v; }));
   await test('Éditorial : le livre garde sa palette (mêmes couleurs qu\'en Android moderne, clair et sombre)', 'clair identique|sombre identique', async () => {
@@ -961,7 +996,8 @@
     for (const [t, nom] of [['light', 'clair'], ['dark', 'sombre']]) r.push(nom + ((await avecStyle('editorial', t, lire)) === (await avecStyle('android', t, lire)) ? ' identique' : ' différent'));
     return r.join('|');
   });
-  await test('Réglages : les 4 styles tiennent sur 2 lignes de 2, sans débordement', 'sans débordement|2 lignes|2 colonnes', async () => {
+  // (lot 32 : 5 styles — Jardin de nuit seul sur la première ligne, puis 2 lignes de 2)
+  await test('Réglages : les 5 styles tiennent sur 3 lignes (1, puis 2 de 2), sans débordement', 'sans débordement|3 lignes|2 colonnes', async () => {
     openSettings(); await pause(50);
     const box = $('#st_style'), bs = [...box.querySelectorAll('[data-st]')];
     const r = (box.scrollWidth <= box.clientWidth + 1 ? 'sans débordement' : 'déborde de ' + (box.scrollWidth - box.clientWidth) + ' px')
@@ -1060,12 +1096,46 @@
       return r.join('|');
     } finally { Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, JSON.parse(p0)); savePrefs(); applyTheme(); }
   });
-  await test('Passage Éditorial : le bon style dès le premier affichage (script de tête)', 'editorial/light|android/light|actuel/light', () => {
+  await test('Passages Éditorial et Jardin : le bon style dès le premier affichage (script de tête)', 'jardin/light|android/light|actuel/light|editorial/light|jardin/light', () => {
     const s = document.head.querySelector('script:not([src])'), r = document.documentElement, p0 = localStorage.getItem(CLE + '-prefs');
     const lance = p => { localStorage.setItem(CLE + '-prefs', JSON.stringify(p)); delete r.dataset.style; delete r.dataset.theme;
       const x = document.createElement('script'); x.textContent = s.textContent; document.body.appendChild(x); x.remove(); return r.dataset.style + '/' + r.dataset.theme; };
-    try { return [lance({style: 'android', theme: 'light'}), lance({style: 'android', theme: 'light', styleEditorial: 1}), lance({style: 'actuel', theme: 'light'})].join('|'); }
+    // (lot 32 : Android sans repère → Jardin directement ; un retour à l'Éditorial choisi après le passage est respecté ; installation neuve → Jardin)
+    try { return [lance({style: 'android', theme: 'light'}), lance({style: 'android', theme: 'light', styleEditorial: 1}), lance({style: 'actuel', theme: 'light'}),
+      lance({style: 'editorial', theme: 'light', styleEditorial: 1, styleJardin: 1}), lance({theme: 'light'})].join('|'); }
     finally { if (p0 === null) localStorage.removeItem(CLE + '-prefs'); else localStorage.setItem(CLE + '-prefs', p0); applyTheme(); }
+  });
+  // (lot 32, D1 validée le 11/11/2026 : le Jardin de nuit devient le style par défaut ; passage unique depuis l'Éditorial)
+  await test('Jardin par défaut : une installation neuve est en Jardin de nuit', 'jardin', () => PREFS_DEFAUT.style);
+  await test('Passage Jardin : Éditorial passe une seule fois ; Android, Actuel, Carnet, Jardin, repère et préférences vides restent',
+    'true|jardin|false|false|android|false|actuel|false|carnet|false|jardin|false|editorial|false|1', () => {
+    const a = {style: 'editorial'}, r1 = passageJardin(a), s1 = a.style, r2 = passageJardin(a);
+    const b = {style: 'android', styleEditorial: 1}, rb = passageJardin(b), c = {style: 'actuel'}, rc = passageJardin(c);
+    const d = {style: 'carnet'}, rd = passageJardin(d), e = {style: 'jardin'}, re = passageJardin(e);
+    const f = {style: 'editorial', styleJardin: 1}, rf = passageJardin(f), g = {}, rg = passageJardin(g);
+    return [r1, s1, r2, rb, b.style, rc, c.style, rd, d.style, re, e.style, rf, f.style, rg, g.styleJardin].join('|');
+  });
+  await test('Passage Jardin : Android sans repère passe directement en Jardin, avec un seul message', 'jardin|1|1|1 message', async () => {
+    const p0 = JSON.stringify(prefs), vus = [], t0 = window.toastLater;
+    try {
+      Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, {...PREFS_DEFAUT, style: 'android'});
+      window.toastLater = m => vus.push(m);   // (on compte les messages au lieu d'attendre les toasts)
+      appliquerPassageEditorial(!prefs.styleJardin); appliquerPassageJardin();
+      const lu = JSON.parse(localStorage.getItem(CLE + '-prefs'));
+      return [prefs.style, lu.styleEditorial, lu.styleJardin, vus.length + ' message' + (vus.length > 1 ? 's' : '')].join('|');
+    } finally { window.toastLater = t0; Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, JSON.parse(p0)); savePrefs(); applyTheme(); }
+  });
+  await test('Passage Jardin : message affiché une fois, retour à l’Éditorial respecté ensuite', 'jardin|message|editorial|pas de message', async () => {
+    const p0 = JSON.stringify(prefs);
+    try {
+      prefs.style = 'editorial'; prefs.styleEditorial = 1; delete prefs.styleJardin; $('#toast').textContent = '';
+      appliquerPassageJardin(); await pause(1700);
+      const r = [prefs.style, $('#toast').textContent.includes(MSG_JARDIN) ? 'message' : 'pas de message'];
+      $('#toast').textContent = ''; $('#toast').classList.remove('show');
+      prefs.style = 'editorial'; savePrefs(); appliquerPassageJardin(); await pause(1700);
+      r.push(prefs.style, $('#toast').textContent.includes(MSG_JARDIN) ? 'message' : 'pas de message');
+      return r.join('|');
+    } finally { $('#toast').textContent = ''; $('#toast').classList.remove('show'); Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, JSON.parse(p0)); savePrefs(); applyTheme(); }
   });
   // (lot O3a du 30/10/2026 : la fiche verticale devient le carnet par défaut — décision d'Elias ; passage unique, comme l'Éditorial)
   await test('Carnet par défaut (O3a) : une installation neuve ouvre la fiche verticale', 'continue', () => typeof PREFS_DEFAUT === 'undefined' ? 'pas de valeurs par défaut nommées' : PREFS_DEFAUT.consultation);
@@ -1172,6 +1242,11 @@
   const estPalette = sel => sel.split(',').every(s => /^\s*(:root|\[data-style|\[data-theme)/.test(s));
   await test('CSS : aucune couleur écrite en dur hors des palettes', [], () =>
     regles().filter(r => !estPalette(r.selectorText) && !/^\.cam\b/.test(r.selectorText) && /#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|\b(white|black)\b(?!-)/i.test(r.style.cssText)).map(r => r.selectorText).slice(0, 20));
+  /* ---------- Lot 32 : le Jardin hérite des règles de composants de l’Éditorial ---------- */
+  await test('Jardin : chaque règle de composant de l’Éditorial vaut aussi pour le Jardin', [], () =>
+    regles().filter(r => /data-style="?editorial/.test(r.selectorText) && !/jardin/.test(r.selectorText)
+      && !/^\[data-style="?editorial"?\]\[data-theme/.test(r.selectorText) && !/^:root/.test(r.selectorText))
+      .map(r => r.selectorText).slice(0, 20));
   await test('CSS : tailles de texte toutes sur l\'échelle (6 tailles)', [], () =>
     // (exceptions : l'horloge, les badges, le texte des couvertures générées, proportionnel à la couverture, et les deux éléments
     // de titrage du livre : le grand chiffre de la page Progression et la lettrine du résumé)
@@ -1216,9 +1291,9 @@
   });
 
   /* ---------- 10 quater. Phase 1 : icônes ---------- */
-  await test('Icônes : dessinées en Éditorial, Android et Actuel, émojis en Carnet', 'editorial:dessin|android:dessin|actuel:dessin|carnet:émoji', async () => {
+  await test('Icônes : dessinées en Jardin, Éditorial, Android et Actuel, émojis en Carnet', 'jardin:dessin|editorial:dessin|android:dessin|actuel:dessin|carnet:émoji', async () => {
     const r = [];
-    for (const s of ['editorial', 'android', 'actuel', 'carnet']) await avecStyle(s, 'light', () => {
+    for (const s of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) await avecStyle(s, 'light', () => {
       const i = document.querySelector('#settingsBtn .ico'), st = getComputedStyle(i);
       r.push(s + ':' + (st.fontSize === '0px' && st.maskImage !== 'none' ? 'dessin' : st.fontSize !== '0px' && st.maskImage === 'none' ? 'émoji' : '?'));
     });
@@ -1372,7 +1447,8 @@
     prefs.timer = null; $('#timerOv').classList.remove('show'); paintTimerPill(); ui.tab = 'en_cours'; render();
     return 'thème ' + th + '|chercher par ' + rp + '|chrono ' + c;
   });
-  await test('Style posé avant le premier affichage (script en tête), y compris préférence corrompue', 'carnet/dark|editorial/light|editorial', () => {
+  // (lot 32 : le repli d'une préférence corrompue est maintenant le Jardin de nuit, style par défaut)
+  await test('Style posé avant le premier affichage (script en tête), y compris préférence corrompue', 'carnet/dark|jardin/light|jardin', () => {
     const s = document.head.querySelector('script:not([src])'); if (!s) return 'pas de script en tête';
     // (le vrai script est rejoué dans la page avec des préférences d'essai, puis tout est remis en place)
     const r = document.documentElement, lance = p => {
@@ -2701,6 +2777,8 @@
     }));
   // (la grande carte est masquée pendant les tests, pour que les anciens tests comptent tous les livres ; on l'allume ici)
   const avecReprise = async fn => { REPRISE = true; try { return await fn(); } finally { REPRISE = false; render(); } };
+  // (lot 32 : la tête du Jardin porte une ligne d'en-tête en plus — on mesure dans l'Éditorial et dans le Jardin)
+  const editorialEtJardin = async fn => { const r = []; for (const st of ['editorial', 'jardin']) r.push(st + ':' + await avecStyle(st, 'light', fn)); return r.join('|'); };
   const ligneDeBoutons = acts => { const bs = [...acts.querySelectorAll('button')], n = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size;
     return (n > 1 ? n + ' lignes' : '1 ligne') + '|' + (acts.scrollWidth <= acts.clientWidth + 1 && bs.every(b => b.scrollWidth <= b.clientWidth + 1) ? 'sans débordement' : 'déborde'); };
   await test('Grande carte : 3 actions sur une ligne, sans débordement ; « Reprendre » nommé en entier', '1 ligne|sans débordement|Reprendre ma lecture', () => avecReprise(() => {
@@ -2796,14 +2874,14 @@
     return (t.getBoundingClientRect().height <= 3 * lh + 2 ? '3 lignes au plus' : Math.round(t.getBoundingClientRect().height / lh) + ' lignes') + '|' + (t.textContent.includes(long) ? 'titre complet' : 'titre tronqué');
   });
   // (objectif de la conception §3 ; le lanceur règle la hauteur à 860 px : on mesure par rapport à 780 ou 640 px)
-  await test('Bibliothèque : avec un bandeau de prêt, le premier livre de la collection se voit sous la grande carte', 'visible', () => avecReprise(async () => {
+  await test('Bibliothèque : avec un bandeau de prêt, le premier livre de la collection se voit sous la grande carte', 'editorial:visible|jardin:visible', () => editorialEtJardin(() => avecReprise(async () => {
     books = [enCours('Les Années', {auteur: 'Annie Ernaux'}), enCours('La Communauté de l\'anneau', {auteur: 'J. R. R. Tolkien', pagesTotal: 704, pageActuelle: 90, dateDebut: addDays(-10)}),
       fiche('Chanson douce', {possession: 'emprunte', pretRetour: addDays(2)})];
     ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render(); paintNotice(); scrollTo(0, 0); await pause(50);
     const barre = $('#tabs').getBoundingClientRect().height, c = $('#list .card').getBoundingClientRect(), limite = (innerWidth >= 360 ? 780 : 640) - barre;
     const ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
     books = []; paintNotice(); return ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
-  }));
+  })));
   // (lot 2 de la refonte, 31/10/2026 : Bibliothèque — accueil vide dégagé, rappel compact, carte « En ce moment », épinglés, grille)
   const sousLaBarre = () => (innerWidth >= 360 ? 780 : 640) - $('#tabs').getBoundingClientRect().height;
   const seCoupent = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
@@ -2875,7 +2953,7 @@
       return [l('t-Les Années'), l('t-Candide'), 'Sans Pages : ' + l('t-Sans Pages'), vu ? 'pages visibles' : 'pages coupées'].join('|');
     } finally { prefs.view = v0; ui.sort = 'recent'; render(); }
   });
-  await test('Lot 2 : avec le rappel de sauvegarde, le premier livre de la collection se voit sous la grande carte', 'visible', () => avecReprise(async () => {
+  await test('Lot 2 : avec le rappel de sauvegarde, le premier livre de la collection se voit sous la grande carte', 'editorial:visible|jardin:visible', () => editorialEtJardin(() => avecReprise(async () => {
     const l0 = prefs.lastBackup;
     try {
       prefs.lastBackup = undefined;
@@ -2885,7 +2963,7 @@
       const c = $('#list .card').getBoundingClientRect(), limite = sousLaBarre(), ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
       return $('#notice').hidden ? 'pas de rappel' : !$('#resumeLecture .reste') ? 'pas de temps restant' : ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
     } finally { prefs.lastBackup = l0; books = []; paintNotice(); }
-  }));
+  })));
   // (lot 3 de la refonte, 31/10/2026 : Découvrir — tuiles des rayons et des durées, pistes en rangée, un seul rose, textes courts, états partiels)
   const piste = (titre, extra) => ({titre, auteur: 'Auteur', themeNom: 'Roman', themeE: '📖', sourceNom: 'Primé', raison: 'Pour le test', theme: 'roman', pagesTotal: 200, ...extra});
   const selectionTest = n => ({mois: moisCle(), vu: true, items: ['La Mer des Sargasses', 'Le Consentement', 'Les Furtifs', 'Sapiens', 'L’Anomalie'].slice(0, n).map(t => piste(t))});
@@ -3031,11 +3109,11 @@
     }));
     return r.join('|');
   });
-  await test('Lot 5 : Réglages — 4 cartes de style séparées, arrondies, le choix actif annoncé ; choisir change le style', 'séparées|arrondies|annoncé|change', () => avecStyle('editorial', 'light', async () => {
+  await test('Lot 5 : Réglages — 5 cartes de style séparées, arrondies, le choix actif annoncé ; choisir change le style', 'séparées|arrondies|annoncé|change', () => avecStyle('editorial', 'light', async () => {
     openSettings(); await pause(30);
     const b = [...document.querySelectorAll('#st_style [data-st]')], R = b.map(x => x.getBoundingClientRect()), r = [];
     const ecart = (a, c) => Math.max(c.left - a.right, a.left - c.right, c.top - a.bottom, a.top - c.bottom);
-    r.push(b.length === 4 && R.every((a, i) => R.every((c, j) => i === j || ecart(a, c) >= 4)) ? 'séparées' : 'collées');
+    r.push(b.length === 5 && R.every((a, i) => R.every((c, j) => i === j || ecart(a, c) >= 4)) ? 'séparées' : 'collées');
     r.push(b.length && b.every(x => parseFloat(getComputedStyle(x).borderTopLeftRadius) >= 8 && parseFloat(getComputedStyle(x).borderBottomRightRadius) >= 8) ? 'arrondies' : 'angles droits');
     const p = b.map(x => x.getAttribute('aria-pressed')).join(',');
     r.push(p === b.map(x => String(x.dataset.st === 'editorial')).join(',') ? 'annoncé' : 'aria-pressed : ' + p);
@@ -3383,9 +3461,9 @@
   });
 
   /* ---------- Lot V1 (03/11/2026) : cohérence du style Éditorial ---------- */
-  await test('Lot V1 : fenêtres Ajouter et Actions — icône dessinée seule (Éditorial, Android, Actuel) ; émoji en Carnet', 'editorial:0|android:0|actuel:0|carnet:émojis', async () => {
+  await test('Lot V1 : fenêtres Ajouter et Actions — icône dessinée seule (Jardin, Éditorial, Android, Actuel) ; émoji en Carnet', 'jardin:0|editorial:0|android:0|actuel:0|carnet:émojis', async () => {
     const r = [];
-    for (const s of ['editorial', 'android', 'actuel', 'carnet']) r.push(await enStyle(s, async () => {
+    for (const s of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) r.push(await enStyle(s, async () => {
       openAjout(); await pause(30); const e1 = emojisVisibles($('#modal')); closeM(); await pause(30);
       const b = fiche('V1 actions', {statut: 'en_cours', pagesTotal: 100, pageActuelle: 10}); openActions(b); await pause(30);
       const e2 = emojisVisibles($('#modal')); closeM(); await pause(30);
@@ -3567,11 +3645,11 @@
       return Math.max(q.top - r.bottom, r.top - q.bottom) < 8.5; };
     const dit = y => { const h = document.elementFromPoint(x, y); return h ? (h.className || h.tagName) + ' ' + Math.round(h.getBoundingClientRect().top - r.top) : 'rien'; };
     return vise(r.top - 3.5) ? vise(r.bottom + 3.5) ? '' : 'bas→' + dit(r.bottom + 3.5) : 'haut→' + dit(r.top - 3.5); };
-  await test('Lot V2 : puces et petits boutons — zone de toucher de 48 px en haut ET en bas, dans les 4 styles', 'editorial:ok|android:ok|actuel:ok|carnet:ok', async () => {
+  await test('Lot V2 : puces et petits boutons — zone de toucher de 48 px en haut ET en bas, dans les 5 styles', 'jardin:ok|editorial:ok|android:ok|actuel:ok|carnet:ok', async () => {
     const b0 = books, tab0 = ui.tab, r = [];
     books = [fiche('V2 lu', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-1), pagesTotal: 200})];
     try {
-      for (const s of ['editorial', 'android', 'actuel', 'carnet']) r.push(await enStyle(s, async () => { const ko = [];
+      for (const s of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) r.push(await enStyle(s, async () => { const ko = [];
         for (const t of ['decouvrir', 'stats']) { ui.tab = t; render(); await pause(80);
           for (const e of [...document.querySelectorAll('#main :is(.chipb,.btn.small)')].filter(e => e.checkVisibility()).slice(0, 8)) {
             e.scrollIntoView({block: 'center'}); await pause(10); const c = e.getBoundingClientRect(), m = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
@@ -3608,11 +3686,11 @@
         t.scrollWidth <= t.clientWidth + 1 ? 'entier' : 'coupé'].join('|'); }
     finally { document.documentElement.style.fontSize = f0; books = b0; render(); }
   });
-  await test('Lot V2 (relecture) : texte à 130 % — « Mes lectures » jamais sous la flamme, série de 11 ou 122 jours, 4 styles', 'ok', async () => {
+  await test('Lot V2 (relecture) : texte à 130 % — « Mes lectures » jamais sous la flamme, série de 11 ou 122 jours, 5 styles', 'ok', async () => {
     const b0 = books, f0 = document.documentElement.style.fontSize, ko = [];
     try { document.documentElement.style.fontSize = '130%';
       for (const n of [11, 122]) { books = [fiche('V2 longue série', {statut: 'en_cours', pagesTotal: 500, pageActuelle: n, journal: Array.from({length: n + 1}, (_, i) => ({date: addDays(i - n), page: i}))})];
-        for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { render(); await pause(30);
+        for (const st of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { render(); await pause(30);
           const t = $('header h1'), f = $('#flame').getBoundingClientRect(); if ($('#flame').hidden || !$('#flame').textContent.includes(String(n))) { ko.push(`${st} ${n} j : pas de série`); return; }
           if (t.scrollWidth > t.clientWidth + 1 || t.getBoundingClientRect().right > f.left + 1) ko.push(`${st} ${n} j`); }); } }
     finally { document.documentElement.style.fontSize = f0; books = b0; render(); }
@@ -3804,21 +3882,21 @@
       return r.join('|'); }
     finally { prefs.view = v0; books = b0; ui.tab = tab0; render(); }
   });
-  await test('Lot 26 : sur un petit écran (liste de 296 px), « Où j’en suis » et « ⋯ » restent sur une rangée, dans les 4 styles', 'editorial:1|carnet:1|android:1|actuel:1', async () => {
+  await test('Lot 26 : sur un petit écran (liste de 296 px), « Où j’en suis » et « ⋯ » restent sur une rangée, dans les 5 styles', 'jardin:1|editorial:1|carnet:1|android:1|actuel:1', async () => {
     const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = livres26(); prefs.view = 'liste'; const r = [];
-    try { for (const st of ['editorial', 'carnet', 'android', 'actuel']) await enStyle(st, async () => {
+    try { for (const st of ['jardin', 'editorial', 'carnet', 'android', 'actuel']) await enStyle(st, async () => {
         ui.tab = 'en_cours'; render(); await pause(20); $('#list').style.width = '296px'; await pause(20);
         r.push(st + ':' + new Set([...$('#list .card .acts').children].map(b => Math.round(b.getBoundingClientRect().top))).size); });
       return r.join('|'); }
     finally { const l = $('#list'); if (l) l.style.width = ''; prefs.view = v0; books = b0; ui.tab = tab0; render(); }
   });
-  await test('Lot 26 : toucher la ligne la fonce un instant, dans les 4 styles — mais pas quand on touche un de ses boutons', 'règle|editorial:fonce|carnet:fonce|android:fonce|actuel:fonce', async () => {
+  await test('Lot 26 : toucher la ligne la fonce un instant, dans les 5 styles — mais pas quand on touche un de ses boutons', 'règle|jardin:fonce|editorial:fonce|carnet:fonce|android:fonce|actuel:fonce', async () => {
     // (la page de tests ne peut pas poser un doigt : on recopie la règle, à la même place, avec une classe à la place de :active)
     const fs = document.styleSheets[0], k = [...fs.cssRules].findIndex(r => r.selectorText && /\.card:active/.test(r.selectorText) && /:has\(/.test(r.selectorText));
     if (k < 0) return 'pas de règle';
     const b0 = books, tab0 = ui.tab, v0 = prefs.view; books = livres26(); prefs.view = 'liste'; const r = ['règle'];
     fs.insertRule(fs.cssRules[k].cssText.replace(/\.card:active/, '.card.sonde26'), k + 1);
-    try { for (const st of ['editorial', 'carnet', 'android', 'actuel']) await enStyle(st, async () => {
+    try { for (const st of ['jardin', 'editorial', 'carnet', 'android', 'actuel']) await enStyle(st, async () => {
         ui.tab = 'en_cours'; render(); await pause(20); const c = $('#list .card'), avant = getComputedStyle(c).backgroundImage;
         c.classList.add('sonde26'); const apres = getComputedStyle(c).backgroundImage;
         r.push(st + ':' + (apres !== avant && /gradient/.test(apres) ? 'fonce' : 'rien')); });
@@ -3974,7 +4052,7 @@
   /* ---------- Lot V5 (10/11/2026) : Rythme éditorial (contrat UI/UX du 10/11, plan 2026-11-10-lot-v5) ---------- */
   const fondV5 = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return getComputedStyle(document.body).backgroundColor; };
   const couleurV5 = v => { const i = document.createElement('i'); i.style.color = getComputedStyle(document.documentElement).getPropertyValue(v).trim(); document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };
-  await test('Lot V5 : note — mêmes étoiles + « 4/5 » dans la liste et la fiche, sans feu tricolore, nom lu (4 styles, clair et sombre)', 'liste:ok|fiche:ok|grille:ok|couleurs:ok|nom:ok', async () => {
+  await test('Lot V5 : note — mêmes étoiles + « 4/5 » dans la liste et la fiche, sans feu tricolore, nom lu (5 styles, clair et sombre)', 'liste:ok|fiche:ok|grille:ok|couleurs:ok|nom:ok', async () => {
     const b0 = books, tab0 = ui.tab, th0 = prefs.theme, v0 = prefs.view, ko = {liste: [], fiche: [], grille: [], couleurs: [], nom: []};
     books = [fiche('V5 note', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-1)})];
     const forme = (n, ou, cle) => {
@@ -3987,7 +4065,7 @@
       for (const e of [p, v].filter(Boolean)) if (contraste(getComputedStyle(e).color, fondV5(e)) < 3) ko.couleurs.push(ou + ' contraste ' + contraste(getComputedStyle(e).color, fondV5(e)).toFixed(2));
     };
     try {
-      for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const th of ['light', 'dark']) {
+      for (const st of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const th of ['light', 'dark']) {
         prefs.theme = th; applyTheme(); const ou = st + '-' + th;
         prefs.view = 'liste'; ui.tab = 'lu'; render(); await pause(20); forme($('#list .card .note'), ou, 'liste');
         if (document.querySelector('#main .score')) ko.couleurs.push(ou + ' pastille .score');
@@ -4035,10 +4113,10 @@
       return r.join('|'); }
     finally { document.documentElement.style.fontSize = f0; if (lb0) prefs.lastBackup = lb0; else delete prefs.lastBackup; books = b0; ui.tab = tab0; render(); paintNotice(); }
   });
-  await test('Lot V5 : « À lire » — épingle en bouton rond nommé, « Commencer » sur la même ligne, pages avec l’auteur (4 styles, texte 100 % et 130 %)', 'nom|état|même ligne|48 px|pages avec l’auteur', async () => {
+  await test('Lot V5 : « À lire » — épingle en bouton rond nommé, « Commencer » sur la même ligne, pages avec l’auteur (5 styles, texte 100 % et 130 %)', 'nom|état|même ligne|48 px|pages avec l’auteur', async () => {
     const b0 = books, tab0 = ui.tab, v0 = prefs.view, f0 = document.documentElement.style.fontSize, ko = {nom: [], etat: [], ligne: [], taille: [], pages: []};
     books = [fiche('Sapiens', {pagesTotal: 512, epingle: true}), fiche('Le Mage du Kremlin', {pagesTotal: 288})];
-    try { for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const t of ['100%', '130%']) {
+    try { for (const st of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const t of ['100%', '130%']) {
         document.documentElement.style.fontSize = t; prefs.view = 'liste'; ui.tab = 'a_lire'; render(); await pause(30); const ou = st + ' ' + t;
         for (const c of document.querySelectorAll('#list .card')) {
           const b = books.find(x => x.id === c.dataset.id), pin = c.querySelector('[data-act=pin]'), go = c.querySelector('[data-act=start]');
@@ -4051,7 +4129,8 @@
       return [k('nom', 'nom'), k('etat', 'état'), k('ligne', 'même ligne'), k('taille', '48 px'), k('pages', 'pages avec l’auteur')].join('|'); }
     finally { document.documentElement.style.fontSize = f0; prefs.view = v0; books = b0; ui.tab = tab0; render(); }
   });
-  await test('Lot V5 : têtes d’écran — Bibliothèque, Découvrir, Carnet et Stats ont un titre de même taille et une ligne douce ; année nommée', 'bibliothèque|découvrir|carnet|stats|même taille|année nommée|autres styles|Bibliothèque sur une ligne', async () => {
+  // (lot 32 : mesuré en Éditorial — en Jardin, la Bibliothèque met son titre dans la ligne d'en-tête, choix d'Elias du 12/11)
+  await test('Lot V5 : têtes d’écran — Bibliothèque, Découvrir, Carnet et Stats ont un titre de même taille et une ligne douce ; année nommée', 'bibliothèque|découvrir|carnet|stats|même taille|année nommée|autres styles|Bibliothèque sur une ligne', () => avecStyle('editorial', 'light', async () => {
     const b0 = books, tab0 = ui.tab, r = [], tailles = new Set();
     books = [fiche('V5 t1'), fiche('V5 t2', {statut: 'lu', note: 4, dateDebut: addDays(-5), dateFin: addDays(-1), notes: [{id: 'n1', texte: 'Une note', date: today()}],
       citations: [{id: 'c1', texte: 'Une', page: '1', date: today(), commentaire: ''}, {id: 'c2', texte: 'Deux', page: '2', date: today(), commentaire: ''}]})];
@@ -4073,7 +4152,7 @@
       r.push(lt.top < ht.bottom && lt.bottom > ht.top ? 'Bibliothèque sur une ligne' : 'Bibliothèque sur deux lignes');
       return r.join('|'); }
     finally { books = b0; ui.tab = tab0; render(); }
-  });
+  }));
   await test('Lot V5 : Carnet — plus d’encart « Dernière note/citation » ; chaque carte montre la couverture de son livre ; l’encart reste dans la fiche', 'notes:sans encart|citations:sans encart|couvertures|fiche:encart', async () => {
     const b0 = books, tab0 = ui.tab, r = [], ko = [];
     books = [fiche('V5 carnet', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 20, notes: [{id: 'n1', texte: 'Une note du carnet', date: today()}],
@@ -4147,7 +4226,7 @@
       const coupes = bs.filter(x => lignes(x) > 1 || x.scrollWidth > x.clientWidth + 1); if (coupes.length) (ko[id] = ko[id] || []).push(taille + ' coupé : ' + coupes.map(x => x.textContent.trim()).join(','));
       if (taille.endsWith('100%') && innerWidth >= 360 && !uneLigne) (ko[id] = ko[id] || []).push('100 % pas sur une ligne'); };
     books = [fiche('V5 seg', {statut: 'a_lire', pagesTotal: 200})];
-    try { for (const st of ['editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; const ou = st + ' ' + taille;
+    try { for (const st of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) await enStyle(st, async () => { for (const taille of ['100%', '130%']) { document.documentElement.style.fontSize = taille; const ou = st + ' ' + taille;
         ui.tab = 'a_lire'; render(); openSettings(); await pause(60); ['st_theme', 'st_density', 'st_anim'].forEach(id => juger(id, ou)); closeM(); await pause(30);
         pick.mode = 'liste'; openNext(); await pause(60); juger('nx_len', ou); closeM(); await pause(30); } });
       return Object.keys(NOMS).map(id => ko[id] ? NOMS[id] + ' : ' + ko[id].join(' ; ') : NOMS[id]).join('|'); }
@@ -4181,11 +4260,11 @@
     finally { ui.statsPlus = false; document.documentElement.style.fontSize = f0; books = b0; ui.tab = tab0; render(); }
   });
   /* ---------- Lot 31 (11/11/2026) : Ciel ---------- */
-  await test('Lot 31 : l’onglet s’appelle « Ciel » (4 styles), sa tête dit « Tes statistiques », la clé reste stats', 'barre:Ciel|tête:Ciel|ligne:ok|clé:stats|icône:ok', async () => {
+  await test('Lot 31 : l’onglet s’appelle « Ciel » (5 styles), sa tête dit « Tes statistiques », la clé reste stats', 'barre:Ciel|tête:Ciel|ligne:ok|clé:stats|icône:ok', async () => {
     const st0 = prefs.style, r = [];
     try {
       const noms = [];
-      for (const s of ['editorial', 'android', 'actuel', 'carnet']) {
+      for (const s of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) {
         prefs.style = s; document.documentElement.dataset.style = s; ui.tab = 'stats'; render(); await pause(20);
         noms.push($('#tabs [data-space="stats"] > span:not(.sr):not(.ico)').textContent.trim());
       }
@@ -4289,7 +4368,7 @@
     } finally { prefs.animation = a0; [prefs.anim3dLent, prefs.anim2dLent] = lents; savePrefs(); if (window.fermerFete) fermerFete(); }
     return r.join('|');
   });
-  await test('Lot 31 : ciel lisible dans les 4 styles × clair/sombre — étoiles ≥ 3, textes ≥ 4,5 ; rien ne déborde à 130 %', 'contrastes:ok|débord:aucun', async () => {
+  await test('Lot 31 : ciel lisible dans les 5 styles × clair/sombre — étoiles ≥ 3, textes ≥ 4,5 ; rien ne déborde à 130 %', 'contrastes:ok|débord:aucun', async () => {
     const st0 = document.documentElement.dataset.style, th0 = document.documentElement.dataset.theme, ko = [];
     const y = new Date().getFullYear();
     books = [fiche('Un titre assez long pour la ligne', {statut: 'lu', dateFin: `${y}-03-10`, pagesTotal: 400}), fiche('Deux', {statut: 'lu', dateFin: `${y}-03-20`})];
@@ -4297,7 +4376,7 @@
     const sonde = document.createElement('div'); document.body.appendChild(sonde);
     const couleur = v => { sonde.style.background = `var(${v})`; return getComputedStyle(sonde).backgroundColor; };
     try {
-      for (const s of ['editorial', 'android', 'actuel', 'carnet']) for (const th of ['light', 'dark']) {
+      for (const s of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) for (const th of ['light', 'dark']) {
         document.documentElement.dataset.style = s; document.documentElement.dataset.theme = th; ui.tab = 'stats'; ui.year = y; render(); await pause(20);
         const etoile = getComputedStyle($('#ciel .ciel-point')).fill, c0 = contraste(etoile, couleur('--surface'));
         if (c0 < 3) ko.push(`${s}/${th} étoile ${c0.toFixed(2)}`);
@@ -4450,6 +4529,179 @@
     } finally { prefs.animation = a0; [prefs.anim3dLent, prefs.anim2dLent] = lents; }
     return [r[0], r[2], r[3], r[1]].join('|');
   });
+  /* ---------- Audit du 12/11 : files d'arrière-plan (résumés, rayons) ----------
+     Le livre doit sortir de la file AVANT d'être cherché : sinon une bibliothèque vide fige la page (boucle sans fin)
+     et, avec plusieurs livres en attente, certains sont sautés. */
+  // (attend que les files des tests précédents se soient arrêtées, puis les vide)
+  const filesCalmes = async (max = 5000) => { const t0 = performance.now();
+    while ((resumeBusy || classBusy) && performance.now() - t0 < max) await pause(50);
+    resumeQueue.length = 0; classQueue.length = 0; };
+  // (bibliothèque vide piégée : si la file la parcourt plus de 50 fois sans avancer, on coupe la boucle au lieu de figer la page)
+  const bibliothequePiegee = () => { const a = []; let n = 0;
+    a.find = function (...x) { if (++n > 50) throw new Error('boucle sans fin'); return Array.prototype.find.apply(this, x); };
+    a.tours = () => n; return a; };
+  await test('File d’arrière-plan : bibliothèque vidée pendant l’attente — la page ne se fige pas (résumés et rayons)', 'resume:ok|class:ok', async () => {
+    const b0 = books, resume0 = Recherche.resume, fill0 = fillClass, r = [];
+    await filesCalmes();
+    try {
+      Recherche.resume = async () => ({});
+      books = [fiche('File A', {classTente: true})];
+      autoResume('t-File A'); autoResume('t-File B');   // B attend son tour…
+      const p1 = books = bibliothequePiegee();           // … pendant que la bibliothèque se vide
+      await pause(1200);
+      r.push('resume:' + (p1.tours() > 50 ? 'boucle sans fin' : resumeQueue.length || resumeBusy ? 'file bloquée' : 'ok'));
+      fillClass = async () => true;
+      books = [fiche('File A')];
+      autoClass('t-File A'); autoClass('t-File B');
+      const p2 = books = bibliothequePiegee();
+      await pause(1200);
+      r.push('class:' + (p2.tours() > 50 ? 'boucle sans fin' : classQueue.length || classBusy ? 'file bloquée' : 'ok'));
+    } finally {
+      Recherche.resume = resume0; fillClass = fill0; books = b0;
+      await filesCalmes(2000); resumeBusy = classBusy = false;   // (une boucle coupée par le piège ne remet pas son drapeau)
+    }
+    return r.join('|');
+  });
+  await test('File d’arrière-plan : 3 livres en attente → les 3 complétés, dans l’ordre (résumés et rayons)', 'resume:A,B,C|class:A,B,C', async () => {
+    const b0 = books, resume0 = Recherche.resume, fill0 = fillClass, vus = [], r = [];
+    await filesCalmes();
+    const fin = async occupe => { const t0 = performance.now(); while (occupe() && performance.now() - t0 < 5000) await pause(50); };
+    try {
+      Recherche.resume = async b => { vus.push(b.titre.slice(-1)); return {}; };
+      books = ['A', 'B', 'C'].map(t => fiche('File ' + t, {classTente: true}));
+      ['A', 'B', 'C'].forEach(t => autoResume('t-File ' + t));
+      await fin(() => resumeBusy);
+      r.push('resume:' + vus.join(','));
+      vus.length = 0;
+      fillClass = async b => { vus.push(b.titre.slice(-1)); return true; };
+      books = ['A', 'B', 'C'].map(t => fiche('File ' + t));
+      ['A', 'B', 'C'].forEach(t => autoClass('t-File ' + t));
+      await fin(() => classBusy);
+      r.push('class:' + vus.join(','));
+    } finally {
+      Recherche.resume = resume0; fillClass = fill0; books = b0;
+      await filesCalmes(2000); resumeBusy = classBusy = false;
+    }
+    return r.join('|');
+  });
+  /* ---------- Lot 32 : style Jardin de nuit ---------- */
+  await test('Jardin : mêmes composants que l’Éditorial (compteur, ligne de livre, onglets)', 'identique', async () => {
+    const b0 = books, v0 = prefs.view;
+    books = [fiche('Composant un', {statut: 'en_cours', tags: ['roman']}), fiche('Composant deux', {statut: 'en_cours', tags: ['essai']})];
+    try {
+      ui.tab = 'en_cours'; prefs.view = 'liste'; render(); await pause(40);
+      // (on compare la NATURE des valeurs — transparent ou non, épaisseurs, arrondis — pas les couleurs, différentes par conception)
+      const nature = v => v === 'rgba(0, 0, 0, 0)' ? 'transparent' : /^rgb/.test(v) ? 'couleur' : v;
+      const forme = () => [['.subtab .n', 'backgroundColor'], ['.list:not(.grid) .card', 'backgroundColor'], ['.list:not(.grid) .card', 'borderBottomWidth'],
+        ['.list:not(.grid) .card', 'paddingLeft'], ['.subtab', 'borderRadius'], ['.subtab:not(.on)', 'borderTopColor']]
+        .map(([q, p]) => { const e = document.querySelector(q); return q + ':' + (e ? nature(getComputedStyle(e)[p]) : 'absent'); }).join(' ');
+      const e = await avecStyle('editorial', 'light', forme), j = await avecStyle('jardin', 'light', forme);
+      return /absent/.test(e + j) ? 'composant absent : ' + e : e === j ? 'identique' : 'Éditorial ' + e + ' ≠ Jardin ' + j;
+    } finally { books = b0; prefs.view = v0; render(); }
+  });
+  // (lot 32, tâche 4, D7 : ligne d'en-tête « Encre » — ours à gauche, ligne douce à droite, filet, puis le grand titre)
+  const TETES = [['en_cours', 'Ma bibliothèque'], ['decouvrir', 'Mes lectures'], ['notes', 'Mes lectures'], ['stats', 'Mes lectures']];
+  const allerEcran = async t => { ui.tab = t; render(); scrollTo(0, 0); await pause(40); };
+  const avecTetes = async fn => { const b0 = books;
+    books = [fiche('Tête un', {statut: 'en_cours', dateDebut: addDays(-3)}), fiche('Tête deux', {statut: 'lu', dateFin: today()})];
+    try { return await fn(); } finally { books = b0; ui.tab = 'en_cours'; render(); } };
+  await test('Lot 32 : ligne d’en-tête en Jardin sur 3 écrans — ours à gauche, ligne douce à droite, au-dessus du grand titre, filet dessous', 'decouvrir ok|notes ok|stats ok', () => avecTetes(() => avecStyle('jardin', 'dark', async () => {
+    const r = [];
+    for (const [t, ours] of TETES.slice(1)) { await allerEcran(t);
+      const o = document.querySelector('#main .ecran-ours'), l = document.querySelector('#main .ecran-ligne'), h = document.querySelector('#main .ecran-titre');
+      if (!o || !l || !h) { r.push(t + ' absent'); continue; }
+      const ro = o.getBoundingClientRect(), rl = l.getBoundingClientRect(), rh = h.getBoundingClientRect();
+      const ok = o.checkVisibility() && o.textContent === ours && Math.abs(ro.top - rl.top) < 4 && rl.left >= ro.right - 1 && ro.bottom <= rh.top
+        && rl.bottom <= rh.top && getComputedStyle(o.parentElement, '::after').borderBottomWidth === '1px';
+      r.push(t + (ok ? ' ok' : ` ko (ours ${Math.round(ro.top)}/${Math.round(ro.right)}, ligne ${Math.round(rl.top)}/${Math.round(rl.left)}, titre ${Math.round(rh.top)})`));
+    }
+    return r.join('|');
+  })));
+  // (choix d'Elias du 12/11, « Titre dans la ligne » : sinon, avec le rappel de sauvegarde, le premier livre passait sous la barre)
+  await test('Lot 32 : Bibliothèque en Jardin — le titre du statut est la ligne d’en-tête (petites capitales, nombre à droite, filet), sans grand titre ; « Ma bibliothèque » reste lu', 'titre en ligne|nombre à droite|filet|pas de grand titre|ma bibliothèque lue', () => avecTetes(() => avecStyle('jardin', 'light', async () => {
+    await allerEcran('en_cours');
+    const h = document.querySelector('#main .library-intro .ecran-titre'), l = document.querySelector('#main .library-intro .ecran-ligne'), m = document.querySelector('#main .library-intro p:not(.ecran-ligne)');
+    if (!h || !l || !m) return 'tête absente';
+    const ch = getComputedStyle(h), rh = h.getBoundingClientRect(), rl = l.getBoundingClientRect(), fs = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    return [h.textContent === STATUTS.en_cours && ch.textTransform === 'uppercase' ? 'titre en ligne' : 'titre ' + ch.textTransform,
+      Math.abs(rh.top - rl.top) < 4 && rl.left >= rh.right - 1 ? 'nombre à droite' : `nombre ${Math.round(rl.top)}/${Math.round(rh.top)}`,
+      getComputedStyle(h.parentElement, '::after').borderBottomWidth === '1px' ? 'filet' : 'sans filet',
+      parseFloat(ch.fontSize) <= .8125 * fs + .5 ? 'pas de grand titre' : 'grand titre ' + ch.fontSize,
+      m.textContent === 'Ma bibliothèque' && !m.hasAttribute('aria-hidden') && m.getBoundingClientRect().width <= 1 ? 'ma bibliothèque lue' : 'ma bibliothèque ' + Math.round(m.getBoundingClientRect().width)].join('|');
+  })));
+  await test('Lot 32 : pas de ligne d’en-tête dans les 4 autres styles (têtes inchangées ; « Ma bibliothèque » comme avant)', 'editorial|android|actuel|carnet|biblio inchangée', () => avecTetes(async () => {
+    const r = [];
+    for (const st of ['editorial', 'android', 'actuel', 'carnet']) await avecStyle(st, 'light', async () => { await allerEcran('notes');
+      const o = document.querySelector('#main .ecran-ours'); r.push(o && o.checkVisibility() ? st + ' : visible' : st); });
+    // (« Ma bibliothèque » : visible et lu en Android, Actuel, Carnet ; masqué à l'œil mais lu en Éditorial — comme avant le lot 32)
+    const vu = st => avecStyle(st, 'light', async () => { await allerEcran('en_cours'); const q = document.querySelector('#main .library-intro p:not(.ecran-ligne)');
+      return !!q && q.textContent === 'Ma bibliothèque' && !q.hasAttribute('aria-hidden') && q.getBoundingClientRect().width > 2; });
+    const v = [await vu('android'), await vu('actuel'), await vu('carnet'), !(await vu('editorial'))];
+    r.push(v.every(Boolean) ? 'biblio inchangée' : 'biblio ' + v.join(','));
+    return r.join('|');
+  }));
+  await test('Lot 32 : TalkBack lit les mêmes titres qu’avant (h2 inchangés, nouvel ours caché aux lecteurs d’écran)', 'ok', () => avecTetes(() => avecStyle('jardin', 'light', async () => {
+    await allerEcran('notes'); const h = document.querySelector('#main h2.ecran-titre'), o = document.querySelector('#main .ecran-ours');
+    return h && o && h.textContent === 'Carnet' && o.getAttribute('aria-hidden') === 'true' ? 'ok' : (h && h.textContent) + ' / ' + (o && o.getAttribute('aria-hidden'));
+  })));
+  await test('Lot 32 : ligne d’en-tête à 130 % — rien ne dépasse ni n’est coupé sur les 4 écrans', [], () => avecTetes(() => avecStyle('jardin', 'light', async () => {
+    const ko = []; document.documentElement.style.fontSize = '130%';
+    try { for (const [t] of TETES) { await allerEcran(t);
+      // (sur la Bibliothèque, c'est le titre du statut qui tient lieu d'ours — choix d'Elias du 12/11)
+      const el = [...document.querySelectorAll('#main .ecran-ours, #main .ecran-ligne, #main .library-intro .ecran-titre')].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+      if (el.length < (t === 'stats' && innerWidth < 360 ? 1 : 2)) ko.push(t + ' : ligne d’en-tête absente');   // (Ciel très étroit : l'ours décoratif se retire, relecture du lot 32)
+      for (const e of el) if (e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > innerWidth + .5) ko.push(t + ' ' + e.className); } }
+    finally { document.documentElement.style.fontSize = ''; }
+    return ko;
+  })));
+  // (lot 32, tâche 5, D8 : grain de papier fixe sur le fond de la page, en Jardin Jour seulement)
+  await test('Lot 32 : grain de papier en Jardin Jour seulement — ni en Nuit, ni dans les autres styles ; il suit le thème sans recharger', 'jour grain|nuit sans|editorial sans|carnet sans|rebascule grain', async () => {
+    const grain = () => /url\(/.test(getComputedStyle(document.body).backgroundImage) ? 'grain' : 'sans';
+    const r = [await avecStyle('jardin', 'light', () => 'jour ' + grain()), await avecStyle('jardin', 'dark', () => 'nuit ' + grain()),
+      await avecStyle('editorial', 'light', () => 'editorial ' + grain()), await avecStyle('carnet', 'light', () => 'carnet ' + grain())];
+    r.push(await avecStyle('jardin', 'dark', async () => { prefs.theme = 'light'; applyTheme(); return 'rebascule ' + grain(); }));
+    return r.join('|');
+  });
+  // (relecture du lot 32, point 1 : au démarrage, les messages de passage se suivent au lieu de s'écraser)
+  await test('Lot 32 (relecture) : au démarrage, le message du Jardin puis celui de la fiche se suivent — aucun n’écrase l’autre', 'jardin,fiche|écart ok', async () => {
+    const p0 = JSON.stringify(prefs), vus = [], t0 = window.toastLater;
+    try {
+      Object.keys(prefs).forEach(k => delete prefs[k]);
+      Object.assign(prefs, {...PREFS_DEFAUT, style: 'editorial', styleEditorial: 1, consultation: 'livre'});   // (appareil ouvert entre le 25 et le 30/10)
+      window.toastLater = (m, d) => vus.push([m, d || 1000]);
+      passagesAuDemarrage();
+      const noms = vus.map(([m]) => m === MSG_JARDIN ? 'jardin' : m === MSG_FICHE ? 'fiche' : m === MSG_EDITORIAL ? 'editorial' : '?');
+      return [noms.join(','), vus.length === 2 && vus[1][1] - vus[0][1] >= 2600 ? 'écart ok' : 'écart ' + vus.map(v => v[1]).join('/')].join('|');
+    } finally { window.toastLater = t0; Object.keys(prefs).forEach(k => delete prefs[k]); Object.assign(prefs, JSON.parse(p0)); savePrefs(); applyTheme(); }
+  });
+  // (relecture du lot 32, point 2 : la tête du Ciel, avec son choix d'année, reste aussi serrée que celles de Découvrir et du Carnet)
+  await test('Lot 32 (relecture) : en Jardin, l’espace entre la ligne d’en-tête et le grand titre du Ciel est celui des autres têtes', 'ok', () => avecTetes(() => avecStyle('jardin', 'light', async () => {
+    const ecart = async t => { await allerEcran(t); const o = document.querySelector('#main .ecran-ours').getBoundingClientRect(), h = document.querySelector('#main .ecran-titre').getBoundingClientRect(); return h.top - o.bottom; };
+    const carnet = await ecart('notes'), decouvrir = await ecart('decouvrir'), ciel = await ecart('stats');
+    // (le choix de l'année, plus haut que le titre, est centré sur lui : on tolère la moitié de la différence de hauteur)
+    const sel = document.querySelector('#main .ecran-tete #year').getBoundingClientRect().height, tit = document.querySelector('#main .ecran-titre').getBoundingClientRect().height;
+    const tol = Math.max(0, (sel - tit) / 2) + 2;
+    return Math.abs(carnet - decouvrir) <= 2 && ciel - carnet <= tol ? 'ok' : `Carnet ${Math.round(carnet)}, Découvrir ${Math.round(decouvrir)}, Ciel ${Math.round(ciel)} (tolérance ${Math.round(tol)})`;
+  })));
+  // (relecture du lot 32, point 3 : à 130 %, avec des nombres à 2 et 3 chiffres, l'ours tient sur 1 ligne et la ligne douce sur 2 au plus)
+  await test('Lot 32 (relecture) : texte à 130 %, grands nombres — ours sur 1 ligne, ligne douce sur 2 lignes au plus (4 écrans)', [], () => avecStyle('jardin', 'light', async () => {
+    const b0 = books, ko = [];
+    books = Array.from({length: 120}, (_, i) => fiche('Nombre ' + i, {statut: i < 110 ? 'en_cours' : 'lu', dateDebut: addDays(-3), dateFin: i < 110 ? '' : today(),
+      notes: i < 12 ? [{id: 'nn' + i, texte: 'Note ' + i, date: today()}] : [], citations: i < 12 ? [1, 2, 3].map(k => ({id: 'cc' + i + k, texte: 'Citation ' + k, page: '1', date: today(), commentaire: ''})) : []}));
+    document.documentElement.style.fontSize = '130%';
+    try {
+      for (const t of ['en_cours', 'decouvrir', 'notes', 'stats']) { await allerEcran(t);
+        const lignes = e => Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight));
+        const ours = [...document.querySelectorAll('#main .ecran-ours, #main .library-intro .ecran-titre')].find(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+        const l = document.querySelector('#main .ecran-ligne');
+        if (!l || (!ours && t !== 'stats')) { ko.push(t + ' : tête absente'); continue; }   // (Ciel très étroit : l'ours décoratif peut se retirer)
+        if (ours && lignes(ours) > 1) ko.push(t + ' : ours sur ' + lignes(ours) + ' lignes');
+        if (lignes(l) > 2) ko.push(t + ' : ligne douce sur ' + lignes(l) + ' lignes (« ' + l.textContent + ' »)');
+        if (ours && ours.checkVisibility() && seCoupent(ours.getBoundingClientRect(), l.getBoundingClientRect())) ko.push(t + ' : ours et ligne douce se chevauchent');
+      }
+    } finally { document.documentElement.style.fontSize = ''; books = b0; ui.tab = 'en_cours'; render(); }
+    return ko;
+  }));
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

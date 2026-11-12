@@ -11,15 +11,17 @@
 (() => { try {
   const p = JSON.parse(localStorage.getItem((/[?&]tests\b/.test(location.search) ? 'test-' : '') + 'mes-lectures-prefs')) || {}, r = document.documentElement;
   // (passage unique à Éditorial, plan maître phase 1 : un appareil resté en Android moderne s'affiche déjà en Éditorial)
-  const st = !p.styleEditorial && p.style === 'android' ? 'editorial' : p.style;
-  r.dataset.style = ['editorial', 'android', 'actuel', 'carnet'].includes(st) ? st : 'editorial';
+  let st = !p.styleEditorial && p.style === 'android' ? 'editorial' : p.style;
+  // (lot 32, D1 : passage unique au Jardin de nuit — un appareil resté en Éditorial s'affiche déjà en Jardin)
+  if (!p.styleJardin && st === 'editorial') st = 'jardin';
+  r.dataset.style = ['jardin', 'editorial', 'android', 'actuel', 'carnet'].includes(st) ? st : 'jardin';
   r.dataset.theme = p.theme === 'dark' || (p.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
 } catch (e) {} })();
 </script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#141414">
+<meta name="theme-color" content="#0D1020">
 <style>
 /* =====================================================================
    Système de design (phase 1) : un style (data-style) × un thème (data-theme) = une palette.
@@ -31,6 +33,7 @@
   --sur-note:#ffffff;--voile:rgba(12,12,12,.55);--trait-champ:var(--trait)}
 /* Formes de chaque style */
 :root,[data-style=editorial]{--r-s:6px;--r-m:12px;--r-l:20px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 8px 24px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:30%;--couv-l:34%}
+[data-style=jardin]{--r-s:6px;--r-m:12px;--r-l:20px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 8px 24px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:30%;--couv-l:34%}   /* (lot 32 : formes de l’Éditorial) */
 [data-style=android]{--r-s:8px;--r-m:16px;--r-l:28px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.18);--bordure-carte:0px;--carte:var(--surface-2);--couv-s:30%;--couv-l:34%}
 [data-style=actuel]{--r-s:6px;--r-m:12px;--r-l:18px;--r-pilule:999px;--ombre-1:none;--ombre-2:0 4px 16px rgba(0,0,0,.2);--bordure-carte:1px;--carte:var(--surface);--couv-s:28%;--couv-l:34%}
 [data-style=carnet]{--r-s:4px;--r-m:10px;--r-l:14px;--r-pilule:10px;--ombre-1:0 1px 3px rgba(60,40,20,.10),0 4px 14px rgba(60,40,20,.08);--ombre-2:0 6px 20px rgba(60,40,20,.18);--bordure-carte:0px;--carte:var(--surface);--couv-s:32%;--couv-l:32%;--police-titres:Georgia,"Times New Roman",serif}
@@ -46,6 +49,12 @@
 [data-style=actuel][data-theme=dark]{--fond:#0d0d0d;--surface:#191919;--surface-2:#222222;--texte:#f1f1f1;--texte-doux:#a3a3a3;--trait:#2b2b2b;--accent:#2ecc71;--sur-accent:#04210f;--accent-doux:#143022;--sur-accent-doux:#8fe3b0;--barre:#000000;--texte-barre:#ffffff;--texte-barre-doux:#a3a3a3;--barre-2:#1f1f1f;--danger:#ff8a7a;--alerte:#f3c14c;color-scheme:dark}
 [data-style=carnet][data-theme=light]{--fond:#F6F1E8;--surface:#FFFCF6;--surface-2:#EDE4D7;--texte:#252723;--texte-doux:#5E574C;--trait:#DED5C8;--accent:#843F4B;--sur-accent:#ffffff;--accent-doux:#F1E1E2;--sur-accent-doux:#642B36;--barre:#EDE4D7;--texte-barre:#252723;--texte-barre-doux:#5E574C;--barre-2:#DED5C8;--danger:#A52A2A;--alerte:#6E5A2E;color-scheme:light}
 [data-style=carnet][data-theme=dark]{--fond:#191A18;--surface:#252723;--surface-2:#302F2A;--texte:#F6F1E8;--texte-doux:#C4BFB5;--trait:#41413B;--accent:#D69AA4;--sur-accent:#191A18;--accent-doux:#41272D;--sur-accent-doux:#F1C4CC;--barre:#191A18;--texte-barre:#F6F1E8;--texte-barre-doux:#C4BFB5;--barre-2:#302F2A;--danger:#FF9B91;--alerte:#C5A775;color-scheme:dark}
+/* (lot 32) Jardin de nuit — Jour « papier » : encre et vermillon ; danger plus sombre que le vermillon (D9) */
+[data-style=jardin][data-theme=light]{--fond:#FAF7F1;--surface:#FFFDF9;--surface-2:#F1ECE2;--texte:#161412;--texte-doux:#5F5A54;--trait:#E2DBCF;--trait-champ:#8C857C;--accent:#A8341F;--sur-accent:#FFFFFF;--accent-doux:#F6E0DA;--sur-accent-doux:#7A2414;--barre:#FAF7F1;--texte-barre:#161412;--texte-barre-doux:#5F5A54;--barre-2:#F1ECE2;--danger:#8C1D18;--alerte:#7A5A00;color-scheme:light}
+/* (lot 32) Jardin de nuit — Nuit : bleu nuit et astre doré ; alerte orangée pour ne pas se confondre avec l'astre */
+[data-style=jardin][data-theme=dark]{--fond:#0D1020;--surface:#151A2E;--surface-2:#1E2440;--texte:#ECEEF6;--texte-doux:#A3AAC2;--trait:#262D4A;--trait-champ:#6A7396;--accent:#F2D08A;--sur-accent:#0D1020;--accent-doux:#3A3424;--sur-accent-doux:#F6E2B5;--barre:#0D1020;--texte-barre:#ECEEF6;--texte-barre-doux:#A3AAC2;--barre-2:#1E2440;--danger:#FF9F95;--alerte:#F4B183;--ombre-2:0 8px 24px rgba(0,0,0,.45);color-scheme:dark}
+/* (lot 32, D8) Grain de papier du Jour : bruit SVG très léger, fixe, en tuile de 160 px, posé sur le fond de la page (pas de calque) */
+[data-style=jardin][data-theme=light] body{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .2 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")}
 /* Aperçus de style (Réglages) */
 /* ---------- Livre : palette (direction A « Bibliothèque éditoriale premium ») ---------- */
 :root{--livre-papier:#F6F1E8;--livre-encre:#252723;--livre-doux:#5E574C;--livre-or:#C5A775;--livre-or-texte:#6E5A2E;--livre-vert:#843F4B;--livre-bordeaux:#843F4B;--livre-tranche:#DED5C8;--livre-tranche-2:#FFFCF6;--livre-ombre:rgba(45,38,32,.32);--livre-police:"Noto Serif",Georgia,"Times New Roman",serif;
@@ -107,11 +116,12 @@
   .cg-illustree .cg-ini{position:absolute;left:0;right:0;top:7%;text-align:center}
 }
 .seg.styles{display:grid;grid-template-columns:1fr 1fr;border-radius:var(--r-m)}
+.seg.styles button:first-child{grid-column:1/-1}   /* (lot 32 : 5 styles — le premier, Jardin de nuit, sur toute la largeur) */
 .styles button{display:flex;flex-direction:column;align-items:center;gap:var(--e-1);padding:var(--e-2) var(--e-1)}
 /* (lot 5) Éditorial : 4 cartes de style séparées et arrondies, le choix actif en rose doux */
-[data-style=editorial] .seg.styles{gap:var(--e-2);border:0;background:none;overflow:visible}
-[data-style=editorial] .seg.styles button{border:1px solid var(--trait);border-radius:var(--r-m);background:var(--carte);height:auto;min-height:var(--toucher)}
-[data-style=editorial] .seg.styles button.on{border-color:var(--accent);background:var(--accent-doux);color:var(--sur-accent-doux)}
+:is([data-style=editorial],[data-style=jardin]) .seg.styles{gap:var(--e-2);border:0;background:none;overflow:visible}
+:is([data-style=editorial],[data-style=jardin]) .seg.styles button{border:1px solid var(--trait);border-radius:var(--r-m);background:var(--carte);height:auto;min-height:var(--toucher)}
+:is([data-style=editorial],[data-style=jardin]) .seg.styles button.on{border-color:var(--accent);background:var(--accent-doux);color:var(--sur-accent-doux)}
 .apercu{display:flex;width:52px;height:30px;border-radius:var(--r-s);background:var(--fond);border:1px solid var(--trait);overflow:hidden;padding:4px;gap:4px}
 .apercu i{flex:1;background:var(--accent);border-radius:var(--r-s)}
 .apercu b{flex:2;background:var(--carte);border-radius:var(--r-s)}
@@ -154,7 +164,7 @@ h1{font-size:min(var(--t-xl),6vw);font-weight:800;margin:0;flex:1;min-width:0;wh
 /* (lot 1 de la refonte, 31/10/2026) l'émoji caché sous l'icône ne doit pas réapparaître (il la colorait) : grand émoji en Carnet
    seulement ; en Éditorial, l'icône de l'espace actif est rose */
 [data-style=carnet] .tab .ico{font-size:var(--t-xl)}
-[data-style=editorial] .tab.on .ico{color:var(--accent)}
+:is([data-style=editorial],[data-style=jardin]) .tab.on .ico{color:var(--accent)}
 .tab.on{color:var(--texte-barre);border-top-color:var(--accent)}
 /* (nouvelle sélection du mois dans Découvrir : une pastille, et le nombre dit aux lecteurs d'écran) */
 .tab .n.neuf{position:absolute;top:6px;left:calc(50% + 8px);min-width:10px;height:10px;padding:0;border-radius:50%;background:var(--accent);font-size:0;overflow:hidden}
@@ -860,77 +870,99 @@ button{-webkit-touch-callout:none}
    Les puces qui disent quelque chose par leur contour (suggéré, à compléter, en retard, page) le gardent ;
    un choix actif garde un contour rose : son fond seul (accent doux) se distinguerait mal de la surface 2.
    Sur un cadre déjà gris, le bouton reprend le fond surface. Le livre (.lv) garde ses propres boutons. */
-[data-style=editorial] .chip:not(.warn,.late,.pg,.suggere):not(.lv *){border-color:transparent;background:var(--surface-2)}
-[data-style=editorial] :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *){border-color:transparent;background:var(--surface-2)}
-[data-style=editorial] :is(.rq-tax-explorer,.entree,.editeur) :is(.btn,.chipb):not(.pri,.on,.del):not(.lv *){background:var(--surface)}
-[data-style=editorial] .btn.on{border-color:var(--accent)}
-[data-style=editorial] .panel.encadre{border-color:transparent;background:var(--surface)}
-[data-style=editorial] .resume-lecture{border:0}
-[data-style=editorial] .subtab .n{background:none;color:var(--texte-doux)}
-[data-style=editorial] .subtab.on .n{color:inherit}
-[data-style=editorial] .notice:not(.danger){border-left:0}
-[data-style=editorial] details:not(.pourquoi,.inconnus):not(.lv *) > summary{color:var(--texte)}
-[data-style=editorial] summary .ico{color:var(--texte-doux)}
-@media(hover:hover){[data-style=editorial] :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *):not(:disabled):hover{border-color:var(--accent)}}
+:is([data-style=editorial],[data-style=jardin]) .chip:not(.warn,.late,.pg,.suggere):not(.lv *){border-color:transparent;background:var(--surface-2)}
+:is([data-style=editorial],[data-style=jardin]) :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *){border-color:transparent;background:var(--surface-2)}
+:is([data-style=editorial],[data-style=jardin]) :is(.rq-tax-explorer,.entree,.editeur) :is(.btn,.chipb):not(.pri,.on,.del):not(.lv *){background:var(--surface)}
+:is([data-style=editorial],[data-style=jardin]) .btn.on{border-color:var(--accent)}
+:is([data-style=editorial],[data-style=jardin]) .panel.encadre{border-color:transparent;background:var(--surface)}
+:is([data-style=editorial],[data-style=jardin]) .resume-lecture{border:0}
+:is([data-style=editorial],[data-style=jardin]) .subtab .n{background:none;color:var(--texte-doux)}
+:is([data-style=editorial],[data-style=jardin]) .subtab.on .n{color:inherit}
+:is([data-style=editorial],[data-style=jardin]) .notice:not(.danger){border-left:0}
+:is([data-style=editorial],[data-style=jardin]) details:not(.pourquoi,.inconnus):not(.lv *) > summary{color:var(--texte)}
+:is([data-style=editorial],[data-style=jardin]) summary .ico{color:var(--texte-doux)}
+@media(hover:hover){:is([data-style=editorial],[data-style=jardin]) :is(.btn,.chipb,.subtab):not(.pri,.on,.del):not(.lv *):not(:disabled):hover{border-color:var(--accent)}}
 /* ---------- Direction premium : une hiérarchie calme, sans retirer aucune fonction ---------- */
-[data-style=editorial] header{box-shadow:none}
-[data-style=editorial] h1,.livre-titre,.resume-lecture h2{font-family:var(--police-titres);font-weight:600}
-[data-style=editorial] .library-intro{padding:var(--e-2) 0 var(--e-1)}
+:is([data-style=editorial],[data-style=jardin]) header{box-shadow:none}
+:is([data-style=editorial],[data-style=jardin]) h1,.livre-titre,.resume-lecture h2{font-family:var(--police-titres);font-weight:600}
+:is([data-style=editorial],[data-style=jardin]) .library-intro{padding:var(--e-2) 0 var(--e-1)}
 /* (lot 2 : « Ma bibliothèque » reste dit aux lecteurs d'écran ; le titre et le nombre de livres tiennent sur une ligne) */
-[data-style=editorial] .library-intro > div > p:not(.ecran-ligne){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-[data-style=editorial] .library-nav{margin-bottom:var(--e-1)}
-[data-style=editorial] .resume-lecture{background:linear-gradient(135deg,var(--surface),var(--accent-doux));padding:var(--e-3) var(--e-4);margin:var(--e-1) 0 var(--e-2);gap:var(--e-2) var(--e-3)}
-[data-style=editorial] .resume-lecture + .tools{padding-top:var(--e-1)}
-[data-style=editorial] .resume-lecture .meta{margin:calc(var(--e-1) / 2) 0}[data-style=editorial] .resume-lecture .reste{margin-top:calc(var(--e-1) / 2)}
-@media(max-width:359.98px){[data-style=editorial] .library-nav{padding-top:var(--e-1);padding-bottom:var(--e-1)}[data-style=editorial] .resume-lecture{gap:var(--e-2) var(--e-3)}[data-style=editorial] .filtres{margin-bottom:var(--e-1)}[data-style=editorial] .resume-lecture .resume-titre{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
-[data-style=editorial] .resume-lecture .ph{box-shadow:none}
+:is([data-style=editorial],[data-style=jardin]) .library-intro > div > p:not(.ecran-ligne){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:is([data-style=editorial],[data-style=jardin]) .library-nav{margin-bottom:var(--e-1)}
+:is([data-style=editorial],[data-style=jardin]) .resume-lecture{background:linear-gradient(135deg,var(--surface),var(--accent-doux));padding:var(--e-3) var(--e-4);margin:var(--e-1) 0 var(--e-2);gap:var(--e-2) var(--e-3)}
+:is([data-style=editorial],[data-style=jardin]) .resume-lecture + .tools{padding-top:var(--e-1)}
+:is([data-style=editorial],[data-style=jardin]) .resume-lecture .meta{margin:calc(var(--e-1) / 2) 0}:is([data-style=editorial],[data-style=jardin]) .resume-lecture .reste{margin-top:calc(var(--e-1) / 2)}
+@media(max-width:359.98px){:is([data-style=editorial],[data-style=jardin]) .library-nav{padding-top:var(--e-1);padding-bottom:var(--e-1)}:is([data-style=editorial],[data-style=jardin]) .resume-lecture{gap:var(--e-2) var(--e-3)}:is([data-style=editorial],[data-style=jardin]) .filtres{margin-bottom:var(--e-1)}:is([data-style=editorial],[data-style=jardin]) .resume-lecture .resume-titre{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}}
+:is([data-style=editorial],[data-style=jardin]) .resume-lecture .ph{box-shadow:none}
 /* (lot V1 : un seul état « choisi » en Éditorial, celui des statuts — rose doux et contour rose ; le rose plein reste au bouton principal) */
-[data-style=editorial] :is(.seg button,.chipb).on,[data-style=editorial] .discover-q-par .chipb.on{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
-[data-style=editorial] .seg button.on{box-shadow:inset 0 0 0 1px var(--accent)}
+:is([data-style=editorial],[data-style=jardin]) :is(.seg button,.chipb).on,:is([data-style=editorial],[data-style=jardin]) .discover-q-par .chipb.on{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
+:is([data-style=editorial],[data-style=jardin]) .seg button.on{box-shadow:inset 0 0 0 1px var(--accent)}
 /* (lot V3 : graphiques en rose ; choix actif des sélecteurs en pilule détachée du bord, 48 px de toucher conservés) */
-[data-style=editorial] :is(.chart i,.hb .bar>i){background:var(--accent)}
-[data-style=editorial] .seg:not(.styles){padding:3px;gap:10px 2px;overflow:visible;flex-wrap:wrap;border-radius:calc(var(--toucher) / 2)}   /* (deux rangées si les mots ne tiennent pas : texte agrandi, 320 px) */
-[data-style=editorial] .seg:not(.styles) button{position:relative;border-radius:var(--r-pilule);min-height:calc(var(--toucher) - 8px)}
-[data-style=editorial] .seg:not(.styles) button::after{content:"";position:absolute;inset:-4px 0}
-[data-style=editorial] .seg:not(.styles) button:focus{z-index:1}
+:is([data-style=editorial],[data-style=jardin]) :is(.chart i,.hb .bar>i){background:var(--accent)}
+:is([data-style=editorial],[data-style=jardin]) .seg:not(.styles){padding:3px;gap:10px 2px;overflow:visible;flex-wrap:wrap;border-radius:calc(var(--toucher) / 2)}   /* (deux rangées si les mots ne tiennent pas : texte agrandi, 320 px) */
+:is([data-style=editorial],[data-style=jardin]) .seg:not(.styles) button{position:relative;border-radius:var(--r-pilule);min-height:calc(var(--toucher) - 8px)}
+:is([data-style=editorial],[data-style=jardin]) .seg:not(.styles) button::after{content:"";position:absolute;inset:-4px 0}
+:is([data-style=editorial],[data-style=jardin]) .seg:not(.styles) button:focus{z-index:1}
 /* (lot V5, U11) Réglages : quand les choix ne tiennent plus sur une ligne (texte agrandi, petit écran), ils s'empilent,
    un par ligne et de même largeur, avec un rond devant le choix actif. Seuil mesuré : Densité demande 16,4 em ; à 100 %, il reste toujours 18 em. */
 .f:has(> .seg:not(.styles)){container-type:inline-size}
 @container (max-width: 17.5em){
   .f > .seg:not(.styles){flex-direction:column;flex-wrap:nowrap;border-radius:var(--r-m)}
   .f > .seg:not(.styles) button{flex:none;display:flex;align-items:center;justify-content:flex-start;gap:var(--e-3);padding:0 var(--e-4);text-align:start;border-radius:0}
-  [data-style=editorial] .f > .seg:not(.styles) button{border-radius:calc(var(--r-m) - 3px)}
+  :is([data-style=editorial],[data-style=jardin]) .f > .seg:not(.styles) button{border-radius:calc(var(--r-m) - 3px)}
   .f > .seg:not(.styles) button::before{content:"";width:18px;height:18px;flex:none;box-sizing:border-box;border:2px solid var(--trait-champ);border-radius:50%}
   .f > .seg:not(.styles) button.on::before{border:6px solid currentColor}
 }
 /* (lot V1 : tuiles de Découvrir et choix d'Ajouter et d'Actions sans contour, distingués par leur fond, comme les autres cartes de l'Éditorial) */
-[data-style=editorial] .tuile{border-color:transparent;background:var(--carte)}
-[data-style=editorial] .ajout button{border-color:transparent;background:var(--surface-2)}   /* (dans une fenêtre, dont le fond est déjà celui des cartes) */
+:is([data-style=editorial],[data-style=jardin]) .tuile{border-color:transparent;background:var(--carte)}
+:is([data-style=editorial],[data-style=jardin]) .ajout button{border-color:transparent;background:var(--surface-2)}   /* (dans une fenêtre, dont le fond est déjà celui des cartes) */
 /* (lot V1 : un seul encart « mis en avant » — Dernière note, Dernière citation, Mon avis : fond gris, filet rose, texte normal) */
-[data-style=editorial] :is(.carnet-repere,.livre-trace,.livre-avis){border:0;border-left:3px solid var(--accent);border-radius:0 var(--r-s) var(--r-s) 0;background:var(--surface-2);color:var(--texte)}
+:is([data-style=editorial],[data-style=jardin]) :is(.carnet-repere,.livre-trace,.livre-avis){border:0;border-left:3px solid var(--accent);border-radius:0 var(--r-s) var(--r-s) 0;background:var(--surface-2);color:var(--texte)}
 /* (lot V1 : volets repliables — chevron dessiné partout, qui tourne à l'ouverture ; « Changer » garde son mot, sans chevron) */
-[data-style=editorial] summary{display:flex;align-items:center;gap:var(--e-2);list-style:none}
-[data-style=editorial] summary::-webkit-details-marker{display:none}
-[data-style=editorial] summary::after{content:'';flex:none;margin-left:auto;width:1.1rem;height:1.1rem;background:var(--texte-doux);-webkit-mask:var(--ico) center/contain no-repeat;mask:var(--ico) center/contain no-repeat;transition:transform .2s}
-[data-style=editorial] details[open] > summary::after{transform:rotate(180deg)}
-[data-style=editorial] .discover-surprise > summary::after{content:'Changer';width:auto;height:auto;background:none;-webkit-mask:none;mask:none;transform:none}
-[data-style=editorial] .discover-surprise[open] > summary::after{content:'Réduire';transform:none}
-[data-style=editorial] :is(.discover-search,.livre-resume)[open] summary::after{content:''}
-[data-style=editorial] .ruban{display:block;position:absolute;top:-3px;right:14%;width:14%;min-width:8px;height:26%;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
-[data-style=editorial] .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
-[data-style=editorial] .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
-[data-style=editorial] .list:not(.grid) .card:last-child{border-bottom:0}
-[data-style=editorial] .list:not(.grid) .card .cover{width:62px;height:92px}
-[data-style=editorial] .list:not(.grid) .card .acts{padding-top:var(--e-1)}
-[data-style=editorial] .carnet-entry{border-color:transparent;background:var(--surface-2);margin-bottom:var(--e-3)}
-[data-style=editorial] .quote{border:0;background:var(--surface-2);box-shadow:none}
+:is([data-style=editorial],[data-style=jardin]) summary{display:flex;align-items:center;gap:var(--e-2);list-style:none}
+:is([data-style=editorial],[data-style=jardin]) summary::-webkit-details-marker{display:none}
+:is([data-style=editorial],[data-style=jardin]) summary::after{content:'';flex:none;margin-left:auto;width:1.1rem;height:1.1rem;background:var(--texte-doux);-webkit-mask:var(--ico) center/contain no-repeat;mask:var(--ico) center/contain no-repeat;transition:transform .2s}
+:is([data-style=editorial],[data-style=jardin]) details[open] > summary::after{transform:rotate(180deg)}
+:is([data-style=editorial],[data-style=jardin]) .discover-surprise > summary::after{content:'Changer';width:auto;height:auto;background:none;-webkit-mask:none;mask:none;transform:none}
+:is([data-style=editorial],[data-style=jardin]) .discover-surprise[open] > summary::after{content:'Réduire';transform:none}
+:is([data-style=editorial],[data-style=jardin]) :is(.discover-search,.livre-resume)[open] summary::after{content:''}
+:is([data-style=editorial],[data-style=jardin]) .ruban{display:block;position:absolute;top:-3px;right:14%;width:14%;min-width:8px;height:26%;background:var(--accent);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
+:is([data-style=editorial],[data-style=jardin]) .resume-lecture .resume-titre{color:var(--accent);letter-spacing:.08em}
+:is([data-style=editorial],[data-style=jardin]) .list:not(.grid) .card{background:transparent;padding:var(--e-3) 0;border-radius:0;border-bottom:1px solid var(--trait);gap:var(--e-3)}
+:is([data-style=editorial],[data-style=jardin]) .list:not(.grid) .card:last-child{border-bottom:0}
+:is([data-style=editorial],[data-style=jardin]) .list:not(.grid) .card .cover{width:62px;height:92px}
+:is([data-style=editorial],[data-style=jardin]) .list:not(.grid) .card .acts{padding-top:var(--e-1)}
+:is([data-style=editorial],[data-style=jardin]) .carnet-entry{border-color:transparent;background:var(--surface-2);margin-bottom:var(--e-3)}
+:is([data-style=editorial],[data-style=jardin]) .quote{border:0;background:var(--surface-2);box-shadow:none}
 /* (lot V5, U1 : même tête pour les 4 espaces ; la tête de Bibliothèque des styles Android, Actuel et Carnet ne change pas) */
 .ecran-tete:not(.library-intro){display:flex;align-items:center;gap:var(--e-3);padding:var(--e-2) 0 var(--e-1)}
 .ecran-tete > div{flex:1;min-width:0}
-.ecran-tete:not(.library-intro) > div,[data-style=editorial] .library-intro > div{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:var(--e-3)}   /* (lot V5 : titre et ligne côte à côte quand ils tiennent : le premier livre reste visible avec un bandeau) */
-.ecran-tete:not(.library-intro) .ecran-titre,[data-style=editorial] .library-intro .ecran-titre{margin:0;font:600 var(--t-xl)/1.1 var(--police-titres);letter-spacing:-.01em;color:var(--texte)}
-.ecran-tete:not(.library-intro) .ecran-ligne,[data-style=editorial] .library-intro .ecran-ligne{margin:0;color:var(--texte-doux);font-size:var(--t-s)}
+.ecran-tete:not(.library-intro) > div,:is([data-style=editorial],[data-style=jardin]) .library-intro > div{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:var(--e-3)}   /* (lot V5 : titre et ligne côte à côte quand ils tiennent : le premier livre reste visible avec un bandeau) */
+.ecran-tete:not(.library-intro) .ecran-titre,:is([data-style=editorial],[data-style=jardin]) .library-intro .ecran-titre{margin:0;font:600 var(--t-xl)/1.1 var(--police-titres);letter-spacing:-.01em;color:var(--texte)}
+.ecran-tete:not(.library-intro) .ecran-ligne,:is([data-style=editorial],[data-style=jardin]) .library-intro .ecran-ligne{margin:0;color:var(--texte-doux);font-size:var(--t-s)}
 .discover-intro.ecran-tete{margin:0}
+/* (lot 32, D7) Ligne d'en-tête « Encre » du Jardin : ours à gauche, ligne douce à droite, filet dessous, grand titre en
+   dessous. Ailleurs, l'ours des têtes est caché ; « Ma bibliothèque » garde son affichage d'avant dans les 4 autres styles. */
+.ecran-tete:not(.library-intro) .ecran-ours{display:none}
+[data-style=jardin] .ecran-tete > div{display:grid;grid-template-columns:auto 1fr;align-items:baseline;column-gap:var(--e-3)}
+[data-style=jardin] .ecran-tete:not(.library-intro) > div > p.ecran-ours{display:block;position:static;width:auto;height:auto;overflow:visible;clip:auto;white-space:nowrap;grid-row:1;grid-column:1;margin:0;font:700 var(--t-xs)/1.25 var(--police-texte);letter-spacing:.14em;text-transform:uppercase;color:var(--texte-doux)}
+[data-style=jardin] .ecran-tete .ecran-ligne{grid-row:1;grid-column:2;text-align:right;font-size:var(--t-xs);line-height:1.25;letter-spacing:.06em;text-transform:uppercase}
+[data-style=jardin] .ecran-tete > div::after{content:"";grid-row:2;grid-column:1/-1;border-bottom:1px solid var(--trait-champ);margin:calc(var(--e-1) / 2) 0 var(--e-1)}   /* (serré comme la maquette : la tête ne doit pas pousser le premier livre sous la barre) */
+[data-style=jardin] .ecran-tete .ecran-titre{grid-row:3;grid-column:1/-1}
+/* (captures du lot 32) Tête avec un choix à droite (l'année du Ciel) : la ligne d'en-tête garde toute la largeur et le choix
+   se range à côté du grand titre — sinon, à 320 px ou à 130 %, l'ours et la ligne douce se coupaient sur 2 à 3 lignes */
+[data-style=jardin] .ecran-tete:has(> select){display:grid;grid-template-columns:auto 1fr auto;align-items:baseline;column-gap:var(--e-3);row-gap:0;container-type:inline-size}
+[data-style=jardin] .ecran-tete:has(> select) > div{display:contents}
+[data-style=jardin] .ecran-tete:has(> select) .ecran-ligne{grid-column:2/-1}
+[data-style=jardin] .ecran-tete:has(> select) .ecran-titre{grid-column:1/3}
+[data-style=jardin] .ecran-tete:has(> select) > select{grid-row:3;grid-column:3;align-self:center}
+/* (relecture du lot 32) Tête très étroite (320 px avec texte agrandi) : l'ours, décoratif et caché aux lecteurs d'écran,
+   se retire pour que la ligne douce tienne sur 2 lignes au plus */
+@container (max-width: 15em){[data-style=jardin] .ecran-tete:not(.library-intro):has(> select) > div > p.ecran-ours{display:none}[data-style=jardin] .ecran-tete:has(> select) .ecran-ligne{grid-column:1/-1;text-align:left}}
+/* (choix d'Elias du 12/11, « Titre dans la ligne ») Bibliothèque : le titre du statut devient la ligne d'en-tête, sans grand
+   titre dessous — sinon, avec le rappel de sauvegarde, le premier livre passait sous la barre. « Ma bibliothèque » reste
+   masqué à l'œil et lu, comme en Éditorial. */
+[data-style=jardin] .library-intro .ecran-titre{grid-row:1;grid-column:1;font:700 var(--t-xs)/1.25 var(--police-texte);letter-spacing:.14em;text-transform:uppercase;color:var(--texte)}
 .ecran-tete select.puce-annee{flex:none;width:auto;min-height:var(--toucher);margin:0;padding:0 var(--e-5) 0 var(--e-4);border-radius:var(--r-pilule);font-size:var(--t-s);font-weight:600}
 /* (lot V5, U6 : chaque note et citation du Carnet montre la petite couverture de son livre) */
 .avec-couv{display:flex;gap:var(--e-3);align-items:flex-start}
@@ -1018,7 +1050,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.11-1';
+const VERSION = '2026.11.12-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1075,7 +1107,7 @@ const ESSAI = new URLSearchParams(location.search).has('tests');
 let REPRISE = !ESSAI;
 const CLE = ESSAI ? 'test-mes-lectures' : 'mes-lectures';
 // (O3a, 30/10/2026 : la fiche verticale est le carnet par défaut — décision d'Elias ; le livre feuilletable reste au choix)
-const PREFS_DEFAUT = {view: 'liste', theme: 'auto', style: 'editorial', density: 'confort', animation: 'complete', consultation: 'continue', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'};
+const PREFS_DEFAUT = {view: 'liste', theme: 'auto', style: 'jardin', density: 'confort', animation: 'complete', consultation: 'continue', pageStyle: 'classique', googleKey: '', bulkDest: 'a_lire'};
 const prefs = Object.assign({...PREFS_DEFAUT},
   (() => { try { return JSON.parse(localStorage.getItem(CLE + '-prefs')) || {}; } catch (e) { return {}; } })());
 function savePrefs() { try { localStorage.setItem(CLE + '-prefs', JSON.stringify(prefs)); } catch (e) {} }
@@ -1088,12 +1120,28 @@ function passageEditorial(p) {
   p.style = 'editorial'; return true;
 }
 const MSG_EDITORIAL = 'Nouveau style Éditorial. Tu peux revenir à Android moderne dans Réglages.';
-function appliquerPassageEditorial() {
-  if (prefs.styleEditorial) return;
+// (muet : le passage au Jardin va suivre et dira lui-même le nouveau style — un seul message, lot 32)
+function appliquerPassageEditorial(muet, delai = 1500) {
+  if (prefs.styleEditorial) return false;
   const passe = passageEditorial(prefs); savePrefs();
-  if (passe) toastLater(MSG_EDITORIAL, 1500);
+  if (passe && !muet) toastLater(MSG_EDITORIAL, delai);
+  return passe && !muet;   // (vrai si un message est prévu)
 }
-appliquerPassageEditorial();
+// Passage unique au Jardin de nuit (lot 32, D1 validée le 11/11/2026) : un appareil resté en Éditorial passe une seule
+// fois en Jardin ; le repère « styleJardin » garantit que tout choix fait ensuite est respecté
+function passageJardin(p) {
+  if (p.styleJardin) return false;
+  p.styleJardin = 1;
+  if (p.style !== 'editorial') return false;
+  p.style = 'jardin'; return true;
+}
+const MSG_JARDIN = 'Nouveau style : Jardin de nuit. Tu peux revenir à l’Éditorial dans Réglages.';
+function appliquerPassageJardin(delai = 1500) {
+  if (prefs.styleJardin) return false;
+  const passe = passageJardin(prefs); savePrefs();
+  if (passe) toastLater(MSG_JARDIN, delai);
+  return passe;
+}
 // Passage unique à la fiche verticale (O3a, accordé par Elias le 30/10/2026) : un appareil qui ouvrait les livres sur le
 // carnet feuilletable (l'ancien réglage par défaut, enregistré avec les autres) passe une seule fois à la fiche ;
 // le repère « consultationFiche » garantit que tout choix fait ensuite est respecté
@@ -1104,12 +1152,21 @@ function passageFiche(p) {
   p.consultation = 'continue'; return true;
 }
 const MSG_FICHE = 'Les livres s’ouvrent maintenant sur leur fiche. Réglages → À l’ouverture d’un livre pour revenir au carnet feuilletable.';
-function appliquerPassageFiche() {
-  if (prefs.consultationFiche) return;
+function appliquerPassageFiche(delai = 1500) {
+  if (prefs.consultationFiche) return false;
   const passe = passageFiche(prefs); savePrefs();
-  if (passe) toastLater(MSG_FICHE, 1500);
+  if (passe) toastLater(MSG_FICHE, delai);
+  return passe;
 }
-appliquerPassageFiche();
+// Passages uniques au démarrage. (relecture du lot 32) Un message simple s'efface au bout de 2,4 s et le suivant le
+// remplacerait aussitôt : chaque message prévu décale le suivant de 2,6 s (comme les défis réussis)
+function passagesAuDemarrage() {
+  let n = 0;
+  if (appliquerPassageEditorial(!prefs.styleJardin)) n++;   // (muet si le passage au Jardin va suivre : un seul message de style)
+  if (appliquerPassageJardin(1500 + n * 2600)) n++;
+  appliquerPassageFiche(1500 + n * 2600);
+}
+passagesAuDemarrage();
 Recherche.setGoogleKey(prefs.googleKey);
 
 /* ---------- Petits outils ---------- */
@@ -1174,7 +1231,7 @@ const emoTexte = s => esc(s).replace(/(\s?)(\p{Extended_Pictographic}️?)(\s?)/
   (m, a, e, b) => `<span class="emo" aria-hidden="true">${a}${e}${a ? '' : b}</span>${a ? b : ''}`);
 // Les masques sont produits ici une fois (aucune couleur : un masque ne garde que la forme ; la couleur est celle du texte)
 document.head.insertAdjacentHTML('beforeend', '<style id="icones">' + Object.entries(ICONES).map(([n, d]) =>
-  `.i-${n}${n === 'chevron' ? ',[data-style=editorial] summary' : ''}{--ico:url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${d}</svg>`)}")}`).join('') + '</style>');
+  `.i-${n}${n === 'chevron' ? ',:is([data-style=editorial],[data-style=jardin]) summary' : ''}{--ico:url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${d}</svg>`)}")}`).join('') + '</style>');
 const safeUrl = u => /^(https:\/\/|data:image\/(jpeg|png|webp);base64,)/i.test(u || '') ? u : '';
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -1395,14 +1452,14 @@ const serieLabel = b => b.serie ? b.serie + (b.tome ? ' · T.' + b.tome : '') : 
 
 /* ---------- Thème ---------- */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
-/* ---------- Apparence : style (Éditorial, Android moderne, Actuel, Carnet de lecture) et thème (clair, sombre) ---------- */
-const STYLES = {editorial: 'Éditorial', android: 'Android moderne', actuel: 'Actuel', carnet: 'Carnet de lecture'};
+/* ---------- Apparence : style (Jardin de nuit, Éditorial, Android moderne, Actuel, Carnet de lecture) et thème (clair, sombre) ---------- */
+const STYLES = {jardin: 'Jardin de nuit', editorial: 'Éditorial', android: 'Android moderne', actuel: 'Actuel', carnet: 'Carnet de lecture'};
 const DENSITES = {confort: 'Confortable', compact: 'Compact', concentration: 'Concentration'};
 function applyTheme() {
   const dark = prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches), r = document.documentElement;
   r.dataset.theme = dark ? 'dark' : 'light';
-  // (style absent ou inconnu : Éditorial)
-  r.dataset.style = Object.hasOwn(STYLES, prefs.style) ? prefs.style : 'editorial';
+  // (style absent ou inconnu : Jardin de nuit)
+  r.dataset.style = Object.hasOwn(STYLES, prefs.style) ? prefs.style : 'jardin';
   r.dataset.density = Object.hasOwn(DENSITES, prefs.density) ? prefs.density : 'confort';
   // Barre du navigateur : la couleur de l'en-tête du style choisi
   const barre = getComputedStyle(r).getPropertyValue('--barre').trim(), meta = document.querySelector('meta[name="theme-color"]');
@@ -1755,7 +1812,7 @@ function renderTout() {
   if (ui.tab === 'decouvrir') return renderDecouvrir();
   // (bibliothèque vide : la page de bienvenue d'abord ; statuts, recherche et filtres reviennent avec le premier livre)
   if (!books.length) { $('#main').innerHTML = '<div class="list" id="list"></div>'; return renderCards(); }
-  const libraryNav = `<div class="library-intro ecran-tete"><div><p>Ma bibliothèque</p><h2 class="ecran-titre">${STATUTS[ui.tab]}</h2><p class="ecran-ligne">${plural(c[ui.tab] || 0, 'livre')} · ${total} en tout</p></div></div><nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
+  const libraryNav = `<div class="library-intro ecran-tete"><div><p class="ecran-ours">Ma bibliothèque</p><h2 class="ecran-titre">${STATUTS[ui.tab]}</h2><p class="ecran-ligne">${plural(c[ui.tab] || 0, 'livre')} · ${total} en tout</p></div></div><nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
   const reprendre = REPRISE && ui.tab === 'en_cours' ? books.filter(b => b.statut === 'en_cours').sort((a, b) => dateKey(b).localeCompare(dateKey(a)))[0] : null;
   const pr = reprendre && progress(reprendre), vit = reprendre && speed();
   const resteLecture = pr && pr.tot && vit && pr.cur < pr.tot ? `<div class="reste">≈ ${fdur((pr.tot - pr.cur) / vit * 60)} à ton rythme</div>` : '';
@@ -2836,7 +2893,8 @@ function paintNotice() {
 
 /* ---------- Onglet Citations ---------- */
 // (lot V5, U1 : une même tête pour les 4 espaces — titre et ligne douce côte à côte quand ils tiennent, et à droite un réglage éventuel)
-const teteEcran = (titre, ligne, droite) => `<div class="ecran-tete"><div><h2 class="ecran-titre">${titre}</h2><p class="ecran-ligne">${ligne}</p></div>${droite || ''}</div>`;
+// (lot 32 : l'« ours » — « Mes lectures » en petites capitales — n'est visible qu'en Jardin, et caché aux lecteurs d'écran)
+const teteEcran = (titre, ligne, droite) => `<div class="ecran-tete"><div><p class="ecran-ours" aria-hidden="true">Mes lectures</p><h2 class="ecran-titre">${titre}</h2><p class="ecran-ligne">${ligne}</p></div>${droite || ''}</div>`;
 function carnetNav(active) {
   const nn = allNotes().length, nq = allQuotes().length;
   return teteEcran('Carnet', `${plural(nn, 'note')} · ${plural(nq, 'citation')}`) + `<nav class="subtabs carnet-nav" aria-label="Carnet">` +
@@ -3708,7 +3766,7 @@ function renderDecouvrir() {
       ${vuOuvert ? `<div class="discover-piste">${sugCard(vuOuvert, 'vu', prefs.vus.indexOf(vuOuvert))}</div>` : ''}</section>` : '';
   const dq = CHAMP_DQ[rech.par] || CHAMP_DQ.theme;
   $('#main').innerHTML = `
-    <div class="discover-intro ecran-tete"><div><h2 class="ecran-titre">Découvrir</h2><p class="ecran-ligne">Une piste pour ce soir</p></div></div>
+    <div class="discover-intro ecran-tete"><div><p class="ecran-ours" aria-hidden="true">Mes lectures</p><h2 class="ecran-titre">Découvrir</h2><p class="ecran-ligne">Une piste pour ce soir</p></div></div>
     ${hors ? `<p class="discover-horsligne" id="dcHors" role="status">${ico('horsligne', '📵')} Pas de connexion : ta sélection déjà prête, ta pile et Vus récemment restent disponibles.</p>` : ''}
     <form class="discover-q" id="dqForm" role="search"><div class="search"><input id="dq" type="search" enterkeyhint="search" placeholder="${esc(dq[1])}" aria-label="Chercher un livre par ${esc(dq[0].toLowerCase())}"${grise}><button class="btn" type="submit"${grise}>Chercher</button></div>
       <div class="discover-q-par" role="group" aria-label="Chercher par">${Object.entries(CHAMP_DQ).map(([k, [nom]]) => `<button type="button" class="chipb${rech.par === k ? ' on' : ''}" data-dqpar="${k}" aria-pressed="${rech.par === k}">${nom}</button>`).join('')}</div></form>
@@ -5014,7 +5072,8 @@ function autoResume(id) {
   resumeBusy = true;
   (async () => {
     while (resumeQueue.length) {
-      const b = books.find(x => x.id === resumeQueue.shift());
+      // (le livre sort de la file AVANT d'être cherché : bibliothèque vide → pas de boucle sans fin ; aucun livre sauté)
+      const id = resumeQueue.shift(), b = books.find(x => x.id === id);
       if (!b || b.resume || b.aCompleter) continue;
       const r = await Recherche.resume(b).catch(() => ({}));
       const i = books.findIndex(x => x.id === b.id); if (i < 0) continue;
@@ -5040,7 +5099,7 @@ function autoClass(id) {
   classBusy = true;
   (async () => {
     while (classQueue.length) {
-      const b = books.find(x => x.id === classQueue.shift());
+      const id = classQueue.shift(), b = books.find(x => x.id === id);   // (même règle que la file des résumés)
       if (!b || b.aCompleter || b.classTente || (b.classements || []).length) continue;
       try { await fillClass(b); Store.persist(); } catch (e) {}
       await new Promise(res => setTimeout(res, 800));

@@ -2777,6 +2777,9 @@
     }));
   // (la grande carte est masquée pendant les tests, pour que les anciens tests comptent tous les livres ; on l'allume ici)
   const avecReprise = async fn => { REPRISE = true; try { return await fn(); } finally { REPRISE = false; render(); } };
+  // (lot 33 : en Jardin, la grande carte allumée fait de l'onglet En cours l'accueil « Ce soir » ; les tests de la liste
+  // classique — rangée des épinglés, liste sous la carte — la mesurent dans l'Éditorial, où elle n'a pas changé)
+  const avecRepriseClassique = fn => avecStyle('editorial', 'light', () => avecReprise(fn));
   // (lot 32 : la tête du Jardin porte une ligne d'en-tête en plus — on mesure dans l'Éditorial et dans le Jardin)
   const editorialEtJardin = async fn => { const r = []; for (const st of ['editorial', 'jardin']) r.push(st + ':' + await avecStyle(st, 'light', fn)); return r.join('|'); };
   const ligneDeBoutons = acts => { const bs = [...acts.querySelectorAll('button')], n = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size;
@@ -2874,10 +2877,20 @@
     return (t.getBoundingClientRect().height <= 3 * lh + 2 ? '3 lignes au plus' : Math.round(t.getBoundingClientRect().height / lh) + ' lignes') + '|' + (t.textContent.includes(long) ? 'titre complet' : 'titre tronqué');
   });
   // (objectif de la conception §3 ; le lanceur règle la hauteur à 860 px : on mesure par rapport à 780 ou 640 px)
+  // (lot 33, D18 : en Jardin, l'accueil « Ce soir » remplace la liste — la grande carte entière et le titre « En pousse »
+  // au-dessus de la barre ; à 412 px, la première rangée de plantes entière. Renvoie null hors de l'accueil.)
+  const ceSoirTient = () => {
+    if (!$('.ce-soir-jardin')) return null;
+    const limite = (innerWidth >= 360 ? 780 : 640) - $('#tabs').getBoundingClientRect().height;
+    const carte = $('#resumeLecture').getBoundingClientRect(), titre = $('.ce-soir-jardin .titre-s').getBoundingClientRect(), p = $('.parterre > li').getBoundingClientRect();
+    return carte.bottom <= limite && titre.bottom <= limite && (innerWidth < 360 || p.bottom <= limite) ? 'visible'
+      : `carte ${Math.round(carte.bottom)}, titre ${Math.round(titre.bottom)}, plantes ${Math.round(p.bottom)}, limite ${Math.round(limite)}`;
+  };
   await test('Bibliothèque : avec un bandeau de prêt, le premier livre de la collection se voit sous la grande carte', 'editorial:visible|jardin:visible', () => editorialEtJardin(() => avecReprise(async () => {
     books = [enCours('Les Années', {auteur: 'Annie Ernaux'}), enCours('La Communauté de l\'anneau', {auteur: 'J. R. R. Tolkien', pagesTotal: 704, pageActuelle: 90, dateDebut: addDays(-10)}),
       fiche('Chanson douce', {possession: 'emprunte', pretRetour: addDays(2)})];
     ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render(); paintNotice(); scrollTo(0, 0); await pause(50);
+    const jv = ceSoirTient(); if (jv) { books = []; paintNotice(); return jv; }
     const barre = $('#tabs').getBoundingClientRect().height, c = $('#list .card').getBoundingClientRect(), limite = (innerWidth >= 360 ? 780 : 640) - barre;
     const ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
     books = []; paintNotice(); return ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
@@ -2923,7 +2936,7 @@
     await avecStyle('android', 'light', () => { render(); const ru = $('#resumeLecture .ruban'); r.push(ru && ru.getClientRects().length ? 'ruban en android' : 'pas de ruban en android'); });
     return r.join('|');
   }));
-  await test('Lot 2 : rangée « Épinglés pour la suite » sous les lectures en cours ; absente sans épinglé et pendant une recherche ; ouvre la fiche', 'Les Années,Sapiens|256 p.|À lire · 3|couverture et titre entiers|absente sans épinglé|absente pendant une recherche|fiche ouverte', () => avecReprise(async () => {
+  await test('Lot 2 : rangée « Épinglés pour la suite » sous les lectures en cours ; absente sans épinglé et pendant une recherche ; ouvre la fiche', 'Les Années,Sapiens|256 p.|À lire · 3|couverture et titre entiers|absente sans épinglé|absente pendant une recherche|fiche ouverte', () => avecRepriseClassique(async () => {
     const a0 = prefs.animation, c0 = prefs.consultation; prefs.animation = 'aucune'; prefs.consultation = 'continue';
     try {
       books = [enCours('Lecture'), fiche('Les Années', {epingle: true, pagesTotal: 256, ajoute: addDays(-1)}), fiche('Sapiens', {epingle: true, ajoute: addDays(-2)}), fiche('Autre')];
@@ -2960,6 +2973,7 @@
       // (avec une vitesse connue : la ligne « ≈ … à ton rythme » s'ajoute à la carte, cas le plus haut)
       books = [enCours('Les Années', {auteur: 'Annie Ernaux', sessions: [{date: today(), de: 20, a: 80, min: 30}]}), enCours('La Communauté de l\'anneau', {auteur: 'J. R. R. Tolkien', pagesTotal: 704, pageActuelle: 90, dateDebut: addDays(-10)}), fiche('Bel-Ami'), fiche('Candide')];
       ui.tab = 'en_cours'; Object.assign(ui, filtresVides); render(); paintNotice(); scrollTo(0, 0); await pause(50);
+      const jv = ceSoirTient(); if (jv) return $('#notice').hidden ? 'pas de rappel' : jv;
       const c = $('#list .card').getBoundingClientRect(), limite = sousLaBarre(), ok = innerWidth >= 360 ? c.bottom <= limite : c.top + 48 <= limite;
       return $('#notice').hidden ? 'pas de rappel' : !$('#resumeLecture .reste') ? 'pas de temps restant' : ok ? 'visible' : `haut ${Math.round(c.top)}, bas ${Math.round(c.bottom)}, limite ${Math.round(limite)}`;
     } finally { prefs.lastBackup = l0; books = []; paintNotice(); }
@@ -3037,7 +3051,7 @@
     const r = [];
     prefs.selection = selectionTest(5); ui.tab = 'decouvrir'; render(); glisser($('.discover-more .mini') || $('#selRow .sug')); await pause(40);
     r.push('pistes : ' + (ui.tab === 'decouvrir' ? 'reste' : 'va vers ' + ui.tab));
-    await avecReprise(async () => { books = [enCours('Lecture'), fiche('Épinglé', {epingle: true})]; ui.tab = 'en_cours'; render(); glisser($('#main .epingles .mini')); await pause(40);
+    await avecRepriseClassique(async () => { books = [enCours('Lecture'), fiche('Épinglé', {epingle: true})]; ui.tab = 'en_cours'; render(); glisser($('#main .epingles .mini')); await pause(40);
       r.push('épinglés : ' + (ui.tab === 'en_cours' ? 'reste' : 'va vers ' + ui.tab)); });
     return r.join('|');
   }));
@@ -3045,7 +3059,7 @@
     const uneLigne = l => new Set(l.map(m => Math.round(m.getBoundingClientRect().top))).size === 1 ? '1 ligne' : 'plusieurs lignes';
     const r = []; prefs.selection = selectionTest(5); ui.tab = 'decouvrir'; render();
     r.push('pistes : ' + uneLigne([...document.querySelectorAll('.discover-more .mini')]));
-    await avecReprise(async () => { books = [enCours('Lecture'), ...['A', 'B', 'C', 'D', 'E'].map(t => fiche('Épinglé ' + t, {epingle: true}))]; ui.tab = 'en_cours'; render();
+    await avecRepriseClassique(async () => { books = [enCours('Lecture'), ...['A', 'B', 'C', 'D', 'E'].map(t => fiche('Épinglé ' + t, {epingle: true}))]; ui.tab = 'en_cours'; render();
       r.push('épinglés : ' + uneLigne([...document.querySelectorAll('#main .epingles .mini')])); });
     // (« .rangee » est aussi la mise en page du titre « Mon bilan » : le lot 2 lui avait donné, par erreur, un défilement et des marges)
     const h = document.createElement('h3'); h.className = 'rangee'; document.body.appendChild(h); const st = getComputedStyle(h);
@@ -3718,7 +3732,7 @@
     books = [fiche('V2 un', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 40, dateDebut: addDays(-1), journal: [{date: today(), page: 40}]}),
       fiche('V2 deux', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 90, dateDebut: addDays(-5)}), fiche('V2 trois', {pagesTotal: 512, epingle: true}),
       fiche('V2 quatre', {statut: 'abandon', pagesTotal: 400, pageActuelle: 80})];
-    try { return await avecReprise(async () => { ui.tab = 'en_cours'; render(); await pause(40);
+    try { return await avecRepriseClassique(async () => { ui.tab = 'en_cours'; render(); await pause(40);
       const net = e => e.textContent.replace(/\s+/g, ' ').trim();
       const forme = e => !e ? 'absente' : /^p\. \d+ sur \d+ · \d+ %/.test(net(e)) ? 'p. X sur Y · Z %' : net(e);
       const r = ['carte:' + forme($('#resumeLecture .meta')), 'liste:' + forme($('#list .meta'))];
@@ -4702,6 +4716,251 @@
     } finally { document.documentElement.style.fontSize = ''; books = b0; ui.tab = 'en_cours'; render(); }
     return ko;
   }));
+  /* ---------- Lot 33 : accueil « Ce soir » (style Jardin seulement) ---------- */
+  await test('Lot 33 : le grand titre suit l’heure', 'Ce matin|Cet après-midi|Ce soir|Ce soir|Ce matin', () =>
+    [6, 13, 20, 2, 5].map(h => momentDuJour(h)).join('|'));
+  await test('Lot 33 : stade de la plante selon la progression (pages inconnues = plante moyenne, rien ne fane)', '0,null|2,null|0,0|1,10|2,40|3,75|4,95|4,100', () =>
+    [[0, 0], [0, 50], [100, 0], [100, 10], [100, 40], [100, 75], [100, 95], [100, 140]]
+      .map(([t, c]) => { const s = stadePlante(fiche('P' + t + c, {statut: 'en_cours', pagesTotal: t, pageActuelle: c})); return s.stade + ',' + s.pct; }).join('|'));
+  await test('Lot 33 : la phrase du jardin (exemple de la maquette, sans livre en cours, jardin vide, grands nombres)', 'Une fin toute proche, une plante qui démarre, neuf graines.|Pas de livre en cours. Neuf graines t’attendent.|Ton jardin attend sa première graine.|Deux plantes en pousse, 12 graines.', () => {
+    const ec = (t, tot, cur) => fiche(t, {statut: 'en_cours', pagesTotal: tot, pageActuelle: cur});
+    return [chapoCeSoir([ec('Chants', 200, 188), ec('Fondation', 300, 66)], 9), chapoCeSoir([], 9), chapoCeSoir([], 0),
+      chapoCeSoir([ec('A', 300, 120), ec('B', 0, 40)], 12)].join('|');
+  });
+  await test('Lot 33 : couleurs du jardin dans les palettes Jardin, et nulle part ailleurs', 'jardin/dark:#9CC3A4 #E8B0BA #8B6A4A|jardin/light:#4E6F53 #C77A8A #8B6A4A|editorial/dark:vides', async () => {
+    const r = [];
+    for (const [s, t] of [['jardin', 'dark'], ['jardin', 'light'], ['editorial', 'dark']]) r.push(s + '/' + t + ':' + await avecStyle(s, t, () => {
+      const cs = getComputedStyle(document.documentElement), v = ['--sauge', '--fleur', '--graine'].map(n => cs.getPropertyValue(n).trim().toUpperCase());
+      return v.every(x => !x) ? 'vides' : v.join(' ');
+    }));
+    return r.join('|');
+  });
+  // (aides du lot 33 : un jardin type — l'exemple de la maquette — et l'accueil allumé en Jardin)
+  const jardinType = (nGraines = 9) => [
+    fiche('Chants pour l’Afrique', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 188, dateDebut: addDays(-1)}),
+    fiche('Fondation', {statut: 'en_cours', pagesTotal: 300, pageActuelle: 66, dateDebut: addDays(-5)}),
+    ...Array.from({length: nGraines}, (_, i) => fiche('Graine ' + i, {pagesTotal: 100 + i, ajoute: addDays(-i) + 'T10:00:00Z'}))];
+  const avecCeSoir = (livres, fn, style = 'jardin', theme = 'dark') => avecReprise(() => avecStyle(style, theme, async () => {
+    const b0 = books, f0 = {...ui}; books = livres; ui.listeEnCours = false; Object.assign(ui, filtresVides, {q: ''});
+    try { await allerEcran('en_cours'); return await fn(); }
+    finally { books = b0; Object.assign(ui, f0, {tab: 'en_cours', listeEnCours: false}); render(); }
+  }));
+  const $$ = s => [...document.querySelectorAll(s)];   // (aide locale : tous les éléments qui correspondent)
+  const visible = s => { const e = $(s); return !!e && e.checkVisibility() && e.getBoundingClientRect().height > 0; };
+
+  await test('Lot 33 : en Jardin, l’onglet En cours devient « Ce soir » — titre, phrase, grande carte, parterre, graines', 'une|phrase|carte|3 places|3 graines|toutes (9)|liste vide', () => avecCeSoir(jardinType(), () => [
+    /^(Ce matin|Cet après-midi|Ce soir)\.$/.test($('.ce-soir-une')?.textContent) ? 'une' : 'une ' + $('.ce-soir-une')?.textContent,
+    $('.ce-soir-chapo')?.textContent === 'Une fin toute proche, une plante qui démarre, neuf graines.' ? 'phrase' : 'phrase ' + $('.ce-soir-chapo')?.textContent,
+    $('#resumeLecture.veille') && $('#resumeLecture h2').textContent === 'Chants pour l’Afrique' ? 'carte' : 'carte ?',
+    $$('.parterre > li').length + ' places', $$('.sommaire > li').length + ' graines',
+    ($('[data-ce-soir=graines]')?.textContent || '').trim().toLowerCase(), $('#list').children.length ? 'liste pleine' : 'liste vide'].join('|')));
+  await test('Lot 33 : les 4 autres styles gardent l’onglet En cours d’avant (pas de jardin, liste présente)', 'editorial:ok|android:ok|actuel:ok|carnet:ok', async () => {
+    const r = [];
+    for (const st of ['editorial', 'android', 'actuel', 'carnet']) r.push(st + ':' + await avecCeSoir(jardinType(), () =>
+      !$('.ce-soir') && !$('.veille') && !$('.aurore') && $$('#list .card').length === 1 ? 'ok' : 'jardin présent', st, 'light'));
+    return r.join('|');
+  });
+  await test('Lot 33 : TalkBack — chaque plante dit son livre et sa progression, les titres de parties sont des titres', 'Chants pour l’Afrique, 94 %|Fondation, 22 %|Place libre, choisis une graine|En pousse|Graines · à lire|dessins cachés', () => avecCeSoir(jardinType(), () => [
+    ...$$('.parterre button').map(b => b.getAttribute('aria-label') || b.textContent.replace(/\s+/g, ' ').trim()),
+    ...$$('.ce-soir-jardin h3').map(h => h.textContent),
+    $$('.ce-soir-jardin svg').length && $$('.ce-soir-jardin svg').every(s => s.getAttribute('aria-hidden') === 'true') ? 'dessins cachés' : 'dessin lu'].join('|')));
+  await test('Lot 33 : plantes, graines et liens ont une cible d’au moins 48 px', 'ok', () => avecCeSoir(jardinType(), () => {
+    const b = $$('.ce-soir-jardin button'); if (!b.length) return 'aucun bouton';
+    const ko = b.map(x => x.getBoundingClientRect()).filter(r => r.width < 48 || r.height < 48).map(r => Math.round(r.width) + '×' + Math.round(r.height));
+    return ko.length ? ko.join(', ') : 'ok';
+  }));
+  await test('Lot 33 : une recherche cache le jardin et montre les résultats ; on l’efface, le jardin revient', 'résultats|jardin', () => avecCeSoir(jardinType(), async () => {
+    const r = []; ui.q = 'Fondation'; renderCards();
+    r.push($('.ce-soir-jardin') && !visible('.ce-soir-jardin') && !visible('.ce-soir-haut') && $$('#list .card').length === 1 ? 'résultats' : 'jardin encore là');
+    ui.q = ''; renderCards();
+    r.push(visible('.ce-soir-jardin') && !$('#list').children.length ? 'jardin' : 'pas revenu');
+    return r.join('|');
+  }));
+  await test('Lot 33 : « en liste » ramène la liste classique, « Revenir au jardin » le jardin', 'liste|retour', () => avecCeSoir(jardinType(), async () => {
+    const r = []; $('[data-ce-soir=liste]')?.click(); await pause(20);
+    r.push(!$('.ce-soir-jardin') && $$('#list .card').length === 1 && $('[data-ce-soir=jardin]') ? 'liste' : 'pas de liste');
+    $('[data-ce-soir=jardin]')?.click(); await pause(20);
+    r.push($('.ce-soir-jardin') && !ui.listeEnCours ? 'retour' : 'pas de retour');
+    return r.join('|');
+  }));
+  await test('Lot 33 : un filtre venu d’un autre onglet — liste filtrée et volet « Filtres et tri » visibles', 'liste|volet', () => avecCeSoir([...jardinType(), fiche('Gamma', {statut: 'en_cours', genre: 'Polar', dateDebut: addDays(-9)})], () => {
+    ui.genre = 'Polar'; render();
+    return [$('.ce-soir-jardin') && !visible('.ce-soir-jardin') && $$('#list .card').length === 1 ? 'liste' : 'jardin', visible('#filtres') ? 'volet' : 'volet caché'].join('|');
+  }));
+  await test('Lot 33 : place libre et « Toutes » mènent aux graines ; sans graine, la place libre ouvre l’ajout', 'à lire|à lire|ajout', () => avecCeSoir(jardinType(), async () => {
+    const r = [];
+    $('[data-ce-soir=semer]')?.click(); await pause(20); r.push(ui.tab === 'a_lire' ? 'à lire' : ui.tab);
+    await allerEcran('en_cours'); $('[data-ce-soir=graines]')?.click(); await pause(20); r.push(ui.tab === 'a_lire' ? 'à lire' : ui.tab);
+    books = books.filter(b => b.statut !== 'a_lire'); await allerEcran('en_cours');
+    let ouvert = false; $('#fab').addEventListener('click', () => ouvert = true, {once: true});
+    $('[data-ce-soir=semer]')?.click(); await pause(20); closeM(); r.push(ouvert ? 'ajout' : 'rien');
+    return r.join('|');
+  }));
+  // (lot 33, règle du 12/11 : la recherche étant sous le jardin, le parterre montre 6 plantes au plus — les plus récentes —, « en liste » donne tout)
+  await test('Lot 33 : 14 livres en cours — 6 plantes (les plus récentes), le lien « 14 livres · en liste », sans place libre, sans dépasser', '6|Livre au titre assez long numéro 0|14 livres · en liste|pas de place libre|ne dépasse pas', () => avecCeSoir(Array.from({length: 14}, (_, i) => fiche('Livre au titre assez long numéro ' + i, {statut: 'en_cours', pagesTotal: 300, pageActuelle: i * 20, dateDebut: addDays(-i)})), () => [
+    String($$('.parterre > li').length), ($('.parterre .pousse')?.getAttribute('aria-label') || '').split(',')[0], $('[data-ce-soir=liste]')?.textContent, $('.pousse.libre') ? 'place libre' : 'pas de place libre',
+    $('.parterre') && document.documentElement.scrollWidth <= innerWidth && $$('.parterre .nom').every(n => n.scrollWidth <= n.clientWidth + 1) ? 'ne dépasse pas' : 'dépasse'].join('|')));
+  await test('Lot 33 : aucun livre en cours — phrase douce, une place libre, les graines', 'Pas de livre en cours. Trois graines t’attendent.|1|3', () => avecCeSoir(jardinType(3).slice(2), () =>
+    [$('.ce-soir-chapo')?.textContent, $$('.parterre > li').length, $$('.sommaire > li').length].join('|')));
+  await test('Lot 33 : page de tests (grande carte coupée) — pas d’accueil, liste d’avant', 'liste', () => avecStyle('jardin', 'dark', async () => {
+    const b0 = books; books = jardinType();
+    try { await allerEcran('en_cours'); return !$('.ce-soir') && $$('#list .card').length === 2 ? 'liste' : 'accueil'; } finally { books = b0; render(); }
+  }));
+  await test('Lot 33 : au démarrage sans livre en cours — Ce soir en Jardin, À lire ailleurs (comme avant)', 'en_cours|a_lire|lu', () => avecReprise(async () => [
+    await avecStyle('jardin', 'dark', () => ongletDeDepart({en_cours: 0, a_lire: 3, lu: 1})),
+    await avecStyle('editorial', 'dark', () => ongletDeDepart({en_cours: 0, a_lire: 3, lu: 1})),
+    await avecStyle('editorial', 'dark', () => ongletDeDepart({en_cours: 0, a_lire: 0, lu: 1}))].join('|')));
+  await test('Lot 33 : graines — les épinglées d’abord ; « p. » jamais seul en début de ligne', 'Épinglée|insécable', () => avecCeSoir([...jardinType(), fiche('Épinglée', {pagesTotal: 512, epingle: true, ajoute: addDays(-40) + 'T10:00:00Z'})], () => {
+    const b = $('.sommaire button'); if (!b) return 'pas de graine';
+    return [b.querySelector('.t').textContent, / p\.$/.test(b.querySelector('.p').textContent) ? 'insécable' : 'sécable'].join('|');
+  }));
+  await test('Lot 33 : aurore — bouge en Complète (Nuit) ; fixe en Simple, Aucune, mouvement réduit et en Jour', 'complète:bouge|simple:fixe|aucune:fixe|réduit:fixe|jour:fixe', async () => {
+    const a0 = prefs.animation, red0 = Ouverture.reduit, r = [];
+    const etat = async (theme = 'dark') => avecCeSoir(jardinType(), () => { const a = $('.aurore'), i = a && a.querySelector('i');
+      return !a ? 'absente' : a.classList.contains('bouge') && getComputedStyle(i).animationName !== 'none' ? 'bouge' : getComputedStyle(i).animationName === 'none' && !a.classList.contains('bouge') ? 'fixe' : 'incohérent'; }, 'jardin', theme);
+    try {
+      for (const m of ['complete', 'simple', 'aucune']) { prefs.animation = m; r.push({complete: 'complète', simple: 'simple', aucune: 'aucune'}[m] + ':' + await etat()); }
+      prefs.animation = 'complete'; Ouverture.reduit = () => true; r.push('réduit:' + await etat()); Ouverture.reduit = red0;
+      r.push('jour:' + await etat('light'));
+    } finally { prefs.animation = a0; Ouverture.reduit = red0; }
+    return r.join('|');
+  });
+  await test('Lot 33 : l’aurore s’endort sans toucher, se réveille au toucher ; quitter l’écran ne laisse pas d’erreur', 'endormie|réveillée|sans erreur', async () => {
+    const a0 = prefs.animation; prefs.animation = 'complete';
+    const s0 = typeof AURORE === 'object' ? AURORE.sommeil : null; if (s0 === null) { prefs.animation = a0; return 'AURORE absent'; }
+    AURORE.sommeil = 60;
+    try {
+      return await avecCeSoir(jardinType(), async () => {
+        const r = []; reveillerAurore(); await pause(150);
+        r.push($('.aurore').classList.contains('dort') && getComputedStyle($('.aurore i')).animationPlayState === 'paused' ? 'endormie' : 'éveillée');
+        AURORE.dernier = 0; document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+        r.push(!$('.aurore').classList.contains('dort') ? 'réveillée' : 'toujours endormie');
+        let err = null; const oe = window.onerror; window.onerror = m => { err = m; };
+        reveillerAurore(); await allerEcran('decouvrir'); await pause(150); window.onerror = oe;
+        r.push(err ? 'erreur ' + err : 'sans erreur');
+        return r.join('|');
+      });
+    } finally { prefs.animation = a0; AURORE.sommeil = s0; }
+  });
+  await test('Lot 33 : la couleur de l’aurore suit le livre (stable pour un même titre)', 'différente|stable', () => avecCeSoir(jardinType(), async () => {
+    const couleur = () => getComputedStyle($('.aurore i')).backgroundColor, c1 = couleur(); render(); const c2 = couleur();
+    books[0] = {...books[0], titre: 'Un tout autre titre'}; render(); const c3 = couleur();
+    return [c3 !== c1 && c1 !== 'rgba(0, 0, 0, 0)' ? 'différente' : 'même couleur', c1 === c2 ? 'stable' : 'instable'].join('|');
+  }));
+  // (garde-fou de la maquette : « le texte ne repose jamais sur l'aurore » sans contraste — mesuré par-dessus, pire cas des 3 taches superposées)
+  await test('Lot 33 : texte de la grande carte ≥ 4,5 par-dessus l’aurore, 72 teintes, Nuit et Jour', 'ok', async () => {
+    const ko = [], rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const lum = v => { const l = v.map(x => x / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * l[0] + .7152 * l[1] + .0722 * l[2]; };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+    let vus = 0;
+    for (const theme of ['dark', 'light']) await avecCeSoir(jardinType(), () => {
+      const v = $('#resumeLecture'), taches = [...v.querySelectorAll('.aurore i')], textes = [v.querySelector('h2'), v.querySelector('.meta'), v.querySelector('.resume-titre')].filter(Boolean);
+      for (let h = 0; h < 360; h += 5) {
+        v.style.setProperty('--h', h);
+        let fond = rgb(getComputedStyle(v).backgroundColor);
+        for (const t of taches) { const bg = getComputedStyle(t).backgroundColor; if (/rgba\(.*,\s*0\)$/.test(bg)) continue; vus++; const c = rgb(bg), o = +getComputedStyle(t).opacity; fond = fond.map((f, k) => f * (1 - o) + c[k] * o); }
+        for (const e of textes) { const r = ratio(rgb(getComputedStyle(e).color), fond); if (r < 4.5) ko.push(`${theme} h${h} ${e.className || e.tagName.toLowerCase()} ${r.toFixed(2)}`); }
+      }
+    }, 'jardin', theme);
+    return !vus ? 'aurore sans couleur' : ko.length ? ko.slice(0, 6).join(', ') + (ko.length > 6 ? ` (+${ko.length - 6})` : '') : 'ok';
+  });
+  await test('Lot 33 : pas d’aurore dans les 4 autres styles', 'editorial:0|android:0|actuel:0|carnet:0', async () => {
+    const r = []; for (const st of ['editorial', 'android', 'actuel', 'carnet']) r.push(st + ':' + await avecCeSoir(jardinType(), () => $$('.aurore').length, st, 'dark'));
+    return r.join('|');
+  });
+  await test('Lot 33 : après « Où j’en suis », la plante du livre pousse une fois (Complète), en fondu (Simple), pas du tout (Aucune)', 'complete:pousse-anim,stade 2|simple:pousse-fondu|aucune:rien|une fois', async () => {
+    const a0 = prefs.animation, r = [];
+    try {
+      for (const m of ['complete', 'simple', 'aucune']) { prefs.animation = m; r.push(m + ':' + await avecCeSoir(jardinType(), () => {
+        enregistrerPage(books.find(b => b.titre === 'Fondation'), 150);
+        const p = $$('.parterre .pousse').find(x => (x.getAttribute('aria-label') || '').startsWith('Fondation'));
+        const cl = !p ? 'absente' : p.classList.contains('pousse-anim') ? 'pousse-anim' : p.classList.contains('pousse-fondu') ? 'pousse-fondu' : 'rien';
+        return m === 'complete' ? cl + ',stade ' + stadePlante(books.find(b => b.titre === 'Fondation')).stade : cl;
+      })); }
+      prefs.animation = 'complete';
+      r.push(await avecCeSoir(jardinType(), () => { enregistrerPage(books.find(b => b.titre === 'Fondation'), 150); render(); return $('.pousse-anim') ? 'rejoue' : 'une fois'; }));
+    } finally { prefs.animation = a0; }
+    return r.join('|');
+  });
+  await test('Lot 33 : une page enregistrée ailleurs, puis retour à l’accueil 3 s plus tard — rien ne pousse', 'rien', () => avecCeSoir(jardinType(), () => {
+    ui.pousse = {id: books[1].id, t: Date.now() - 3000}; render(); return $('.pousse-anim, .pousse-fondu') ? 'pousse' : 'rien';
+  }));
+  await test('Lot 33 : au Ciel, en Jardin, les livres en cours sont des silhouettes à l’horizon (6 au plus, cachées à TalkBack)', 'jardin:2,caché,dans la bande|6 au plus|année passée:0|editorial:0', async () => {
+    const r = [], b0 = books, y0 = ui.year;
+    const mesure = async (st, livres, annee = new Date().getFullYear()) => avecStyle(st, 'dark', async () => {
+      books = livres; ui.year = annee; await allerEcran('stats');
+      const g = $('#ciel .ciel-horizon'); if (!g) return '0';
+      const ys = [...g.children].map(c => +c.getAttribute('transform').match(/translate\(([-\d.]+)[ ,]+([-\d.]+)/)[2]);
+      return g.children.length + ',' + (g.getAttribute('aria-hidden') === 'true' ? 'caché' : 'lu') + ',' + (ys.every(y => y >= CIEL.h - CIEL.horizon - .5) ? 'dans la bande' : 'déborde');
+    });
+    try {
+      r.push('jardin:' + await mesure('jardin', jardinType()));
+      r.push((await mesure('jardin', Array.from({length: 9}, (_, i) => fiche('E' + i, {statut: 'en_cours'})))).startsWith('6,') ? '6 au plus' : 'trop');
+      r.push('année passée:' + await mesure('jardin', jardinType(), new Date().getFullYear() - 1));
+      r.push('editorial:' + await mesure('editorial', jardinType()));
+    } finally { books = b0; ui.year = y0; ui.tab = 'en_cours'; render(); }
+    return r.join('|');
+  });
+  await test('Lot 33 : texte à 130 % — rien ne dépasse, le titre, la phrase et les noms restent dans l’écran', 'ok', () => avecCeSoir([...jardinType(), fiche('Un titre de livre vraiment très long pour voir comment il se coupe', {statut: 'en_cours', pagesTotal: 0, pageActuelle: 12, dateDebut: addDays(-20)})], async () => {
+    document.documentElement.style.fontSize = '130%'; render(); await pause(40);
+    try {
+      const ko = [];
+      if (!$('.ce-soir-jardin')) return 'pas d’accueil';
+      if (document.documentElement.scrollWidth > innerWidth) ko.push('la page dépasse de ' + (document.documentElement.scrollWidth - innerWidth) + ' px');
+      for (const s of ['.ce-soir-une', '.ce-soir-chapo', '.parterre .nom', '.sommaire button']) for (const e of $$(s)) { const r = e.getBoundingClientRect(); if (r.right > innerWidth + 1 || e.scrollWidth > e.clientWidth + 1) ko.push(s + ' dépasse'); }
+      return ko.length ? [...new Set(ko)].join(', ') : 'ok';
+    } finally { document.documentElement.style.fontSize = ''; }
+  }));
+  // (choix d'Elias du 12/11, D14 revue : sur l'accueil, la recherche passe sous les graines — sinon « En pousse » tombait sous la barre à 320 px)
+  await test('Lot 33 : sur l’accueil, la recherche est sous les graines ; pendant une recherche elle reste au-dessus des résultats ; ailleurs, en haut', 'sous les graines|au-dessus des résultats|en haut', () => avecCeSoir(jardinType(), async () => {
+    const avant = (a, b) => !!(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const r = [avant($('.ce-soir-jardin'), $('#q')) ? 'sous les graines' : 'au-dessus du jardin'];
+    ui.q = 'Fondation'; renderCards();
+    const q = $('#q').getBoundingClientRect(), c = $('#list .card')?.getBoundingClientRect();
+    r.push(c && q.bottom <= c.top ? 'au-dessus des résultats' : 'mal placée');
+    ui.q = ''; await allerEcran('a_lire');
+    r.push(avant($('#q'), $('#list')) && !$('.ce-soir-jardin') ? 'en haut' : 'déplacée');
+    return r.join('|');
+  }));
+  // (vu sur les captures du lot 33 : la graine du sommaire tombait sous la ligne du titre)
+  await test('Lot 33 : dans le sommaire, la graine est au milieu de la ligne du titre', 'alignée', () => avecCeSoir(jardinType(), () => {
+    const b = $('.sommaire button'); if (!b) return 'pas de graine';
+    const g = b.querySelector('i').getBoundingClientRect(), t = b.querySelector('.t').getBoundingClientRect(), m = (g.top + g.bottom) / 2;
+    return m > t.top + t.height * .3 && m < t.top + t.height * .7 ? 'alignée' : `graine ${Math.round(g.top)}→${Math.round(g.bottom)}, titre ${Math.round(t.top)}→${Math.round(t.bottom)}`;
+  }));
+  // (vu sur les captures du lot 33 : un nom sur 2 lignes faisait monter sa plante — elles doivent toutes partir du même sol)
+  await test('Lot 33 : les plantes d’une rangée partent du même sol, quelle que soit la longueur des noms', 'même sol', () => avecCeSoir(jardinType(), () => {
+    const pieds = $$('.parterre .pousse svg').slice(0, 3).map(s => Math.round(s.getBoundingClientRect().bottom));
+    return pieds.length === 3 && Math.max(...pieds) - Math.min(...pieds) <= 1 ? 'même sol' : 'pieds à ' + pieds.join(', ');
+  }));
+  // (relecture du lot 33, point 1 : l'accueil dépend du style, du thème et des animations — il doit se redessiner quand ils changent)
+  await test('Lot 33 (relecture) : changer de style, de thème ou d’animations (Réglages, ou le téléphone) redessine l’accueil', 'style:liste|animations:fixe|thème:fixe|téléphone:fixe', async () => {
+    const a0 = prefs.animation, r = [];
+    const essai = (nom, geste) => avecCeSoir(jardinType(), async () => { prefs.animation = 'complete'; render();
+      if (!$('.aurore.bouge')) return nom + ':aurore immobile au départ';
+      await geste(); await pause(20);
+      return nom + ':' + (nom === 'style' ? (!$('.ce-soir') && $$('#list .card').length === 1 ? 'liste' : 'jardin resté') : $('.aurore.bouge') ? 'bouge' : 'fixe'); });
+    try {
+      r.push(await essai('style', () => { openSettings(); $('#st_style [data-st=editorial]').click(); closeM(); }));
+      r.push(await essai('animations', () => { openSettings(); $('#st_anim [data-an=aucune]').click(); closeM(); }));
+      r.push(await essai('thème', () => { openSettings(); $('#st_theme [data-th=light]').click(); closeM(); }));
+      r.push(await essai('téléphone', () => { prefs.theme = 'light'; darkQuery.dispatchEvent(new Event('change')); }));
+    } finally { prefs.animation = a0; savePrefs(); render(); }
+    return r.join('|');
+  });
+  // (relecture du lot 33, point 4 : « en liste » et « Toutes » gardent toute leur cible de 48 px — la rangée suivante ne la recouvre pas)
+  await test('Lot 33 (relecture) : les liens « en liste » et « Toutes » se touchent sur toute leur hauteur', 'ok', () => avecCeSoir(jardinType(), async () => {
+    const ko = [];
+    for (const l of $$('.ce-soir-jardin .lien')) {
+      l.scrollIntoView({block: 'center'}); await pause(20);
+      const r = l.getBoundingClientRect(), x = r.left + r.width / 2;
+      for (const y of [r.top + 2, r.bottom - 2]) if (!document.elementFromPoint(x, y)?.closest('.lien')) ko.push(l.dataset.ceSoir + ' ' + Math.round(y - r.top) + ' px');
+    }
+    return ko.length ? 'recouverts : ' + ko.join(', ') : 'ok';
+  }));
+  // (relecture du lot 33, point 5 : un nombre de pages estimé est signalé « ≈ », comme dans la rangée des épinglés qu'il remplace)
+  await test('Lot 33 (relecture) : dans les graines, un nombre de pages estimé est signalé « ≈ »', '≈ 300 p.|512 p.', () => avecCeSoir([...jardinType(0), fiche('Estimée', {pagesTotal: 300, pagesSource: 'estimation', epingle: true}), fiche('Exacte', {pagesTotal: 512, ajoute: addDays(-50) + 'T10:00:00Z'})], () =>
+    $$('.sommaire .p').map(e => e.textContent.replace(/ /g, ' ')).join('|')));
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

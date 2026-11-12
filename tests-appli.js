@@ -1438,7 +1438,8 @@
     openForm(null); await pause(50); const b = $('#f_getres'); await fetchResume({titre: 'X'}, b);
     const n = b.querySelectorAll('.ico').length; Recherche.resume = vrai; modalModifie = false; closeM(); await pause(250); return n;
   });
-  await test('Icônes : thème, « Chercher par » et chrono ont leur icône', 'thème 3/3|chercher par 3/3|chrono 1', async () => {
+  // (lot 34 : fenêtre classique du chrono, mesurée en Éditorial — en Jardin c'est la session calme)
+  await test('Icônes : thème, « Chercher par » et chrono ont leur icône', 'thème 3/3|chercher par 3/3|chrono 1', () => avecStyle('editorial', 'light', async () => {
     openSettings(); await pause(50); const a = [...document.querySelectorAll('#st_theme button')], th = a.filter(x => x.textContent.trim() === 'Auto' || x.querySelector('.ico')).length + '/' + a.length;
     closeM(); await pause(250);
     ui.tab = 'decouvrir'; render(); const p = [...document.querySelectorAll('#rq_par button')], rp = p.filter(x => x.querySelector('.ico')).length + '/' + p.length;
@@ -1446,7 +1447,7 @@
     const c = document.querySelectorAll('#t_pause .ico').length;
     prefs.timer = null; $('#timerOv').classList.remove('show'); paintTimerPill(); ui.tab = 'en_cours'; render();
     return 'thème ' + th + '|chercher par ' + rp + '|chrono ' + c;
-  });
+  }));
   // (lot 32 : le repli d'une préférence corrompue est maintenant le Jardin de nuit, style par défaut)
   await test('Style posé avant le premier affichage (script en tête), y compris préférence corrompue', 'carnet/dark|jardin/light|jardin', () => {
     const s = document.head.querySelector('script:not([src])'); if (!s) return 'pas de script en tête';
@@ -2784,7 +2785,8 @@
   const editorialEtJardin = async fn => { const r = []; for (const st of ['editorial', 'jardin']) r.push(st + ':' + await avecStyle(st, 'light', fn)); return r.join('|'); };
   const ligneDeBoutons = acts => { const bs = [...acts.querySelectorAll('button')], n = new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size;
     return (n > 1 ? n + ' lignes' : '1 ligne') + '|' + (acts.scrollWidth <= acts.clientWidth + 1 && bs.every(b => b.scrollWidth <= b.clientWidth + 1) ? 'sans débordement' : 'déborde'); };
-  await test('Grande carte : 3 actions sur une ligne, sans débordement ; « Reprendre » nommé en entier', '1 ligne|sans débordement|Reprendre ma lecture', () => avecReprise(() => {
+  // (lot 34, D19 : en Jardin, « Reprendre » ouvre la session calme — son nom commence toujours par le mot visible)
+  await test('Grande carte : 3 actions sur une ligne, sans débordement ; « Reprendre » nommé en entier', '1 ligne|sans débordement|Reprendre ma lecture : session calme', () => avecReprise(() => {
     books = [enCours('Les Années', {auteur: 'Annie Ernaux'}), enCours('Autre', {dateDebut: addDays(-9)})]; ui.tab = 'en_cours'; render();
     const acts = $('#resumeLecture .acts'), b = acts.querySelector('.btn.pri');
     return ligneDeBoutons(acts) + '|' + (b.getAttribute('aria-label') || b.textContent.trim());
@@ -3861,14 +3863,15 @@
   await test('Lot V3 (relecture) : sélecteurs — le bouton qui a le focus passe au-dessus de ses voisins (contour entier)', 'au-dessus', () =>
     // (la page de tests n'a pas le focus de la fenêtre : :focus ne s'y applique pas ; on vérifie donc la règle elle-même)
     [...document.styleSheets[0].cssRules].some(r => r.selectorText && /\.seg/.test(r.selectorText) && /button:focus/.test(r.selectorText) && +r.style.zIndex >= 1) ? 'au-dessus' : 'pas de règle');
-  await test('Lot V3 (relecture) : fenêtre du chrono — couverture et titre sur une ligne, centrés', 'même ligne|centrés', async () => {
+  // (lot 34 : en Jardin le chrono devient la session calme — ce test garde la fenêtre classique, mesurée en Éditorial)
+  await test('Lot V3 (relecture) : fenêtre du chrono — couverture et titre sur une ligne, centrés', 'même ligne|centrés', () => avecStyle('editorial', 'light', async () => {
     const b0 = books; books = [fiche('V3 chrono', {statut: 'en_cours'})];
     try { prefs.timer = {id: books[0].id, start: Date.now(), acc: 0, running: true}; openTimer(); await pause(40);
       const m = $('#timerModal'), c = m.querySelector('.mini').getBoundingClientRect(), t = [...m.querySelectorAll('b')].find(x => x.textContent.includes('V3 chrono')).getBoundingClientRect(), mm = m.getBoundingClientRect();
       const centre = (Math.min(c.left, t.left) + Math.max(c.right, t.right)) / 2, milieu = (mm.left + mm.right) / 2;
       return [t.top < c.bottom && t.bottom > c.top ? 'même ligne' : 'titre dessous', Math.abs(centre - milieu) <= 6 ? 'centrés' : `décalés de ${Math.round(centre - milieu)} px`].join('|'); }
     finally { prefs.timer = null; $('#timerOv').classList.remove('show'); paintTimerPill(); books = b0; render(); }
-  });
+  }));
   await test('Lot V3 (relecture) : année passée sans chrono — « Aucune séance chronométrée en … », pas « Pas encore »', 'Aucune séance chronométrée en 2025.', async () => {
     const b0 = books, tab0 = ui.tab, y0 = ui.year; books = [fiche('V3 ancien', {statut: 'lu', note: 4, dateDebut: '2025-03-01', dateFin: '2025-03-10'}), fiche('V3 récent', {statut: 'lu', note: 4, dateDebut: addDays(-9), dateFin: addDays(-1)})];
     try { ui.tab = 'stats'; render(); await pause(30); $('#year').value = '2025'; $('#year').dispatchEvent(new Event('change', {bubbles: true})); await pause(40);
@@ -4961,6 +4964,290 @@
   // (relecture du lot 33, point 5 : un nombre de pages estimé est signalé « ≈ », comme dans la rangée des épinglés qu'il remplace)
   await test('Lot 33 (relecture) : dans les graines, un nombre de pages estimé est signalé « ≈ »', '≈ 300 p.|512 p.', () => avecCeSoir([...jardinType(0), fiche('Estimée', {pagesTotal: 300, pagesSource: 'estimation', epingle: true}), fiche('Exacte', {pagesTotal: 512, ajoute: addDays(-50) + 'T10:00:00Z'})], () =>
     $$('.sommaire .p').map(e => e.textContent.replace(/ /g, ' ')).join('|')));
+  /* ---------- Lot 34 : session calme (style Jardin seulement) ---------- */
+  // (aide du lot 34 : jardin type, accueil allumé, aucune séance en cours ; tout est remis en place à la fin)
+  const avecCalme = (fn, style = 'jardin', theme = 'dark') => avecCeSoir(jardinType(), async () => {
+    const t0 = prefs.timer, d0 = prefs.dureeCalme, s0 = {...SOUFFLE}; prefs.timer = null; prefs.dureeCalme = undefined; savePrefs();
+    try { return await fn(books[0]); }
+    finally { fermerChrono(); prefs.timer = t0; prefs.dureeCalme = d0; Object.assign(SOUFFLE, s0); savePrefs(); paintTimerPill(); }
+  }, style, theme);
+
+  // 1.1
+  await test('Lot 34 : en Jardin, « Reprendre » ouvre la session calme (rien ne démarre) ; la couverture ouvre la fiche', 'session|rien lancé|fiche', () => avecCalme(async () => {
+    const r = [];
+    $('#resumeLecture [data-act=calme]').click(); await pause(30);
+    r.push($('#timerOv').classList.contains('show') && $('#timerOv').classList.contains('calme') ? 'session' : 'pas de session');
+    r.push(!prefs.timer && $('#timerModal .durees') ? 'rien lancé' : 'chrono lancé trop tôt');
+    fermerChrono(); $('#resumeLecture .couv-ruban').click(); await pause(80);
+    r.push($('#livreOv').classList.contains('show') ? 'fiche' : 'pas de fiche'); await fermerFiche(); await pause(30);
+    return r.join('|');
+  }));
+  // 1.2
+  await test('Lot 34 : « ⋯ » propose « Session calme » en Jardin, « Lire avec le chrono » ailleurs, où la fenêtre reste la classique', 'jardin:Session calme|editorial:Lire avec le chrono|classique', async () => {
+    const r = [];
+    for (const st of ['jardin', 'editorial']) r.push(await avecCalme(async b => { openActions(b); const t = $('#modal [data-act=timer] b').textContent.replace($('#modal [data-act=timer] b .ico').textContent, '').trim(); closeM(); return st + ':' + t; }, st));
+    r.push(await avecCalme(async b => { startTimer(b); await pause(20); return !$('#timerOv').classList.contains('calme') && $('#timerModal .chrono-livre') ? 'classique' : 'pas classique'; }, 'editorial'));
+    return r.join('|');
+  });
+  // 1.3
+  await test('Lot 34 : écran de départ — livre, page de reprise, durées (20 min par défaut), « Ouvrir le livre », croix « Fermer »', 'Chants pour l’Afrique|reprise à la page 188|10 min,20 min,30 min,Libre|20 min|Ouvrir le livre|Fermer', () => avecCalme(async b => {
+    ouvrirCalme(b); const m = $('#timerModal');
+    return [m.querySelector('.livre-s b').textContent, m.querySelector('.livre-s small').textContent,
+      $$('#timerModal .durees button').map(x => x.textContent.trim()).join(), m.querySelector('.durees [aria-pressed=true]').textContent.trim(),
+      m.querySelector('#c_go').textContent.trim(), m.querySelector('#c_x').getAttribute('aria-label')].join('|');
+  }));
+  // 1.4
+  await test('Lot 34 : la durée choisie est retenue ; fermer avant de commencer n’enregistre rien', '30|rien lancé|0 séance', () => avecCalme(async b => {
+    ouvrirCalme(b); $('#timerModal .durees [data-duree="30"]').click(); fermerDessus(); await pause(20);
+    ouvrirCalme(b); const d = $('#timerModal .durees [aria-pressed=true]').dataset.duree; fermerDessus();
+    return [d, prefs.timer ? 'chrono lancé' : 'rien lancé', (books[0].sessions || []).length + ' séance'].join('|');
+  }));
+  // 1.5
+  await test('Lot 34 : livre pas encore commencé — « à la première page »', 'à la première page', () => avecCalme(async () => {
+    const b = {...books[0], pageActuelle: 0}; books[0] = b; ouvrirCalme(b); return $('#timerModal .livre-s small').textContent;
+  }));
+  // 1.6 (trouvé par les gardes du lot 33 : une session fermée laissait son aurore dans la fenêtre cachée)
+  await test('Lot 34 : fermer la session (croix, retour, Réduire) ne laisse pas d’aurore cachée', 'croix:0|retour:0|réduire:0', () => avecCalme(async b => {
+    const r = [];
+    ouvrirCalme(b); $('#c_x').click(); r.push('croix:' + $$('#timerOv .aurore').length);
+    ouvrirCalme(b); fermerDessus(); r.push('retour:' + $$('#timerOv .aurore').length);
+    prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: true, duree: 20, calme: true}; openTimer(); fermerChrono(); r.push('réduire:' + $$('#timerOv .aurore').length);
+    return r.join('|');
+  }));
+  // 2.1
+  await test('Lot 34 : Éditorial, Android, Actuel, Carnet — même grande carte (« Reprendre » ouvre la fiche) et chrono classique', 'editorial:ok|android:ok|actuel:ok|carnet:ok', async () => {
+    const r = [];
+    for (const st of ['editorial', 'android', 'actuel', 'carnet']) r.push(st + ':' + await avecCalme(async b => {
+      REPRISE = true; render(); const rep = $('#resumeLecture .btn.pri');
+      const carte = !rep || (rep.dataset.open && !rep.dataset.act) ? 'ok' : 'carte changée';
+      startTimer(b); await pause(20); const chrono = !$('#timerOv').classList.contains('calme') && $('#timerModal .chrono-livre') ? 'ok' : 'chrono changé';
+      return carte === 'ok' && chrono === 'ok' ? 'ok' : carte + ' ' + chrono;
+    }, st));
+    return r.join('|');
+  });
+  // 2.2
+  await test('Lot 34 : la touche retour d’Android ferme la session calme (et une séance lancée continue)', 'fermée|séance gardée', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: true, duree: 20, calme: true}; openTimer(); await pause(30);
+    history.back(); await pause(250);
+    return [!$('#timerOv').classList.contains('show') ? 'fermée' : 'encore ouverte', prefs.timer ? 'séance gardée' : 'séance perdue'].join('|');
+  }));
+  // 2.3
+  await test('Lot 34 : session calme — cibles d’au moins 48 px (croix, durées, « Ouvrir le livre »)', [], () => avecCalme(async b => {
+    ouvrirCalme(b);
+    return $$('#timerModal #c_x, #timerModal .durees button, #timerModal #c_go').map(e => [e.id || e.textContent.trim(), e.getBoundingClientRect()])
+      .filter(([, r]) => r.width < 48 || r.height < 48).map(([n, r]) => `${n} ${Math.round(r.width)}×${Math.round(r.height)}`);
+  }));
+  // 3.1
+  await test('Lot 34 : « Ouvrir le livre » → 3 respirations, puis la séance démarre seule avec la durée choisie', 'souffle|1 sur 3|3 sur 3|séance 10 min', () => avecCalme(async b => {
+    SOUFFLE.cycle = 60; prefs.dureeCalme = 10; ouvrirCalme(b); $('#c_go').click(); const r = [];
+    r.push($('#timerModal .cercle.souffle') && !prefs.timer ? 'souffle' : 'pas de souffle');
+    r.push($('#c_compte').textContent.replace('Respiration ', ''));
+    await pause(150); r.push(($('#c_compte') || {textContent: 'fini trop tôt'}).textContent.replace('Respiration ', ''));
+    await pause(150); r.push(prefs.timer && prefs.timer.calme && prefs.timer.duree === 10 ? 'séance 10 min' : 'pas de séance');
+    return r.join('|');
+  }));
+  // 3.2
+  await test('Lot 34 : « Passer » démarre tout de suite ; fermer pendant la respiration n’enregistre rien, ni maintenant ni plus tard', 'démarrée|rien|toujours rien', () => avecCalme(async b => {
+    SOUFFLE.cycle = 60; const r = [];
+    ouvrirCalme(b); $('#c_go').click(); $('#c_passer').click(); r.push(prefs.timer ? 'démarrée' : 'pas démarrée');
+    fermerChrono(); prefs.timer = null; savePrefs();
+    ouvrirCalme(b); $('#c_go').click(); fermerDessus(); r.push(prefs.timer ? 'démarrée quand même' : 'rien');
+    await pause(300); r.push(prefs.timer ? 'démarrée plus tard' : 'toujours rien');
+    return r.join('|');
+  }));
+  // 3.3
+  await test('Lot 34 : la bulle respire en Complète et Simple ; immobile en Aucune et en mouvement réduit', 'complete:anime|simple:anime|aucune:immobile|réduit:immobile', async () => {
+    const a0 = prefs.animation, red0 = Ouverture.reduit, r = [];
+    const etat = () => avecCalme(async b => { ouvrirCalme(b); $('#c_go').click(); const c = $('#timerModal .cercle'), n = getComputedStyle(c.querySelector('.bulle')).animationName;
+      return c.classList.contains('immobile') && n === 'none' ? 'immobile' : !c.classList.contains('immobile') && n !== 'none' ? 'anime' : 'incohérent'; });
+    try {
+      for (const m of ['complete', 'simple', 'aucune']) { prefs.animation = m; r.push(m + ':' + await etat()); }
+      prefs.animation = 'complete'; Ouverture.reduit = () => true; r.push('réduit:' + await etat());
+    } finally { prefs.animation = a0; Ouverture.reduit = red0; }
+    return r.join('|');
+  });
+  // 3.4
+  await test('Lot 34 : TalkBack — le compteur de respirations est annoncé, les mots animés sont cachés', 'polite|mots cachés|Passer', () => avecCalme(async b => {
+    ouvrirCalme(b); $('#c_go').click();
+    return [$('#c_compte').getAttribute('aria-live'), $('#timerModal .cercle').getAttribute('aria-hidden') === 'true' ? 'mots cachés' : 'mots lus', $('#c_passer').textContent.trim()].join('|');
+  }));
+  // 4.1
+  await test('Lot 34 : pendant la séance — temps restant, puis « Tes 10 minutes sont passées », le temps continue', '10:00|restantes|passées|continue', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: true, duree: 10, calme: true}; openTimer(); const r = [];
+    r.push($('#clock').textContent); r.push(/restantes/.test($('#c_etat').textContent) ? 'restantes' : $('#c_etat').textContent);
+    prefs.timer.acc = 10 * 60000 + 5000; prefs.timer.running = true; prefs.timer.start = Date.now(); verifierFinCalme();
+    r.push(/Tes 10 minutes sont passées/.test($('#c_etat').textContent) ? 'passées' : $('#c_etat').textContent);
+    r.push(prefs.timer && prefs.timer.running && prefs.timer.sonne ? 'continue' : 'arrêtée');
+    return r.join('|');
+  }));
+  // 4.2
+  await test('Lot 34 : la fin du temps ne prévient qu’une fois, même après fermeture et réouverture (appli rouverte en retard)', '1 vibration|1 fois', () => avecCalme(async b => {
+    const v0 = navigator.vibrate; let n = 0; navigator.vibrate = () => { n++; return true; };
+    try {
+      prefs.timer = {id: b.id, start: Date.now() - 45 * 60000, acc: 0, running: true, duree: 10, calme: true}; savePrefs();
+      verifierFinCalme(); fermerChrono(); verifierFinCalme(); openTimer(); verifierFinCalme();
+      return n + ' vibration|' + (prefs.timer.sonne ? '1 fois' : 'jamais');
+    } finally { navigator.vibrate = v0; }
+  }));
+  // 4.3
+  await test('Lot 34 : le temps affiché après 45 min hors de l’appli est juste (séance de 10 min dépassée)', '45:00', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now() - 45 * 60000, acc: 0, running: false, duree: 10, calme: true};
+    prefs.timer.acc = 45 * 60000; openTimer(); return $('#clock').textContent;
+  }));
+  // 4.4
+  await test('Lot 34 : « J’ai fini de lire » demande la page ; la séance enregistrée a la même forme qu’avec le chrono', 'page demandée|date,min,de,a|12 min, 188 → 196|plus de séance', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 12 * 60000, running: false, duree: 20, calme: true}; openTimer(); const r = [];
+    $('#t_stop').click(); r.push(!$('#t_end').hidden ? 'page demandée' : 'pas de question');
+    $('#t_page').value = '196'; $('#t_save').click(); await pause(30);
+    const s = (books.find(x => x.id === b.id).sessions || []).at(-1) || {};
+    r.push(Object.keys(s).join()); r.push(`${s.min} min, ${s.de} → ${s.a}`); r.push(prefs.timer ? 'séance encore là' : 'plus de séance');
+    return r.join('|');
+  }));
+  // 4.5
+  await test('Lot 34 : une séance commencée en Jardin se termine normalement dans un autre style (fenêtre classique)', 'classique|enregistrée', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 5 * 60000, running: true, duree: 20, calme: true};
+    return avecStyle('editorial', 'dark', async () => {
+      openTimer(); const r = [!$('#timerOv').classList.contains('calme') && $('#timerModal .chrono-livre') ? 'classique' : 'pas classique'];
+      $('#t_stop').click(); $('#t_page').value = '190'; $('#t_save').click(); await pause(30);
+      r.push((books.find(x => x.id === b.id).sessions || []).length === 1 ? 'enregistrée' : 'perdue'); return r.join('|');
+    });
+  }));
+  // 4.6
+  await test('Lot 34 : une séance tourne déjà pour un autre livre — « Reprendre » la retrouve, sans nouvelle respiration', 'séance en cours|pas de respiration|Fondation', () => avecCalme(async () => {
+    prefs.timer = {id: books[1].id, start: Date.now(), acc: 0, running: true, duree: 20, calme: true}; savePrefs();
+    $('#resumeLecture [data-act=calme]').click(); await pause(20); const m = $('#timerModal');
+    return [m.querySelector('#clock') ? 'séance en cours' : 'pas de séance', m.querySelector('.cercle.souffle') ? 'respiration' : 'pas de respiration', m.querySelector('.livre-s b').textContent].join('|');
+  }));
+  // 4.7
+  await test('Lot 34 : un chrono lancé avant la mise à jour (sans durée) s’affiche en séance libre, sans fin de temps', 'sans limite|pas de fin', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 90 * 60000, running: true}; openTimer();
+    const r = [/sans limite/.test($('#c_etat').textContent) ? 'sans limite' : $('#c_etat').textContent]; verifierFinCalme();
+    r.push(prefs.timer.sonne ? 'fin signalée' : 'pas de fin'); return r.join('|');
+  }));
+  // 4.8
+  await test('Lot 34 : « Réduire » garde la séance ; la pastille montre le temps restant et rouvre la session calme', 'pastille 20:00|session rouverte', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: false, duree: 20, calme: true}; openTimer();
+    $('#t_hide').click(); const p = $('#timerPill'), r = [!p.hidden && /20:00/.test(p.textContent) ? 'pastille 20:00' : 'pastille ' + p.textContent.trim()];
+    p.click(); r.push($('#timerOv').classList.contains('calme') ? 'session rouverte' : 'pas rouverte'); return r.join('|');
+  }));
+  // 5.1
+  await test('Lot 34 : l’aurore de la session bouge en Complète (Nuit), s’endort sans toucher, se réveille ; fixe en Jour', 'bouge|endormie|réveillée|jour:fixe', async () => {
+    const a0 = prefs.animation, s0 = AURORE.sommeil; prefs.animation = 'complete'; AURORE.sommeil = 60;
+    try {
+      const r = await avecCalme(async b => {
+        ouvrirCalme(b); const a = $('#timerModal .aurore'), out = [a.classList.contains('bouge') ? 'bouge' : 'fixe'];
+        await pause(150); out.push(a.classList.contains('dort') ? 'endormie' : 'éveillée');
+        AURORE.dernier = 0; document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+        out.push(!a.classList.contains('dort') ? 'réveillée' : 'toujours endormie'); return out;
+      });
+      r.push('jour:' + await avecCalme(async b => { ouvrirCalme(b); return $('#timerModal .aurore').classList.contains('bouge') ? 'bouge' : 'fixe'; }, 'jardin', 'light'));
+      return r.join('|');
+    } finally { prefs.animation = a0; AURORE.sommeil = s0; }
+  });
+  // 5.2
+  await test('Lot 34 : textes de la session ≥ 4,5 par-dessus l’aurore plein écran, 72 teintes, Nuit et Jour, départ et séance', [], async () => {
+    const ko = [], rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const lum = v => { const l = v.map(x => x / 255).map(x => x <= .03928 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4); return .2126 * l[0] + .7152 * l[1] + .0722 * l[2]; };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+    const melange = (fond, tache, a) => fond.map((f, i) => f * (1 - a) + tache[i] * a);
+    for (const theme of ['dark', 'light']) await avecCalme(async b => {
+      for (const phase of ['depart', 'lecture']) {
+        if (phase === 'depart') ouvrirCalme(b); else { prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: true, duree: 20, calme: true}; openTimer(); }
+        const m = $('#timerModal'), fond = rgb(getComputedStyle(m).backgroundColor);
+        const textes = ['.haut span', '.livre-s b', '.livre-s small', '.aide', '#clock', '.durees button:not([aria-pressed=true])'].map(s => m.querySelector(s)).filter(Boolean);
+        for (let h = 0; h < 360; h += 5) {
+          m.style.setProperty('--h', h);
+          const taches = [...m.querySelectorAll('.aurore i')].map(i => melange(fond, rgb(getComputedStyle(i).backgroundColor), +getComputedStyle(i).opacity));
+          for (const t of textes) for (const p of taches) { const r = ratio(rgb(getComputedStyle(t).color), p); if (r < 4.5) { ko.push(`${theme} ${phase} ${t.id || t.className || t.tagName} h${h} ${r.toFixed(2)}`); break; } }
+        }
+        fermerChrono(); prefs.timer = null;
+      }
+    }, 'jardin', theme);
+    return ko.slice(0, 6);
+  });
+  // 5.3
+  await test('Lot 34 : l’aurore de l’accueil et celle de la session dorment et se réveillent ensemble', 'deux endormies|deux réveillées', async () => {
+    const a0 = prefs.animation, s0 = AURORE.sommeil; prefs.animation = 'complete'; AURORE.sommeil = 60;
+    try {
+      return await avecCalme(async b => {
+        ouvrirCalme(b); await pause(150); const toutes = () => $$('.aurore.bouge'), r = [];
+        r.push(toutes().length === 2 && toutes().every(a => a.classList.contains('dort')) ? 'deux endormies' : toutes().length + ' aurores, ' + toutes().filter(a => a.classList.contains('dort')).length + ' endormies');
+        AURORE.dernier = 0; document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+        r.push(toutes().every(a => !a.classList.contains('dort')) ? 'deux réveillées' : 'pas toutes réveillées'); return r.join('|');
+      });
+    } finally { prefs.animation = a0; AURORE.sommeil = s0; }
+  });
+  // 6.1
+  await test('Lot 34 : écran de départ — « Ouvrir le livre » visible sans défiler (320 × 640 compris)', 'visible sans défiler', () => avecCalme(async b => {
+    ouvrirCalme(b); await pause(30); const r = $('#c_go').getBoundingClientRect();
+    return r.bottom <= innerHeight ? 'visible sans défiler' : `bas à ${Math.round(r.bottom)} pour ${innerHeight}`;
+  }));
+  // 6.2
+  await test('Lot 34 : texte à 130 % — départ, respiration et séance ne dépassent pas en largeur ; « Ouvrir le livre » atteignable', [], () => avecCalme(async b => {
+    const html = document.documentElement, f0 = html.style.fontSize, ko = []; html.style.fontSize = '130%'; SOUFFLE.cycle = 60000;
+    try {
+      const deborde = nom => { const m = $('#timerModal'); for (const e of m.querySelectorAll('.zone *')) { const r = e.getBoundingClientRect(); if (r.width && (r.right > innerWidth + 1 || r.left < -1)) { ko.push(nom + ' ' + (e.id || e.className || e.tagName)); break; } } };
+      ouvrirCalme(b); await pause(30); deborde('départ');
+      $('#c_go').scrollIntoView({block: 'end'}); if (!$('#c_go').checkVisibility()) ko.push('Ouvrir le livre inatteignable');
+      $('#c_go').click(); await pause(30); deborde('respiration');
+      $('#c_passer').click(); await pause(30); deborde('séance');
+    } finally { html.style.fontSize = f0; }
+    return ko;
+  }));
+  // 6.3 (vu sur les captures du lot 34 : Pause et « J'ai fini de lire » flottaient au milieu de l'écran, loin du temps)
+  await test('Lot 34 : pendant la séance, Pause et « J’ai fini de lire » suivent le temps (pas au milieu de l’écran)', 'sous le temps', () => avecCalme(async b => {
+    prefs.timer = {id: b.id, start: Date.now(), acc: 60000, running: true, duree: 20, calme: true}; openTimer(); await pause(30);
+    const ecart = $('#t_stop').getBoundingClientRect().top - $('#c_etat').getBoundingClientRect().bottom;
+    return ecart <= 48 ? 'sous le temps' : `écart de ${Math.round(ecart)} px`;
+  }));
+  // 6.4 (vu sur les captures du lot 34 : bulle immobile, mais l'aide disait « quand le cercle grandit »)
+  await test('Lot 34 : l’aide de la respiration ne parle du cercle que s’il bouge', 'anime:cercle|immobile:sans cercle', async () => {
+    const a0 = prefs.animation, r = [];
+    try {
+      for (const [m, nom] of [['complete', 'anime'], ['aucune', 'immobile']]) { prefs.animation = m;
+        r.push(nom + ':' + await avecCalme(async b => { ouvrirCalme(b); $('#c_go').click(); return /cercle/.test($('#timerModal .aide').textContent) ? 'cercle' : 'sans cercle'; })); }
+    } finally { prefs.animation = a0; }
+    return r.join('|');
+  });
+  // (relecture du lot 34, I-1 : un livre supprimé pendant sa séance bloquait le Jardin — pastille morte, « Reprendre » sans effet)
+  await test('Lot 34 (relecture) : livre supprimé pendant sa séance — pastille cachée, « Reprendre » ouvre une nouvelle session', 'pastille cachée|départ|plus de séance', () => avecCalme(async () => {
+    prefs.timer = {id: books[1].id, start: Date.now(), acc: 0, running: true, duree: 20, calme: true}; savePrefs();
+    books = books.filter(x => x.id !== prefs.timer.id); render(); paintTimerPill(); const r = [$('#timerPill').hidden ? 'pastille cachée' : 'pastille visible'];
+    $('#resumeLecture [data-act=calme]').click(); await pause(20);
+    r.push($('#timerModal .durees') ? 'départ' : 'rien d’ouvert'); r.push(prefs.timer ? 'séance fantôme' : 'plus de séance');
+    return r.join('|');
+  }));
+  // (relecture du lot 34, I-2 : la fin du temps était « signalée » dans une page cachée, donc jamais vue)
+  await test('Lot 34 (relecture) : page cachée à la fin du temps — rien n’est consommé ; au retour, la fin est signalée une fois', 'caché:pas signalé|retour:signalé|1 vibration', () => avecCalme(async b => {
+    const v0 = navigator.vibrate; let n = 0; navigator.vibrate = () => { n++; return true; };
+    const r = [];
+    try {
+      prefs.timer = {id: b.id, start: Date.now() - 15 * 60000, acc: 0, running: true, duree: 10, calme: true}; savePrefs();
+      Object.defineProperty(document, 'visibilityState', {get: () => 'hidden', configurable: true});
+      verifierFinCalme(); r.push('caché:' + (prefs.timer.sonne ? 'consommé' : 'pas signalé'));
+      delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange'));
+      r.push('retour:' + (prefs.timer.sonne ? 'signalé' : 'pas signalé')); r.push(n + ' vibration');
+    } finally { delete document.visibilityState; navigator.vibrate = v0; }
+    return r.join('|');
+  }));
+  // (relecture du lot 34, I-3 : TalkBack — l'écran plein est une boîte de dialogue nommée ; le focus suit chaque phase)
+  await test('Lot 34 (relecture) : TalkBack — boîte de dialogue « Session calme », focus sur l’action de chaque phase, fin annoncée', 'dialog|true|Session calme|c_go|30|c_passer|t_stop|polite', () => avecCalme(async b => {
+    const m = $('#timerModal'), r = [];
+    ouvrirCalme(b); r.push(m.getAttribute('role'), m.getAttribute('aria-modal'), m.getAttribute('aria-label'), document.activeElement.id);
+    const b30 = $('#timerModal .durees [data-duree="30"]'); b30.focus(); b30.click(); r.push(document.activeElement.dataset.duree || document.activeElement.id || document.activeElement.tagName);
+    $('#c_go').click(); r.push(document.activeElement.id);
+    $('#c_passer').click(); r.push(document.activeElement.id, $('#c_etat').getAttribute('aria-live'));
+    return r.join('|');
+  }));
+  // (relecture du lot 34, M-1 regradé : D21 promet que la pastille montre la fin ; hors Jardin, elle montre le temps lu comme la fenêtre)
+  await test('Lot 34 (relecture) : pastille — signe de fin après le temps écoulé (Jardin) ; temps lu hors Jardin', 'fin marquée|3:00', () => avecCalme(async b => {
+    const r = [];
+    prefs.timer = {id: b.id, start: Date.now(), acc: 12 * 60000, running: false, duree: 10, calme: true, sonne: true}; paintTimerPill();
+    r.push($('#timerPill .i-fini') ? 'fin marquée' : 'pas de signe');
+    prefs.timer = {id: b.id, start: Date.now(), acc: 3 * 60000, running: false, duree: 20, calme: true};
+    r.push(await avecStyle('editorial', 'light', () => { paintTimerPill(); return ($('#timerPill').textContent.match(/\d+:\d\d/) || ['?'])[0]; }));
+    return r.join('|');
+  }));
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

@@ -990,6 +990,45 @@ button{-webkit-touch-callout:none}
 @keyframes aurore2{to{transform:translate(-100px,80px) scale(.9)}}
 @keyframes aurore3{to{transform:translate(100px,-70px) scale(1.2)}}
 @media (prefers-reduced-motion: reduce){[data-style=jardin] .aurore i{animation:none!important}}
+/* (lot 34) Session calme : la fenêtre du chrono en plein écran, posée sur l'aurore du livre */
+[data-style=jardin] .resume-lecture.veille button.couv-ruban{background:none;border:0;padding:0;cursor:pointer;color:inherit}
+[data-style=jardin] #timerOv.calme{align-items:stretch;background:var(--fond)}
+[data-style=jardin] #timerOv.calme #timerModal{position:relative;max-width:none;max-height:none;height:100%;border-radius:0;background:var(--fond);padding:0;overflow:hidden auto}
+[data-style=jardin] #timerOv.calme .aurore{position:fixed}
+[data-style=jardin] #timerOv.calme .aurore i{filter:blur(56px)}
+[data-style=jardin] #timerOv.calme .aurore i:nth-child(1){width:300px;height:300px;left:-90px;top:-40px}
+[data-style=jardin] #timerOv.calme .aurore i:nth-child(2){width:280px;height:280px;right:-110px;top:38%}
+[data-style=jardin] #timerOv.calme .aurore i:nth-child(3){width:260px;height:260px;left:10%;bottom:-120px}
+[data-style=jardin] #timerOv.calme .zone{position:relative;z-index:1;max-width:560px;min-height:100%;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;padding:var(--e-3) var(--e-4) calc(var(--e-5) + env(safe-area-inset-bottom))}
+[data-style=jardin] #timerOv.calme .haut{width:100%;display:flex;justify-content:space-between;align-items:center;font-size:var(--t-s);font-weight:600;color:var(--texte-doux)}
+[data-style=jardin] #timerOv.calme .x{width:48px;height:48px;border-radius:50%;border:0;background:color-mix(in srgb,var(--texte) 8%,transparent);color:var(--texte);display:grid;place-items:center;cursor:pointer}
+[data-style=jardin] #timerOv.calme .cercle{position:relative;width:min(210px,56vw);aspect-ratio:1;margin:var(--e-5) 0 var(--e-4);display:grid;place-items:center}
+[data-style=jardin] #timerOv.calme .cercle::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid color-mix(in srgb,var(--texte) 18%,transparent)}
+[data-style=jardin] #timerOv.calme .bulle{position:absolute;inset:9%;border-radius:50%;transform:scale(.55);background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--accent) 32%,transparent),color-mix(in srgb,var(--accent) 5%,transparent) 70%)}
+[data-style=jardin] #timerOv.calme .livre-s b{display:block;font-family:var(--police-titres);font-size:var(--t-l)}
+[data-style=jardin] #timerOv.calme .livre-s small{display:block;font-style:italic;font-size:var(--t-s);color:var(--texte-doux);margin-top:2px}
+[data-style=jardin] #timerOv.calme .durees{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--e-2);margin:var(--e-4) 0}
+[data-style=jardin] #timerOv.calme .durees button{min-width:64px;min-height:48px;padding:0 var(--e-3);border-radius:var(--r-pilule);border:1px solid color-mix(in srgb,var(--texte) 12%,transparent);background:color-mix(in srgb,var(--texte) 7%,transparent);color:var(--texte);font:inherit;font-size:var(--t-s);font-weight:600;cursor:pointer}
+[data-style=jardin] #timerOv.calme .durees [aria-pressed=true]{background:var(--accent-doux);border-color:var(--accent);color:var(--sur-accent-doux)}
+[data-style=jardin] #timerOv.calme #c_go{min-width:min(220px,100%)}
+[data-style=jardin] #timerOv.calme .aide{font-size:var(--t-xs);color:var(--texte-doux);max-width:260px;margin-top:var(--e-3)}
+[data-style=jardin] #timerOv.calme .souffle .bulle{animation:respire var(--cycle) ease-in-out infinite}
+[data-style=jardin] #timerOv.calme .souffle.immobile .bulle{animation:none;transform:scale(.8)}
+@keyframes respire{0%,100%{transform:scale(.55)}45%,55%{transform:scale(1)}}
+[data-style=jardin] #timerOv.calme .mots{position:relative;z-index:1;width:150px;height:1.5em;font-family:var(--police-titres);font-size:var(--t-l);color:var(--texte)}
+[data-style=jardin] #timerOv.calme .mots span{position:absolute;inset:0}
+[data-style=jardin] #timerOv.calme .souffle:not(.immobile) .mots span:first-child{animation:mot1 var(--cycle) ease-in-out infinite}
+[data-style=jardin] #timerOv.calme .souffle:not(.immobile) .mots span:last-child{animation:mot2 var(--cycle) ease-in-out infinite}
+@keyframes mot1{0%,40%{opacity:1}50%,92%{opacity:0}100%{opacity:1}}
+@keyframes mot2{0%,42%{opacity:0}52%,90%{opacity:1}100%{opacity:0}}
+[data-style=jardin] #timerOv.calme .compte{font-size:var(--t-s);color:var(--texte-doux);margin:0 0 var(--e-3)}
+[data-style=jardin] #timerOv.calme #c_passer{min-width:160px;margin-top:var(--e-4)}
+[data-style=jardin] #timerOv.calme .clock{margin:var(--e-5) 0 0;color:var(--texte)}
+[data-style=jardin] #timerOv.calme #c_etat{margin:0 0 var(--e-4)}
+[data-style=jardin] #timerOv.calme .acts{margin-top:0}
+[data-style=jardin] #timerOv.calme .mfoot{width:100%;margin-top:auto;padding-top:var(--e-4)}
+[data-style=jardin] #timerOv.calme #t_end{width:100%;max-width:320px;text-align:left}
+@media (prefers-reduced-motion: reduce){[data-style=jardin] #timerOv.calme .bulle,[data-style=jardin] #timerOv.calme .mots span{animation:none!important}}
 [data-style=jardin] .ce-soir-jardin .titre-s{display:flex;justify-content:space-between;align-items:center;margin:var(--e-3) 0 12px;border-bottom:1px solid var(--trait)}
 [data-style=jardin] .ce-soir-jardin h3{margin:0;font:700 var(--t-xs)/1.25 var(--police-texte);letter-spacing:.14em;text-transform:uppercase;color:var(--texte-doux)}
 [data-style=jardin] .ce-soir-jardin .lien{min-height:var(--toucher);min-width:var(--toucher);margin:-12px 0;border:0;background:none;color:var(--texte-doux);font-size:var(--t-xs);padding:0 0 0 var(--e-2);cursor:pointer}   /* (cible de 48 px, ligne resserrée) */
@@ -1079,7 +1118,7 @@ button{-webkit-touch-callout:none}
   <div class="mfoot"><span class="a" id="bulkCount"></span><span class="sp"></span><button class="btn pri" id="bulkDone" type="button">Terminé</button></div>
 </div></div>
 
-<div class="ov" id="timerOv"><div class="modal" id="timerModal"></div></div>
+<div class="ov" id="timerOv"><div class="modal" id="timerModal" role="dialog" aria-modal="true" aria-label="Lecture en cours"></div></div>
 
 <!-- Question « Oui / Non » de l'appli (à la place des fenêtres du navigateur) -->
 <div class="ov" id="askOv"><div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="askTxt">
@@ -1106,7 +1145,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.12-2';
+const VERSION = '2026.11.12-3';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1879,9 +1918,9 @@ function renderTout() {
   const resteLecture = pr && pr.tot && vit && pr.cur < pr.tot ? `<div class="reste">≈ ${fdur((pr.tot - pr.cur) / vit * 60)} à ton rythme</div>` : '';
   const resumeLecture = reprendre ? `<section class="resume-lecture${cs ? ' veille' : ''}" id="resumeLecture" data-id="${esc(reprendre.id)}" aria-label="Lecture en cours"${cs ? ` style="--h:${hue(reprendre.titre)}"` : ''}>
       ${cs ? `<div class="aurore${enJardinAnime() ? ' bouge' : ''}" aria-hidden="true"><i></i><i></i><i></i></div>` : ''}
-      <div class="couv-ruban">${coverHtml(reprendre, 'ph')}<i class="ruban" aria-hidden="true"></i></div><div><p class="resume-titre">En ce moment</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
+      ${cs ? `<button type="button" class="couv-ruban" data-open="${esc(reprendre.id)}" aria-label="Ouvrir la fiche de ${esc(reprendre.titre)}">` : '<div class="couv-ruban">'}${coverHtml(reprendre, 'ph')}<i class="ruban" aria-hidden="true"></i>${cs ? '</button>' : '</div>'}<div><p class="resume-titre">En ce moment</p><h2>${esc(reprendre.titre)}</h2>${reprendre.auteur ? `<div class="a">${esc(reprendre.auteur)}</div>` : ''}
       ${progress(reprendre).tot ? `<div class="meta">p. ${progress(reprendre).cur} sur ${reprendre.pagesSource === 'estimation' ? 'environ ' : ''}${progress(reprendre).tot} · ${progress(reprendre).pct} %</div><div class="bar" role="progressbar" aria-label="Progression de lecture" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress(reprendre).pct}"><i style="width:${progress(reprendre).pct}%"></i></div>${resteLecture}` : '<div class="meta">Une page suffit pour reprendre le fil.</div>'}
-      </div><div class="acts"><button class="btn pri" type="button" data-open="${esc(reprendre.id)}" aria-label="Reprendre ma lecture">Reprendre</button>
+      </div><div class="acts">${cs ? '<button class="btn pri" type="button" data-act="calme" aria-label="Reprendre ma lecture : session calme">Reprendre</button>' : `<button class="btn pri" type="button" data-open="${esc(reprendre.id)}" aria-label="Reprendre ma lecture">Reprendre</button>`}
       <button class="btn" type="button" data-act="pages">Où j'en suis</button><button class="btn btn-ico" type="button" data-act="plus" title="Autres actions" aria-label="Autres actions : chrono, citation, j'ai fini"><span class="ico i-plus" aria-hidden="true">⋯</span></button></div></section>` : '';
   const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
   const genresConfirmes = [...new Set(books.map(b => (b.classif || {}).genre).filter(Boolean))].sort((a, b) => Taxonomie.nom('genre', a).localeCompare(Taxonomie.nom('genre', b), 'fr'));
@@ -2083,14 +2122,14 @@ const animPousse = b => {
 // (lot 33, R2) L'aurore bouge seulement en Complète et en Nuit ; elle s'endort après 30 s sans toucher l'écran
 const enJardinAnime = () => modeAnimation() === 'complete' && document.documentElement.dataset.theme === 'dark';
 const AURORE = {sommeil: 30000, minuteur: 0, dernier: 0};
+// (lot 34 : toutes les aurores visibles — accueil et session calme — dorment et se réveillent ensemble)
 function reveillerAurore() {
   clearTimeout(AURORE.minuteur);
-  const a = document.querySelector('#main .aurore.bouge'); if (!a) return;
-  AURORE.dernier = performance.now(); a.classList.remove('dort');
-  AURORE.minuteur = setTimeout(() => { const b = document.querySelector('#main .aurore.bouge'); if (b) b.classList.add('dort'); }, AURORE.sommeil);
+  if (!document.querySelector('.aurore.bouge')) return;
+  AURORE.dernier = performance.now(); document.querySelectorAll('.aurore.bouge').forEach(a => a.classList.remove('dort'));
+  AURORE.minuteur = setTimeout(() => document.querySelectorAll('.aurore.bouge').forEach(a => a.classList.add('dort')), AURORE.sommeil);
 }
-// (au plus une remise à zéro par seconde : le défilement envoie beaucoup d'événements)
-['pointerdown', 'keydown', 'scroll'].forEach(t => addEventListener(t, () => { if (performance.now() - AURORE.dernier > 1000 || document.querySelector('#main .aurore.dort')) reveillerAurore(); }, {passive: true, capture: true}));
+['pointerdown', 'keydown', 'scroll'].forEach(t => addEventListener(t, () => { if (performance.now() - AURORE.dernier > 1000 || document.querySelector('.aurore.dort')) reveillerAurore(); }, {passive: true, capture: true}));
 function loanChip(b) {
   if (b.possession === 'prete') return `<span class="chip">${ico('pret', '📤')} Prêté${b.pretNom ? ' à ' + esc(b.pretNom) : ''}</span>`;
   if (b.possession === 'emprunte') {
@@ -4742,13 +4781,16 @@ function quick(act, b) {
   else if (act === 'pages') openPage(b);
   else if (act === 'quote') openQuote(b);
   else if (act === 'timer') startTimer(b);
+  else if (act === 'calme') ouvrirCalme(b);
   else if (act === 'plus') openActions(b);
 }
 // « ⋯ » d'un livre en cours : les autres actions, en grand
 function openActions(b) {
   $('#modal').innerHTML = `<h2>${esc(b.titre)}</h2>
     <div class="ajout">
-      <button type="button" data-act="timer"><b><span class="ico i-chrono" aria-hidden="true">⏱️</span> Lire avec le chrono</b><span>Mesure ta séance et ta vitesse de lecture</span></button>
+      <button type="button" data-act="timer">${enJardin()
+        ? `<b><span class="ico i-chrono" aria-hidden="true">⏱️</span> Session calme</b><span>Trois respirations, puis le temps que tu choisis</span>`
+        : `<b><span class="ico i-chrono" aria-hidden="true">⏱️</span> Lire avec le chrono</b><span>Mesure ta séance et ta vitesse de lecture</span>`}</button>
       <button type="button" data-act="quote"><b><span class="ico i-modifier" aria-hidden="true">✍️</span> Ajouter une citation</b><span>Une phrase qui t'a marqué</span></button>
       <button type="button" data-act="fini"><b><span class="ico i-fini" aria-hidden="true">✓</span> J'ai fini</b><span>Ranger le livre dans « Lus » et le noter</span></button>
       <button type="button" data-act="edit"><b><span class="ico i-texte" aria-hidden="true">📝</span> Modifier la fiche</b><span>Pages, dates, résumé, rayons…</span></button>
@@ -5553,52 +5595,158 @@ async function bulkCode(c) {
 $('#bulkDest').onclick = e => { const b = e.target.closest('[data-dest]'); if (!b) return; prefs.bulkDest = b.dataset.dest; savePrefs(); document.querySelectorAll('#bulkDest button').forEach(x => x.classList.toggle('on', x === b)); };
 $('#bulkDone').onclick = closeBulk;
 
+/* ---------- (lot 34) Session calme : le chrono « Lire » en rituel, style Jardin seulement ---------- */
+// Avant le minuteur, tout vit en mémoire (rien n'est enregistré si on ferme) ; ensuite c'est prefs.timer, comme le chrono
+const SOUFFLE = {cycle: 8000, n: 3};                      // (3 respirations de 8 s ; les tests raccourcissent)
+const CALME = {phase: '', id: '', n: 0, minuteur: 0, compte: 0};
+const DUREES_CALME = [10, 20, 30, 0];                     // (0 = « Libre » : sans fin, comme le chrono d'avant)
+const dureeCalme = () => DUREES_CALME.includes(prefs.dureeCalme) ? prefs.dureeCalme : 20;
+function ouvrirCalme(b) {
+  if (prefs.timer && !books.some(x => x.id === prefs.timer.id)) { prefs.timer = null; savePrefs(); }   // (livre supprimé pendant sa séance)
+  if (prefs.timer) { if (prefs.timer.id !== b.id) toast('Une séance tourne déjà pour un autre livre'); return openTimer(); }
+  Object.assign(CALME, {phase: 'depart', id: b.id, n: 0}); peindreCalme();
+}
+// (ferme la fenêtre du chrono, classique ou calme ; une séance lancée continue — la pastille la montre)
+function fermerChrono() {
+  clearTimeout(CALME.minuteur); clearInterval(CALME.compte); CALME.phase = '';
+  // (la session se redessine à chaque ouverture : on ne laisse pas son aurore travailler dans une fenêtre cachée)
+  if ($('#timerOv').classList.contains('calme')) $('#timerModal').innerHTML = '';
+  $('#timerOv').classList.remove('show', 'calme'); paintTimerPill();
+}
+function peindreCalme() {
+  const t = prefs.timer, b = books.find(x => x.id === (t ? t.id : CALME.id));
+  if (!b) { if (t) { prefs.timer = null; savePrefs(); } return fermerChrono(); }   // (livre supprimé : la séance n'a plus de sens)
+  const phase = t ? 'lecture' : CALME.phase, m = $('#timerModal'), avant = m.contains(document.activeElement) ? document.activeElement.id : '';
+  const livre = `<div class="livre-s"><b>${esc(b.titre)}</b><small>${+b.pageActuelle ? 'reprise à la page ' + esc(b.pageActuelle) : 'à la première page'}</small></div>`;
+  let corps = '';
+  if (phase === 'depart') corps = `<div class="cercle" aria-hidden="true"><span class="bulle"></span></div>${livre}
+      <div class="durees" role="group" aria-label="Durée">${DUREES_CALME.map(d => `<button type="button" data-duree="${d}" aria-pressed="${d === dureeCalme()}">${d ? d + ' min' : 'Libre'}</button>`).join('')}</div>
+      <button type="button" class="btn pri" id="c_go">Ouvrir le livre</button>
+      <p class="aide">Trois respirations, puis le minuteur démarre. À la fin, on te demande seulement la page où tu t’es arrêté.</p>`;
+  else if (phase === 'souffle') corps = `<div class="cercle souffle${souffleAnime() ? '' : ' immobile'}" style="--cycle:${SOUFFLE.cycle}ms" aria-hidden="true"><span class="bulle"></span>
+        <span class="mots">${souffleAnime() ? '<span>Inspire…</span><span>Expire…</span>' : '<span>Inspire, puis expire</span>'}</span></div>
+      <p class="compte" id="c_compte" aria-live="polite">Respiration ${CALME.n} sur ${SOUFFLE.n}</p>${livre}
+      <button type="button" class="btn" id="c_passer">Passer</button>
+      <p class="aide">${souffleAnime() ? 'Inspire quand le cercle grandit, expire quand il se resserre.' : 'Trois respirations lentes, à ton rythme.'}</p>`;
+  else corps = `${livre}<div class="clock" id="clock">${texteCalme()}</div><p class="aide" id="c_etat" aria-live="polite">${etatCalme()}</p>
+      <div class="acts centre"><button class="btn" id="t_pause">${boutonPause(t)}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
+      ${finChronoHtml(b)}
+      <div class="mfoot"><button class="btn del small" id="t_cancel">Annuler la séance</button><span class="sp"></span><button class="btn" id="t_hide">Réduire</button></div>`;
+  m.innerHTML = `<div class="aurore${enJardinAnime() ? ' bouge' : ''}" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="zone"><div class="haut"><span>Session calme</span><button type="button" class="x" id="c_x" aria-label="Fermer">${ico('fermer', '✕')}</button></div>${corps}</div>`;
+  m.style.setProperty('--h', hue(b.titre)); m.setAttribute('aria-label', 'Session calme');
+  $('#timerOv').classList.add('show', 'calme'); paintTimerPill(); reveillerAurore();
+  // (TalkBack : après chaque repeint, le focus revient où il était, sinon sur l'action de la phase)
+  const cible = (avant && m.querySelector('#' + CSS.escape(avant))) || m.querySelector({depart: '#c_go', souffle: '#c_passer', lecture: '#t_stop'}[phase]);
+  if (cible) cible.focus({preventScroll: true});
+  $('#c_x').onclick = fermerChrono;
+  if ($('#c_go')) $('#c_go').onclick = commencerSouffle;
+  if ($('#c_passer')) $('#c_passer').onclick = lancerLecture;
+  if (phase === 'lecture') { brancherChrono(b, peindreCalme); verifierFinCalme(); }
+  const durees = m.querySelector('.durees');
+  if (durees) durees.onclick = e => { const x = e.target.closest('[data-duree]'); if (!x) return; prefs.dureeCalme = +x.dataset.duree; savePrefs();
+    durees.querySelectorAll('[data-duree]').forEach(y => y.setAttribute('aria-pressed', y === x)); };   // (sans repeindre : le focus reste sur la durée)
+}
+
+// (la bulle respire en Complète et Simple ; en Aucune et en mouvement réduit, elle reste immobile et le texte guide)
+const souffleAnime = () => ['complete', 'simple'].includes(modeAnimation());
+function commencerSouffle() {
+  clearTimeout(CALME.minuteur); clearInterval(CALME.compte);
+  Object.assign(CALME, {phase: 'souffle', n: 1}); peindreCalme();
+  CALME.compte = setInterval(() => {
+    if (CALME.n >= SOUFFLE.n) return;
+    CALME.n++; const c = $('#c_compte'); if (c) c.textContent = `Respiration ${CALME.n} sur ${SOUFFLE.n}`;
+  }, SOUFFLE.cycle);
+  CALME.minuteur = setTimeout(lancerLecture, SOUFFLE.cycle * SOUFFLE.n);
+}
+function lancerLecture() {
+  clearTimeout(CALME.minuteur); clearInterval(CALME.compte);
+  if (!['depart', 'souffle'].includes(CALME.phase) || prefs.timer) return;   // (fenêtre fermée entre-temps : rien)
+  prefs.timer = {id: CALME.id, start: Date.now(), acc: 0, running: true, duree: dureeCalme(), calme: true};
+  CALME.phase = ''; savePrefs(); peindreCalme();
+}
+
+// (lot 34 : partagé par le chrono classique et la session calme — une seule façon d'enregistrer une séance)
+function enregistrerSeance(b, n) {
+  if (isNaN(n) || n < 0) { toast('Indique un numéro de page'); return false; }
+  const min = Math.max(1, Math.round(timerMs() / 60000));
+  const tot = +b.pagesTotal || 0, to = tot ? Math.min(n, tot) : n, from = +b.pageActuelle || 0;
+  const nb = {...b, pageActuelle: to, sessions: [...(b.sessions || []), {date: today(), min, de: from, a: to}]};
+  logPage(nb, to);
+  prefs.timer = null; savePrefs(); fermerChrono();
+  if (tot && to >= tot) { save(nb); openForm({...nb, statut: 'lu', dateFin: today()}, {finish: true}); return true; }
+  save(nb, `${fdur(min)} de lecture · +${plural(Math.max(0, to - from), 'page')} 👏`); return true;
+}
+const finChronoHtml = b => `<div id="t_end" hidden><div class="f mt-3"><label for="t_page">À quelle page t'es-tu arrêté ?${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
+      <input id="t_page" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
+      <div class="acts"><button class="btn pri" id="t_save">Enregistrer la séance</button></div></div>`;
+const boutonPause = t => t.running ? ico('pause', '⏸️') + ' Pause' : ico('lecture', '▶️') + ' Reprendre';
+function brancherChrono(b, repeindre) {
+  $('#t_pause').onclick = () => {
+    const x = prefs.timer;
+    if (x.running) { x.acc += Date.now() - x.start; x.running = false; } else { x.start = Date.now(); x.running = true; }
+    savePrefs(); repeindre();
+  };
+  $('#t_stop').onclick = () => { const x = prefs.timer; if (x.running) { x.acc += Date.now() - x.start; x.running = false; savePrefs(); } $('#t_end').hidden = false; $('#t_page').focus(); $('#t_page').select(); };
+  $('#t_save').onclick = () => enregistrerSeance(b, parseInt($('#t_page').value, 10));
+  $('#t_cancel').onclick = () => { prefs.timer = null; savePrefs(); fermerChrono(); toast('Chrono annulé'); };
+  $('#t_hide').onclick = fermerChrono;
+}
+const resteMs = () => { const t = prefs.timer; return t && t.duree ? t.duree * 60000 - timerMs() : null; };
+// (temps restant arrondi à la seconde au-dessus : « 10:00 » au départ ; après la fin, le temps lu en tout)
+const texteCalme = () => { const r = resteMs(); return r !== null && r > 0 ? clock(Math.ceil(r / 1000) * 1000) : clock(timerMs()); };
+function etatCalme() {
+  const t = prefs.timer, r = resteMs();
+  if (!t.running) return 'En pause';
+  if (r === null) return 'de lecture, sans limite';
+  return r > 0 ? `restantes sur ${t.duree} min` : `Tes ${t.duree} minutes sont passées. Continue si tu veux.`;
+}
+// (une seule fois par séance ; vibration courte si l'écran est allumé — verrouillé, une appli web ne peut pas vibrer)
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifierFinCalme(); });
+function verifierFinCalme() {
+  const t = prefs.timer; if (!t || !t.duree || t.sonne || resteMs() > 0) return;
+  if (document.visibilityState !== 'visible') return;   // (page cachée : on attend le retour, sinon personne ne le verrait)
+  t.sonne = true; savePrefs();
+  if (document.visibilityState === 'visible' && navigator.vibrate) navigator.vibrate([120, 80, 120]);
+  const e = $('#timerOv.calme.show #c_etat');
+  if (e) e.textContent = etatCalme(); else if (enJardin()) toast(`Tes ${t.duree} minutes sont passées · continue si tu veux`);
+}
+
 /* ---------- Chrono de lecture ---------- */
 let timerTick = null;
 const timerMs = () => { const t = prefs.timer; return t ? t.acc + (t.running ? Date.now() - t.start : 0) : 0; };
 const clock = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(s % 60).padStart(2, '0'); };
 function paintTimerPill() {
   const t = prefs.timer, p = $('#timerPill');
-  p.hidden = !t || $('#timerOv').classList.contains('show');
-  if (t) p.innerHTML = (t.running ? ico('chrono', '⏱️') : ico('pause', '⏸️')) + ' ' + clock(timerMs());
+  // (lot 34 : livre supprimé pendant sa séance → pas de pastille morte ; la séance s'oublie à la prochaine ouverture)
+  p.hidden = !t || !books.some(x => x.id === t.id) || $('#timerOv').classList.contains('show');
+  if (!t) return;
+  const calme = t.duree && enJardin();
+  p.innerHTML = (calme && t.sonne ? ico('fini', '✓') : t.running ? ico('chrono', '⏱️') : ico('pause', '⏸️')) + ' ' + (calme && resteMs() > 0 ? clock(Math.ceil(resteMs() / 1000) * 1000) : clock(timerMs()));
 }
-setInterval(() => { if (prefs.timer) { paintTimerPill(); const c = $('#clock'); if (c) c.textContent = clock(timerMs()); } }, 1000);
+setInterval(() => {
+  if (!prefs.timer) return;
+  paintTimerPill(); verifierFinCalme();
+  const c = $('#clock'); if (c) c.textContent = $('#timerOv').classList.contains('calme') ? texteCalme() : clock(timerMs());
+}, 1000);
 function startTimer(b) {
+  if (enJardin()) return ouvrirCalme(b);   // (lot 34 : en Jardin, le chrono devient la session calme)
   if (prefs.timer && prefs.timer.id !== b.id) { toast('Un chrono tourne déjà pour un autre livre'); return openTimer(); }
   if (!prefs.timer) { prefs.timer = {id: b.id, start: Date.now(), acc: 0, running: true}; savePrefs(); }
   openTimer();
 }
 function openTimer() {
+  if (enJardin()) return peindreCalme();
   const t = prefs.timer; if (!t) return;
   const b = books.find(x => x.id === t.id);
   if (!b) { prefs.timer = null; savePrefs(); return paintTimerPill(); }
   $('#timerModal').innerHTML = `<h2>⏱️ Lecture en cours</h2><div class="chrono-livre">${coverHtml(b, 'mini')}<b>${esc(b.titre)}</b></div>
     <div class="clock" id="clock">${clock(timerMs())}</div>
-    <div class="acts centre"><button class="btn" id="t_pause">${t.running ? ico('pause', '⏸️') + ' Pause' : ico('lecture', '▶️') + ' Reprendre'}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
-    <div id="t_end" hidden><div class="f mt-3"><label for="t_page">À quelle page t'es-tu arrêté ?${b.pagesTotal ? ' (sur ' + esc(b.pagesTotal) + ')' : ''}</label>
-      <input id="t_page" type="number" min="0" inputmode="numeric" value="${esc(b.pageActuelle)}"></div>
-      <div class="acts"><button class="btn pri" id="t_save">Enregistrer la séance</button></div></div>
+    <div class="acts centre"><button class="btn" id="t_pause">${boutonPause(t)}</button><button class="btn pri" id="t_stop">J'ai fini de lire</button></div>
+    ${finChronoHtml(b)}
     <div class="mfoot"><button class="btn del small" id="t_cancel">Annuler le chrono</button><span class="sp"></span><button class="btn" id="t_hide">Réduire</button></div>`;
-  $('#timerOv').classList.add('show'); paintTimerPill();
-  $('#t_pause').onclick = () => {
-    const x = prefs.timer;
-    if (x.running) { x.acc += Date.now() - x.start; x.running = false; } else { x.start = Date.now(); x.running = true; }
-    savePrefs(); openTimer();
-  };
-  $('#t_stop').onclick = () => { const x = prefs.timer; if (x.running) { x.acc += Date.now() - x.start; x.running = false; savePrefs(); } $('#t_end').hidden = false; $('#t_page').focus(); $('#t_page').select(); };
-  $('#t_save').onclick = () => {
-    const n = parseInt($('#t_page').value, 10);
-    if (isNaN(n) || n < 0) return toast('Indique un numéro de page');
-    const min = Math.max(1, Math.round(timerMs() / 60000));
-    const tot = +b.pagesTotal || 0, to = tot ? Math.min(n, tot) : n, from = +b.pageActuelle || 0;
-    const nb = {...b, pageActuelle: to, sessions: [...(b.sessions || []), {date: today(), min, de: from, a: to}]};
-    logPage(nb, to);
-    prefs.timer = null; savePrefs(); $('#timerOv').classList.remove('show');
-    if (tot && to >= tot) { save(nb); return openForm({...nb, statut: 'lu', dateFin: today()}, {finish: true}); }
-    save(nb, `${fdur(min)} de lecture · +${plural(Math.max(0, to - from), 'page')} 👏`);
-  };
-  $('#t_cancel').onclick = () => { prefs.timer = null; savePrefs(); $('#timerOv').classList.remove('show'); paintTimerPill(); toast('Chrono annulé'); };
-  $('#t_hide').onclick = () => { $('#timerOv').classList.remove('show'); paintTimerPill(); };
+  $('#timerModal').setAttribute('aria-label', 'Lecture en cours'); $('#timerOv').classList.remove('calme'); $('#timerOv').classList.add('show'); paintTimerPill();
+  brancherChrono(b, openTimer);
 }
 $('#timerPill').onclick = openTimer;
 
@@ -5871,7 +6019,7 @@ document.addEventListener('click', e => {
   const repriseAct = e.target.closest('#resumeLecture [data-act]');
   if (repriseAct) { const b = books.find(x => x.id === $('#resumeLecture').dataset.id); if (b) return quick(repriseAct.dataset.act, b); }
   if (e.target.id === 'ov') return fermerFenetre();   // toucher le fond grisé : on demande si la fiche a été modifiée
-  if (e.target.id === 'timerOv') { $('#timerOv').classList.remove('show'); return paintTimerPill(); }
+  if (e.target.id === 'timerOv') return fermerChrono();
   if (e.target.closest('#view')) { prefs.view = prefs.view === 'grille' ? 'liste' : 'grille'; savePrefs(); return render(); }
   if (e.target.closest('#dice')) return openNext();
   const ct = e.target.closest('[data-cat]'); if (ct) { catView.sous = ''; return openCategorie(ct.dataset.cat); }
@@ -5989,7 +6137,7 @@ function fermerDessus() {
   else if (o === '#askOv') { if (reponseQuestion) reponseQuestion(false); }
   else if (o === '#scanOv') closeScanner();
   else if (o === '#bulkOv') closeBulk();
-  else if (o === '#timerOv') { $('#timerOv').classList.remove('show'); paintTimerPill(); }
+  else if (o === '#timerOv') fermerChrono();
   else if (o === '#livreOv') fermerFiche();
   else fermerFenetre();
   return true;

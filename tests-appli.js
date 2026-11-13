@@ -5248,6 +5248,178 @@
     r.push(await avecStyle('editorial', 'light', () => { paintTimerPill(); return ($('#timerPill').textContent.match(/\d+:\d\d/) || ['?'])[0]; }));
     return r.join('|');
   }));
+  /* ---------- Lot 35 : Carnet Encre (style Jardin seulement) ---------- */
+  // (aide du lot 35 : un Carnet type — 2 livres, 2 notes, 3 citations dont 2 le même jour ; tout est remis en place à la fin)
+  const carnetType = () => [
+    fiche('Fondation', {statut: 'en_cours', auteur: 'Isaac Asimov', pagesTotal: 300, pageActuelle: 120,
+      notes: [{id: 'n-f1', texte: 'Hari Seldon : prévoir l’Histoire sans pouvoir l’empêcher.', page: '112', date: '2026-11-09'}],
+      citations: [{id: 'c-mhx00000aaaaa', texte: 'La violence est le dernier refuge de l’incompétence.', page: '41', date: '2026-11-12', commentaire: ''}]}),
+    fiche('Chants pour l’Afrique', {statut: 'en_cours', auteur: 'Exemple', pagesTotal: 200, pageActuelle: 98,
+      notes: [{id: 'n-c1', texte: 'Relire le chant du fleuve à voix haute.', page: '61', date: '2026-11-07'}],
+      citations: [{id: 'c-mhx00001aaaaa', texte: 'La patience est un chemin qui se fait en marchant.', page: '98', date: '2026-11-12', commentaire: ''},
+        {id: 'c-mhw00000aaaaa', texte: 'Une citation plus ancienne.', page: '12', date: '2026-11-01', commentaire: ''}]})];
+  const avecCarnet = (vue, fn, style = 'jardin', theme = 'dark', livres = carnetType()) => avecStyle(style, theme, async () => {
+    const b0 = books, f0 = {...ui}, e0 = prefs.encreVue, a0 = prefs.animation;
+    books = livres; prefs.encreVue = '9999'; ui.nq = ''; ui.cq = '';   // ('9999' : rien de neuf, sauf si le test le veut)
+    try { await allerEcran(vue); return await fn(); }
+    finally { books = b0; Object.assign(ui, f0); prefs.encreVue = e0; prefs.animation = a0; savePrefs(); render(); }
+  });
+
+  // 1.1
+  await test('Lot 35 : la dernière citation — même jour, la dernière ajoutée d’abord ; la liste suit le même ordre (tous les styles)', 'La patience|La patience,La violence,Une citation|Une citation', () => avecCarnet('citations', async () => {
+    const r = [derniereCitation().q.texte.slice(0, 11)];
+    r.push(await avecStyle('editorial', 'light', () => { render(); return $$('#qlist .quote-texte').map(x => x.textContent.replace(/[«»\s ]+/g, ' ').trim().slice(0, 12).trim()).join(); }));
+    books.forEach(b => b.citations = b.citations.filter(q => q.date !== '2026-11-12'));
+    r.push(derniereCitation().q.texte.slice(0, 12));
+    return r.join('|');
+  }));
+  // 2.1
+  await test('Lot 35 : en Jardin, une note est un article — rubrique « Titre · note », texte, date et page ; pas d’auteur sur la ligne', 'article|Fondation · note|Hari Seldon|9 nov. 2026|p. 112|sans auteur', () => avecCarnet('notes', async () => {
+    const e = $$('#nlist .carnet-entry').find(x => x.textContent.includes('Hari'));
+    return [e.classList.contains('article') ? 'article' : 'carte', e.querySelector('.rubrique').textContent, e.querySelector('p').textContent.slice(0, 11),
+      ...[...e.querySelectorAll('.meta span')].map(s => s.textContent), e.querySelector('.carnet-corps').textContent.includes('Asimov') ? 'auteur' : 'sans auteur'].join('|');
+  }));
+  // 2.2
+  await test('Lot 35 : en Jardin, une citation (hors exergue) est un article — rubrique « Titre · citation », guillemets, date et page', 'article|Fondation · citation|«|12 nov. 2026|p. 41', () => avecCarnet('citations', async () => {
+    const e = $$('#qlist .quote').find(x => x.textContent.includes('violence'));
+    return [e.classList.contains('article') ? 'article' : 'carte', e.querySelector('.rubrique').textContent, e.querySelector('.quote-texte').textContent.trim()[0],
+      ...[...e.querySelectorAll('.meta span')].map(s => s.textContent)].join('|');
+  }));
+  // 2.3
+  await test('Lot 35 : articles — filet fin, pas de fond de carte ; les 4 autres styles gardent les cartes et l’auteur', 'jardin:filet,sans fond|editorial:carte,auteur|android:carte,auteur|actuel:carte,auteur|carnet:carte,auteur', async () => {
+    const r = [];
+    for (const st of ['jardin', 'editorial', 'android', 'actuel', 'carnet']) r.push(await avecCarnet('notes', async () => {
+      const e = $('#nlist .carnet-entry'), s = getComputedStyle(e);
+      if (st === 'jardin') return st + ':' + (parseFloat(s.borderTopWidth) >= 1 ? 'filet' : 'sans filet') + ',' + (/rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor) ? 'sans fond' : 'fond');
+      return st + ':' + (e.classList.contains('article') || e.querySelector('.rubrique') ? 'article' : 'carte') + ',' + (/Asimov|Exemple/.test(e.textContent) ? 'auteur' : 'sans auteur');
+    }, st, 'light'));
+    return r.join('|');
+  });
+  // 3.1
+  await test('Lot 35 : vue Notes — la dernière citation en exergue, sous la recherche ; un toucher ouvre les citations du livre', 'Dernière citation|La patience|Chants pour l’Afrique · p. 98|après la recherche|avant les notes|citations', () => avecCarnet('notes', async () => {
+    const x = $('#nexergue .exergue'), r = [x.querySelector('.rubrique').textContent, x.querySelector('.quote-texte').textContent.replace(/[«»\s ]+/g, ' ').trim().slice(0, 11), x.querySelector('.source').textContent];
+    r.push(x.compareDocumentPosition($('#nq')) & Node.DOCUMENT_POSITION_PRECEDING ? 'après la recherche' : 'avant la recherche');
+    r.push(x.compareDocumentPosition($('#nlist')) & Node.DOCUMENT_POSITION_FOLLOWING ? 'avant les notes' : 'après les notes');
+    x.click(); await pause(80); r.push(ficheEtat.id === 't-Chants pour l’Afrique' && $('#fs_citations') ? 'citations' : '?'); await fermerTout(); await pause(30);
+    return r.join('|');
+  }));
+  // 3.2
+  await test('Lot 35 : vue Citations — la plus récente est la 1re entrée, en exergue, avec sa couverture ; jamais deux fois', 'exergue|La patience|3 entrées|1 fois|couverture', () => avecCarnet('citations', async () => {
+    const l = $$('#qlist .quote'), t = l.map(x => x.querySelector('.quote-texte').textContent);
+    return [l[0].classList.contains('exergue') ? 'exergue' : 'pas d’exergue', t[0].replace(/[«»\s ]+/g, ' ').trim().slice(0, 11), l.length + ' entrées',
+      t.filter(s => s.includes('patience')).length + ' fois', l[0].querySelector('.ph') ? 'couverture' : 'sans couverture'].join('|');
+  }));
+  // 3.3
+  await test('Lot 35 : recherche — l’exergue s’efface (Notes), la liste est simple (Citations) ; le champ garde le focus et ne bouge pas', 'caché|focus|immobile|revenu|citations:sans exergue', () => avecCarnet('notes', async () => {
+    const champ = $('#nq'), y0 = champ.getBoundingClientRect().top; champ.focus(); champ.value = 'fleuve'; champ.dispatchEvent(new Event('input', {bubbles: true})); await pause(30);
+    const r = [$('#nexergue').hidden ? 'caché' : 'visible', document.activeElement === $('#nq') ? 'focus' : 'focus perdu', Math.abs($('#nq').getBoundingClientRect().top - y0) < 1 ? 'immobile' : 'a bougé'];
+    $('#nq').value = ''; $('#nq').dispatchEvent(new Event('input', {bubbles: true})); await pause(30); r.push($('#nexergue').hidden ? 'toujours caché' : 'revenu');
+    ui.tab = 'citations'; render(); $('#cq').value = 'patience'; $('#cq').dispatchEvent(new Event('input', {bubbles: true})); await pause(30);
+    r.push('citations:' + ($('#qlist .exergue') ? 'exergue' : 'sans exergue'));
+    return r.join('|');
+  }));
+  // 3.4
+  await test('Lot 35 : sans citation, pas d’exergue ; l’état vide des citations ne change pas', 'notes:sans exergue|Pas encore de citation', () => avecCarnet('notes', async () => {
+    const r = ['notes:' + ($('#nexergue') ? 'exergue' : 'sans exergue')];
+    ui.tab = 'citations'; render(); r.push(($('#qlist').textContent.match(/Pas encore de citation/) || ['?'])[0]);
+    return r.join('|');
+  }, 'jardin', 'dark', [fiche('Sans citation', {statut: 'en_cours', notes: [{id: 'n-s', texte: 'Une note', date: '2026-11-10'}]})]));
+  // 3.5
+  await test('Lot 35 : vue Notes — une citation de 2 000 caractères tient en 5 lignes dans l’exergue (entière dans la vue Citations)', '≤ 5 lignes|entière', () => avecCarnet('notes', async () => {
+    const t = $('#nexergue .quote-texte'), lh = parseFloat(getComputedStyle(t).lineHeight);
+    const r = [t.getBoundingClientRect().height <= lh * 5 + 1 ? '≤ 5 lignes' : Math.round(t.getBoundingClientRect().height / lh) + ' lignes'];
+    ui.tab = 'citations'; render(); const u = $('#qlist .exergue .quote-texte'); r.push(u.getBoundingClientRect().height > lh * 8 ? 'entière' : 'coupée');
+    return r.join('|');
+  }, 'jardin', 'dark', [fiche('Longue', {statut: 'en_cours', citations: [{id: 'c-long', texte: 'Une phrase qui revient sans cesse. '.repeat(58), page: '7', date: '2026-11-12', commentaire: ''}]})]));
+  // 3.6
+  await test('Lot 35 : les 4 autres styles n’ont pas d’exergue', 'editorial:0|android:0|actuel:0|carnet:0', async () => {
+    const r = [];
+    for (const st of ['editorial', 'android', 'actuel', 'carnet']) r.push(await avecCarnet('notes', async () => { const n = $$('#main .exergue').length; ui.tab = 'citations'; render(); return st + ':' + (n + $$('#main .exergue').length); }, st, 'light'));
+    return r.join('|');
+  });
+  // 4.1
+  await test('Lot 35 : nouvelle citation — l’encre se pose une fois (Complète), puis plus jamais ; pas pendant une recherche', 'encre|retenue|plus d’encre|recherche:sans encre', () => avecCarnet('notes', async () => {
+    prefs.animation = 'complete'; prefs.encreVue = ''; render(); const r = [$('#nexergue .exergue.encre') ? 'encre' : 'pas d’encre'];
+    r.push(prefs.encreVue === cleCitation(books[1].citations[0]) ? 'retenue' : 'non retenue : ' + prefs.encreVue);
+    render(); r.push($('#main .encre, #main .encre-douce') ? 'encore' : 'plus d’encre');
+    prefs.encreVue = ''; ui.nq = 'fleuve'; render(); r.push('recherche:' + ($('#main .encre') ? 'encre' : 'sans encre'));
+    return r.join('|');
+  }));
+  // 4.2
+  await test('Lot 35 : l’encre selon le réglage Animations — Complète encre, Simple fondu, Aucune rien (mais retenue)', 'complete:encre|simple:encre-douce|aucune:rien,retenue', () => avecCarnet('citations', async () => {
+    const r = [];
+    for (const a of ['complete', 'simple', 'aucune']) {
+      prefs.animation = a; prefs.encreVue = ''; render(); const e = $('#qlist .exergue');
+      r.push(a + ':' + (e.classList.contains('encre') ? 'encre' : e.classList.contains('encre-douce') ? 'encre-douce' : 'rien') + (a === 'aucune' ? ',' + (prefs.encreVue ? 'retenue' : 'oubliée') : ''));
+    }
+    return r.join('|');
+  }));
+  // 4.3
+  await test('Lot 35 : supprimer sa dernière citation ne relance pas l’encre sur la précédente', 'La violence|sans encre', () => avecCarnet('citations', async () => {
+    prefs.animation = 'complete'; prefs.encreVue = ''; render();
+    books[1].citations = books[1].citations.filter(q => q.id !== 'c-mhx00001aaaaa'); render(); const e = $('#qlist .exergue');
+    return [e.querySelector('.quote-texte').textContent.replace(/[«»\s ]+/g, ' ').trim().slice(0, 11), e.classList.contains('encre') ? 'encre' : 'sans encre'].join('|');
+  }));
+  // 4.4
+  await test('Lot 35 : l’encre finie, aucun masque ne reste ; le texte est lisible (opacité 1)', 'masque pendant|sans masque|1', () => avecCarnet('notes', async () => {
+    prefs.animation = 'complete'; prefs.encreVue = ''; render(); const t = $('#nexergue .quote-texte');
+    const pendant = getComputedStyle(t).maskImage || getComputedStyle(t).webkitMaskImage; t.getAnimations().forEach(a => a.finish());
+    const apres = getComputedStyle(t).maskImage || getComputedStyle(t).webkitMaskImage;
+    return [pendant && pendant !== 'none' ? 'masque pendant' : 'pas de masque', !apres || apres === 'none' ? 'sans masque' : 'masque resté', getComputedStyle(t).opacity].join('|');
+  }));
+  // 4.5
+  await test('Lot 35 : hors Jardin, ni encre ni mémoire touchée', 'editorial:rien,intacte', () => avecCarnet('citations', async () => {
+    prefs.animation = 'complete'; prefs.encreVue = 'x'; render();
+    return 'editorial:' + ($('#main .encre, #main .encre-douce') ? 'encre' : 'rien') + ',' + (prefs.encreVue === 'x' ? 'intacte' : 'touchée');
+  }, 'editorial', 'light'));
+  // 5.1
+  await test('Lot 35 : texte à 130 % — rien ne dépasse en largeur ; l’exergue (citation longue) laisse voir la 1re note', 'pas de débordement|note visible', () => avecCarnet('notes', async () => {
+    const html = document.documentElement;
+    try { html.style.fontSize = '130%'; render(); await pause(40);
+      return [html.scrollWidth <= innerWidth ? 'pas de débordement' : 'déborde de ' + (html.scrollWidth - innerWidth) + ' px',
+        $('#nlist .carnet-entry').getBoundingClientRect().top < innerHeight * 1.6 ? 'note visible' : 'note trop bas'].join('|'); }
+    finally { html.style.fontSize = ''; }
+  }, 'jardin', 'dark', [fiche('Longue', {statut: 'en_cours', notes: [{id: 'n-l', texte: 'Une note', date: '2026-11-10'}],
+    citations: [{id: 'c-long', texte: 'Une phrase qui revient sans cesse. '.repeat(58), page: '7', date: '2026-11-12', commentaire: ''}]})]));
+  // 5.2
+  for (const theme of ['light', 'dark']) await test(`Lot 35 : contrastes du Carnet Encre en ${theme === 'dark' ? 'Nuit' : 'Jour'} (≥ 4,5)`, [], () => avecCarnet('notes', async () => {
+    const fondDe = el => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\(0, 0, 0, 0\)|transparent/.test(c)) return c; } return getComputedStyle(document.body).backgroundColor; };
+    return ['#nexergue .rubrique', '#nexergue .quote-texte', '#nexergue .source', '#nlist .rubrique', '#nlist .article p', '#nlist .meta span']
+      .map(s => [s, $(s)]).filter(([, e]) => !e || contraste(getComputedStyle(e).color, fondDe(e)) < 4.5).map(([s, e]) => s + (e ? ' ' + contraste(getComputedStyle(e).color, fondDe(e)).toFixed(2) : ' absent'));
+  }, 'jardin', theme));
+  // (relecture du lot 35, I-1 : les citations d'avant le 22/10 n'ont pas d'identifiant daté — leur ordre devenait aléatoire)
+  await test('Lot 35 (relecture) : citations sans identifiant daté, même jour — la dernière ajoutée d’abord, puis l’ordre des livres', 'A4,A3,A2,A1,B1|A4', () => avecCarnet('citations', async () => {
+    const r = await avecStyle('editorial', 'light', () => { render(); return $$('#qlist .quote-texte').map(x => x.textContent.replace(/[«»\s ]+/g, '')).join(); });
+    return r + '|' + derniereCitation().q.texte;
+  }, 'jardin', 'dark', [fiche('Livre A', {statut: 'en_cours', citations: ['A1', 'A2', 'A3', 'A4'].map(texte => ({texte, page: '1', date: '2026-10-20'}))}),
+    fiche('Livre B', {statut: 'en_cours', citations: [{texte: 'B1', page: '1', date: '2026-10-20'}]})]));
+  // (relecture du lot 35, I-2 : un long commentaire sur la dernière citation repoussait toutes les notes hors de l'écran)
+  await test('Lot 35 (relecture) : vue Notes — le commentaire de l’exergue tient en 2 lignes', '≤ 2 lignes', () => avecCarnet('notes', async () => {
+    const c = $('#nexergue .quote-commentaire'), lh = parseFloat(getComputedStyle(c).lineHeight) || parseFloat(getComputedStyle(c).fontSize) * 1.5;
+    return c.getBoundingClientRect().height <= lh * 2 + 1 ? '≤ 2 lignes' : Math.round(c.getBoundingClientRect().height / lh) + ' lignes';
+  }, 'jardin', 'dark', [fiche('Commenté', {statut: 'en_cours', notes: [{id: 'n-x', texte: 'Une note', date: '2026-11-10'}],
+    citations: [{id: 'c-mhx00000ccccc', texte: 'Courte.', page: '7', date: '2026-11-12', commentaire: 'Un commentaire qui n’en finit pas. '.repeat(38)}]})]));
+  // (relecture du lot 35, I-3 : l'encre se « consommait » sous la fiche du livre ou dans une page cachée — jamais vue)
+  await test('Lot 35 (relecture) : nouvelle citation ajoutée fiche ouverte ou page cachée — l’encre attend et se pose au retour', 'fiche:attend|fermée:encre|caché:attend|retour:encre', () => avecCarnet('notes', async () => {
+    prefs.animation = 'complete'; const r = [];
+    const ajouter = (id, date) => { books[1].citations = [...books[1].citations, {id, texte: 'Nouvelle ' + id, page: '5', date, commentaire: ''}]; };
+    prefs.encreVue = cleCitation(derniereCitation().q);
+    ouvrirFiche(books[1].id); await pause(80); ajouter('c-mhy00000aaaaa', '2026-11-13'); render();
+    r.push('fiche:' + (prefs.encreVue.includes('mhy00000') ? 'consommée' : 'attend'));
+    await fermerFiche(); await pause(40); r.push('fermée:' + ($('#nexergue .exergue.encre') ? 'encre' : 'sans encre'));
+    try {
+      Object.defineProperty(document, 'visibilityState', {get: () => 'hidden', configurable: true});
+      ajouter('c-mhz00000aaaaa', '2026-11-14'); render(); r.push('caché:' + (prefs.encreVue.includes('mhz00000') ? 'consommée' : 'attend'));
+      delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange')); await pause(20);
+      r.push('retour:' + ($('#nexergue .exergue.encre') && prefs.encreVue.includes('mhz00000') ? 'encre' : 'sans encre'));
+    } finally { delete document.visibilityState; }
+    return r.join('|');
+  }));
+  // (captures du lot 35 : « P. » et « 98 » se séparaient en bout de ligne)
+  await test('Lot 35 (captures) : le numéro de page reste collé à « p. » (exergue et articles)', 'exergue:collé|article:collé', () => avecCarnet('citations', async () => {
+    const colle = e => /p\. \d/.test(e.textContent) ? 'collé' : 'séparable';
+    return ['exergue:' + colle($('#qlist .exergue .source')), 'article:' + colle($('#qlist .article .meta'))].join('|');
+  }));
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

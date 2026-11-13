@@ -1063,6 +1063,27 @@ button{-webkit-touch-callout:none}
 .avec-couv{display:flex;gap:var(--e-3);align-items:flex-start}
 .avec-couv > .ph{flex:none}
 .carnet-corps{display:block;flex:1;min-width:0}
+/* (lot 35) Carnet Encre — articles : filet fin, rubrique en petites capitales, texte en serif ; mini-couverture avec ombre légère */
+[data-style=jardin] :is(.carnet-entry,.quote).article{margin:0;padding:var(--e-3) 0;border:0;border-top:1px solid var(--trait);border-radius:0;background:none;box-shadow:none}
+[data-style=jardin] .article .rubrique,[data-style=jardin] .exergue .rubrique{display:block;font:700 var(--t-xs)/1.3 var(--police-texte);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);overflow-wrap:anywhere}
+[data-style=jardin] .article p,[data-style=jardin] .article .quote-texte{margin:var(--e-1) 0;font-family:var(--police-titres);font-size:var(--t-m);line-height:1.45}
+[data-style=jardin] .article .meta{display:flex;flex-wrap:wrap;gap:0 var(--e-1);font-size:var(--t-xs);color:var(--texte-doux)}
+[data-style=jardin] .article .meta span + span::before{content:"·";margin-right:var(--e-1)}   /* (espaces égaux de part et d’autre du point) */
+[data-style=jardin] :is(.article,.exergue) > .ph{box-shadow:var(--ombre-1)}
+/* (lot 35) L'exergue : la dernière citation, en grand ; coupée à 5 lignes dans la vue Notes (entière dans la vue Citations) */
+[data-style=jardin] .quote.exergue{margin:var(--e-2) 0 var(--e-4);padding:var(--e-3) 0;border:0;border-radius:0;background:none;box-shadow:none}
+[data-style=jardin] .exergue .quote-texte{margin:var(--e-1) 0;font-family:var(--police-titres);font-size:var(--t-l);line-height:1.4;color:var(--texte)}
+[data-style=jardin] .exergue .source{display:block;font:600 var(--t-xs)/1.3 var(--police-texte);letter-spacing:.06em;text-transform:uppercase;color:var(--texte-doux)}
+[data-style=jardin] #nexergue .quote-texte{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+[data-style=jardin] #nexergue .quote-commentaire{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}   /* (relecture : un long commentaire repoussait les notes) */
+/* (lot 35) L'encre se pose : le masque n'existe que pendant l'animation — si elle ne part pas, le texte est déjà là */
+[data-style=jardin] .exergue.encre .quote-texte{animation:encre-pose 1.5s ease-out}
+[data-style=jardin] .exergue.encre-douce .quote-texte{animation:encre-fondu .6s ease-out}
+@keyframes encre-pose{
+  from{-webkit-mask-image:linear-gradient(90deg,var(--texte) 40%,transparent 60%);mask-image:linear-gradient(90deg,var(--texte) 40%,transparent 60%);-webkit-mask-size:250% 100%;mask-size:250% 100%;-webkit-mask-position:100% 0;mask-position:100% 0}
+  to{-webkit-mask-image:linear-gradient(90deg,var(--texte) 40%,transparent 60%);mask-image:linear-gradient(90deg,var(--texte) 40%,transparent 60%);-webkit-mask-size:250% 100%;mask-size:250% 100%;-webkit-mask-position:0 0;mask-position:0 0}}
+@keyframes encre-fondu{from{opacity:0}}
+@media (prefers-reduced-motion: reduce){[data-style=jardin] .exergue:is(.encre,.encre-douce) .quote-texte{animation:none}}
 .carnet-repere{display:block;width:100%;margin:var(--e-2) 0 var(--e-3);padding:var(--e-3) var(--e-4);border:0;border-left:3px solid var(--accent);background:var(--surface-2);color:var(--texte);font:inherit;text-align:left;cursor:pointer}
 .carnet-repere p{margin:var(--e-1) 0 0;font-family:var(--police-titres);font-size:var(--t-m)}
 .livre-trace{display:block;width:100%;margin:0 0 var(--e-3);padding:var(--e-3) var(--e-4);border:0;border-radius:var(--r-m);background:var(--accent-doux);color:var(--sur-accent-doux);font:inherit;text-align:left;cursor:pointer}
@@ -1145,7 +1166,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.12-3';
+const VERSION = '2026.11.13-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -3070,6 +3091,48 @@ function paintNotice() {
 // (lot V5, U1 : une même tête pour les 4 espaces — titre et ligne douce côte à côte quand ils tiennent, et à droite un réglage éventuel)
 // (lot 32 : l'« ours » — « Mes lectures » en petites capitales — n'est visible qu'en Jardin, et caché aux lecteurs d'écran)
 const teteEcran = (titre, ligne, droite) => `<div class="ecran-tete"><div><p class="ecran-ours" aria-hidden="true">Mes lectures</p><h2 class="ecran-titre">${titre}</h2><p class="ecran-ligne">${ligne}</p></div>${droite || ''}</div>`;
+/* ---------- (lot 35) Carnet Encre : la dernière citation, les articles, l'encre — style Jardin seulement ---------- */
+// Ordre des citations (D34) : la date, puis l'heure d'ajout quand l'identifiant la porte ('c-' + newId() : 8 caractères
+// d'heure + 5 au hasard). Les citations d'avant le 22/10/2026 ont un identifiant tiré du texte, sans heure : entre elles,
+// la dernière ajoutée dans le livre passe d'abord, puis l'ordre des livres (relecture du lot 35).
+const heureCitation = q => /^c-[0-9a-z]{13}$/.test(q.id || '') ? q.id.slice(2, 10) : '00000000';
+const cleCitation = q => (q.date || '') + '|' + heureCitation(q) + '|' + (q.id || '');
+const plusRecenteDabord = (a, b) => {
+  const x = (a.q.date || '') + '|' + heureCitation(a.q), y = (b.q.date || '') + '|' + heureCitation(b.q);
+  if (x !== y) return x < y ? 1 : -1;
+  return a.b === b.b ? b.i - a.i : books.indexOf(a.b) - books.indexOf(b.b);
+};
+const derniereCitation = () => allQuotes().reduce((m, x) => !m || plusRecenteDabord(x, m) < 0 ? x : m, null);
+// Les articles (D30) : rubrique en petites capitales (titre · genre), texte en serif, puis date · page. L'auteur reste
+// trouvable par la recherche et dans la fiche, mais quitte la ligne. Même bouton qu'avant : il ouvre la fiche à la bonne section.
+const rubrique = (b, genre) => `<span class="rubrique">${esc(b.titre)} · ${genre}</span>`;
+function noteArticle(x) {
+  const quand = x.n.date ? (x.n.modif && x.n.modif !== x.n.date ? `Modifiée le ${fdate(x.n.modif)}` : fdate(x.n.date)) : '';
+  return `<button type="button" class="carnet-entry article avec-couv" data-book="${esc(x.b.id)}" data-section="notes">${coverHtml(x.b, 'mini')}<span class="carnet-corps">${rubrique(x.b, 'note')}<p>${esc(x.n.texte)}</p><span class="meta">${quand ? `<span>${quand}</span>` : ''}${x.n.page ? `<span>p.&nbsp;${esc(x.n.page)}</span>` : ''}</span></span></button>`;
+}
+function citationArticle(x) {
+  return `<button type="button" class="quote article avec-couv" data-book="${esc(x.b.id)}" data-section="citations">${coverHtml(x.b, 'mini')}<span class="carnet-corps">${rubrique(x.b, 'citation')}<span class="quote-texte">${guillemets(x.q.texte)}</span>${x.q.commentaire ? `<span class="quote-commentaire">${esc(x.q.commentaire)}</span>` : ''}<span class="meta">${x.q.date ? `<span>${fdate(x.q.date)}</span>` : ''}${x.q.page ? `<span>p.&nbsp;${esc(x.q.page)}</span>` : ''}</span></span></button>`;
+}
+// L'encre qui se pose (D31, D32) : une fois, pour une citation plus récente que la dernière déjà vue (clé date|id, retenue
+// dans prefs.encreVue — supprimer la dernière ne relance rien). Complète : encre ; Simple ou téléphone lent : fondu ;
+// Aucune ou mouvement réduit : rien (mais la citation est bien retenue comme vue).
+let encreAttente = false;
+function encreSur(x) {
+  const cle = cleCitation(x.q);
+  if (cle <= (prefs.encreVue || '')) return '';
+  // (relecture du lot 35 : sous une fenêtre ou dans une page cachée, personne ne la verrait — on attend le retour)
+  if (document.visibilityState !== 'visible' || fenetreOuverte()) { encreAttente = true; if (fenetreOuverte()) Store.aRafraichir = true; return ''; }
+  encreAttente = false;
+  prefs.encreVue = cle; savePrefs();
+  const m = Ouverture.reduit() ? 'aucune' : modeAnimation();
+  return m === 'complete' ? ' encre' : m === 'aucune' ? '' : ' encre-douce';
+}
+// L'exergue (D27) : la dernière citation, en grand, avec sa couverture. Vue Notes : sous la recherche (taper ne fait pas
+// sauter le champ, D28) et coupée à 5 lignes (D29). Vue Citations : c'est la 1re entrée de la liste, entière (jamais deux fois).
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && encreAttente && !fenetreOuverte()) render(); });
+function exergueHtml(x, encre) {
+  return `<button type="button" class="quote exergue${encre ? encreSur(x) : ''} avec-couv" data-book="${esc(x.b.id)}" data-section="citations">${coverHtml(x.b, 'mini')}<span class="carnet-corps"><span class="rubrique">Dernière citation</span><span class="quote-texte">${guillemets(x.q.texte)}</span>${x.q.commentaire ? `<span class="quote-commentaire">${esc(x.q.commentaire)}</span>` : ''}<span class="source">${esc(x.b.titre)}${x.q.page ? ' · p.&nbsp;' + esc(x.q.page) : ''}</span></span></button>`;
+}
 function carnetNav(active) {
   const nn = allNotes().length, nq = allQuotes().length;
   return teteEcran('Carnet', `${plural(nn, 'note')} · ${plural(nq, 'citation')}`) + `<nav class="subtabs carnet-nav" aria-label="Carnet">` +
@@ -3078,15 +3141,19 @@ function carnetNav(active) {
 }
 function renderNotesTab() {
   // (lot V5, U6 : plus d'encart « Dernière note » ici — il répétait la première ligne ; il reste dans la fiche du livre)
-  $('#main').innerHTML = `${carnetNav('notes')}<div class="tools"><input id="nq" type="search" aria-label="Chercher dans mes notes" placeholder="Chercher dans mes notes…" value="${esc(ui.nq)}"></div><div class="list" id="nlist"></div>`;
+  // (lot 35 : en Jardin, la dernière citation en exergue, sous la recherche ; pas d'encre si une recherche est déjà en cours)
+  const x = enJardin() && derniereCitation();
+  $('#main').innerHTML = `${carnetNav('notes')}<div class="tools"><input id="nq" type="search" aria-label="Chercher dans mes notes" placeholder="Chercher dans mes notes…" value="${esc(ui.nq)}"></div>${x ? `<div id="nexergue">${exergueHtml(x, !Recherche.norm(ui.nq))}</div>` : ''}<div class="list" id="nlist"></div>`;
   renderNotes();
 }
 function renderNotes() {
   const q = Recherche.norm(ui.nq);
+  const ex = $('#nexergue'); if (ex) ex.hidden = !!q;   // (lot 35, D28 : pendant une recherche, les résultats seulement)
   let l = allNotes();
   if (q) l = l.filter(x => Recherche.norm([x.n.texte, x.n.page, x.b.titre, x.b.auteur].join(' ')).includes(q));
   l.sort((a, b) => (b.n.modif || b.n.date || '').localeCompare(a.n.modif || a.n.date || ''));
-  $('#nlist').innerHTML = l.length ? l.map(x => `<button type="button" class="carnet-entry avec-couv" data-book="${esc(x.b.id)}" data-section="notes">${coverHtml(x.b, 'mini')}<span class="carnet-corps"><p>${esc(x.n.texte)}</p><span class="meta">${x.n.date ? `<span>${x.n.modif && x.n.modif !== x.n.date ? `Modifiée le ${fdate(x.n.modif)}` : fdate(x.n.date)}</span>` : ''}<span><b>${esc(x.b.titre)}</b>${x.b.auteur ? ', ' + esc(x.b.auteur) : ''}</span>${x.n.page ? `<span>p. ${esc(x.n.page)}</span>` : ''}</span></span></button>`).join('')
+  const jardin = enJardin();
+  $('#nlist').innerHTML = l.length ? l.map(x => jardin ? noteArticle(x) : `<button type="button" class="carnet-entry avec-couv" data-book="${esc(x.b.id)}" data-section="notes">${coverHtml(x.b, 'mini')}<span class="carnet-corps"><p>${esc(x.n.texte)}</p><span class="meta">${x.n.date ? `<span>${x.n.modif && x.n.modif !== x.n.date ? `Modifiée le ${fdate(x.n.modif)}` : fdate(x.n.date)}</span>` : ''}<span><b>${esc(x.b.titre)}</b>${x.b.auteur ? ', ' + esc(x.b.auteur) : ''}</span>${x.n.page ? `<span>p. ${esc(x.n.page)}</span>` : ''}</span></span></button>`).join('')
     : q ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucune note ne correspond', texte: 'Essaie d’autres mots ou efface la recherche.', actions: '<button class="btn" type="button" data-effacer-notes>Effacer la recherche</button>'})
       : etat({icone: 'livre', emoji: '📝', titre: 'Ton carnet est vide', texte: 'Ajoute une note depuis la fiche d’un livre pour la retrouver ici.'});
 }
@@ -3099,8 +3166,9 @@ function renderQuotes() {
   const q = Recherche.norm(ui.cq);
   let l = allQuotes().slice();   // (copie : le tri ci-dessous ne doit pas toucher le calcul partagé)
   if (q) l = l.filter(x => Recherche.norm([x.q.texte, x.q.commentaire, x.q.page, x.b.titre, x.b.auteur].join(' ')).includes(q));
-  l.sort((a, b) => (b.q.date || '').localeCompare(a.q.date || ''));
-  $('#qlist').innerHTML = l.length ? l.map(x => `<button type="button" class="quote avec-couv" data-book="${esc(x.b.id)}" data-section="citations">${coverHtml(x.b, 'mini')}<span class="carnet-corps"><span class="quote-texte">${guillemets(x.q.texte)}</span>
+  l.sort(plusRecenteDabord);   // (lot 35, D34 : même jour → la dernière ajoutée d'abord, dans tous les styles)
+  const jardin = enJardin(), exergue = jardin && !q;   // (lot 35 : sans recherche, la plus récente est l'exergue)
+  $('#qlist').innerHTML = l.length ? l.map((x, i) => exergue && !i ? exergueHtml(x, true) : jardin ? citationArticle(x) : `<button type="button" class="quote avec-couv" data-book="${esc(x.b.id)}" data-section="citations">${coverHtml(x.b, 'mini')}<span class="carnet-corps"><span class="quote-texte">${guillemets(x.q.texte)}</span>
       ${x.q.commentaire ? `<span class="quote-commentaire">${esc(x.q.commentaire)}</span>` : ''}<span class="livre-citation-meta">${x.q.date ? `<span>${fdate(x.q.date)}</span>` : ''}<span>— <b>${esc(x.b.titre)}</b>${x.b.auteur ? ', ' + esc(x.b.auteur) : ''}</span>${x.q.page ? `<span>p. ${esc(x.q.page)}</span>` : '<span>Page non indiquée</span>'}</span></span></button>`).join('')
     : `${q ? etat({icone: 'chercher', emoji: '🔎', titre: 'Aucune citation ne correspond', texte: 'Essaie d’autres mots ou efface la recherche.', actions: '<button class="btn" type="button" data-effacer-citations>Effacer la recherche</button>'}) : ETATS.citations()}`;
 }

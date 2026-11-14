@@ -1,6 +1,6 @@
 // Permet à l'appli de s'ouvrir même sans internet, et garde les couvertures en mémoire.
 // Change ce numéro à chaque mise à jour de l'appli pour forcer le rafraîchissement.
-const CACHE = 'mes-lectures-v64';   // appli 2026.11.13-1
+const CACHE = 'mes-lectures-v65';   // appli 2026.11.14-1
 // Couvertures : deux réserves. Chrome compte une image « opaque » (site qui n'autorise pas la lecture) pour
 // 10 à 14 Mo de place (mesuré), contre sa vraie taille (20 à 60 Ko) quand le site l'autorise (« CORS »).
 // (l'ancienne réserve « mes-lectures-couvertures », pleine d'images opaques, est supprimée à l'activation)
@@ -10,9 +10,6 @@ const COVER_HOSTS = ['covers.openlibrary.org', 'archive.org', 'catalogue.bnf.fr'
   'books.google.com', 'books.googleusercontent.com', 'mzstatic.com', 'di-static.com', 'epagine.fr'];
 // Couvertures gardées : 300 lisibles (quelques Mo en tout), et seulement 30 opaques (pour ne pas manger la place de tes livres)
 const MAX_COVERS = 300, MAX_OPAQUES = 30;
-// Réseau trop lent : au-delà de ce délai, on ouvre la copie enregistrée (plus d'écran blanc interminable)
-const DELAI_RESEAU = 4000;
-
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
@@ -47,16 +44,25 @@ async function couverture(e, req, url) {
   return res;
 }
 
-// Fichiers de l'appli : d'abord internet (pour avoir la dernière version), sinon la copie.
-// Seule une vraie réponse (pas une page d'erreur) remplace la copie gardée pour le hors-ligne.
+// Fichiers de l'appli (lot 36) : la copie d'abord, pour s'ouvrir tout de suite même avec un mauvais réseau ; la dernière
+// version est cherchée en même temps et rangée pour l'ouverture suivante. Sans copie (premier lancement) : internet.
 async function appli(req, reseau) {
   const cache = await caches.open(CACHE);
   const copie = await cache.match(req, {ignoreSearch: req.mode === 'navigate'});
-  if (!copie) return reseau.catch(async () => (req.mode === 'navigate' && await cache.match('index.html')) || Response.error());
-  // Une copie existe : on attend internet au plus quelques secondes, puis on l'utilise
-  const delai = new Promise(r => setTimeout(() => r(null), DELAI_RESEAU));
-  const res = await Promise.race([reseau.catch(() => null), delai]);
-  return res && res.ok ? res : copie;
+  if (copie) return copie;
+  return reseau.catch(async () => (req.mode === 'navigate' && await cache.match('index.html')) || Response.error());
+}
+// Range la réponse d'internet ; si la page de l'appli a changé, prévient les fenêtres ouvertes (« Nouvelle version prête »)
+async function ranger(req, res) {
+  if (!res.ok) return;
+  const aRanger = res.clone(), aLire = res.clone();   // (copies prises tout de suite, avant que la page ne lise la réponse)
+  const cache = await caches.open(CACHE), page = req.mode === 'navigate';
+  const avant = page ? await cache.match(req, {ignoreSearch: true}) : null;
+  await cache.put(req, aRanger);
+  if (!avant || await avant.text() === await aLire.text()) return;
+  // (les fichiers d'une version vont ensemble : on range aussi les deux autres avant d'annoncer, sinon « Recharger » tomberait sur un mélange)
+  await Promise.all(['recherche.js', 'taxonomie.js'].map(f => fetch(f, {cache: 'no-store'}).then(r => r.ok ? cache.put(f, r) : null)));
+  (await self.clients.matchAll()).forEach(c => c.postMessage({type: 'maj-prete'}));
 }
 
 self.addEventListener('fetch', e => {
@@ -66,8 +72,8 @@ self.addEventListener('fetch', e => {
 
   if (url.origin === location.origin) {
     const reseau = fetch(req);
-    // (la copie est mise à jour même si la page a déjà été servie depuis la copie)
-    e.waitUntil(reseau.then(res => res.ok ? caches.open(CACHE).then(c => c.put(req, res.clone())) : null).catch(() => {}));
+    // (la copie est mise à jour pendant que la page s'ouvre sur l'ancienne)
+    e.waitUntil(reseau.then(res => ranger(req, res)).catch(() => {}));
     e.respondWith(appli(req, reseau));
     return;
   }

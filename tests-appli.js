@@ -997,8 +997,8 @@
     return r.join('|');
   });
   // (lot 32 : 5 styles — Jardin de nuit seul sur la première ligne, puis 2 lignes de 2)
-  await test('Réglages : les 5 styles tiennent sur 3 lignes (1, puis 2 de 2), sans débordement', 'sans débordement|3 lignes|2 colonnes', async () => {
-    openSettings(); await pause(50);
+  await test('Réglages : les 3 styles en vue tiennent sur 2 lignes (1, puis 2), les 2 anciens sur 1 ligne une fois le volet ouvert, sans débordement (lot 36)', 'sans débordement|3 lignes|2 colonnes', async () => {
+    openSettings(); await pause(50); $('#st_style details.anciens-styles').open = true;
     const box = $('#st_style'), bs = [...box.querySelectorAll('[data-st]')];
     const r = (box.scrollWidth <= box.clientWidth + 1 ? 'sans débordement' : 'déborde de ' + (box.scrollWidth - box.clientWidth) + ' px')
       + '|' + new Set(bs.map(b => Math.round(b.getBoundingClientRect().top))).size + ' lignes'
@@ -2694,14 +2694,14 @@
   // (fin de la section 14)
 
   /* ---------- 15. Corrections du 23/10 : barre de navigation en bas ---------- */
-  await test('Navigation : barre en bas de l\'écran, 4 espaces (icône et nom), rien ne déborde, contenu et bouton ＋ dégagés', 'en bas|4 icônes|sans débordement|contenu dégagé|＋ au-dessus', () => {
+  await test('Navigation : barre en bas de l\'écran, 4 espaces (icône et nom), rien ne déborde, contenu dégagé, bouton ＋ rangé dans la barre (lot 36)', 'en bas|4 icônes|sans débordement|contenu dégagé|＋ dans la barre', () => {
     books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; render();
     const bar = $('#tabs'), r = bar.getBoundingClientRect(), tabs = [...bar.querySelectorAll('[data-space]')], fab = $('#fab').getBoundingClientRect();
     return [Math.abs(r.bottom - innerHeight) <= 1 && getComputedStyle(bar).position === 'fixed' ? 'en bas' : 'bas ' + Math.round(r.bottom) + '/' + innerHeight,
       tabs.length === 4 && tabs.every(t => t.querySelector('.ico') && t.textContent.trim()) ? '4 icônes' : '?',
       bar.scrollWidth <= bar.clientWidth + 1 && tabs.every(t => t.scrollWidth <= t.clientWidth + 1 && t.getBoundingClientRect().right <= innerWidth + 1) ? 'sans débordement' : 'déborde',
       parseFloat(getComputedStyle(document.body).paddingBottom) >= r.height ? 'contenu dégagé' : 'contenu caché',
-      fab.bottom <= r.top + 1 ? '＋ au-dessus' : '＋ caché'].join('|');
+      fab.top >= r.top - 1 && fab.bottom <= r.bottom + 1 && tabs.every(t => t.getBoundingClientRect().right <= fab.left + 1) ? '＋ dans la barre' : '＋ mal rangé'].join('|');
   });
   await test('Statuts de la bibliothèque : les 4 tiennent dans la largeur (sur deux lignes si l\'écran est étroit)', 'tiennent', () => {
     books = [fiche('Nav', {statut: 'a_lire'})]; ui.tab = 'a_lire'; render();
@@ -3074,7 +3074,7 @@
       const m = n.textContent.match(/\p{Extended_Pictographic}/gu); if (m) out.push(...m); } return out; };
   const lecturesStats = () => ['Un', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit'].map((t, i) => fiche('Stat ' + t, {statut: 'lu', note: 4, pagesTotal: i ? 250 : 600,
     dateDebut: addDays(-30 * i - 9), dateFin: addDays(-30 * i - 2), classements: i % 2 ? [B('686', '320')] : []}));
-  const avecStats = async fn => { const b0 = books, g0 = goal; try { books = lecturesStats(); ui.tab = 'stats'; render(); scrollTo(0, 0); return await fn(); } finally { books = b0; goal = g0; ui.tab = 'en_cours'; render(); } };
+  const avecStats = async fn => { const b0 = books, g0 = goal, a0 = ui.statsAnnee; try { books = lecturesStats(); ui.statsAnnee = true; ui.tab = 'stats'; render(); scrollTo(0, 0); return await fn(); } finally { books = b0; goal = g0; ui.statsAnnee = a0; ui.tab = 'en_cours'; render(); } };
   await test('Lot 5 : défis résumés — « N sur M réussis », les 3 prochains (les plus avancés, sans les réussis), tous derrière « Voir tous les défis » replié', 'résumé|3 prochains|replié|tous', () => avecStats(async () => {
     const y = new Date().getFullYear(), d = defis(y), ok = d.filter(x => x.ok).length;
     const attendus = d.filter(x => !x.ok).sort((a, b) => b.n / b.but - a.n / a.but).slice(0, 3).map(x => x.id).join(',');
@@ -3087,13 +3087,13 @@
     r.push(tous && tous.querySelectorAll('[data-defi]').length === d.length && /Voir tous les défis/.test(tous.querySelector('summary').textContent) ? 'tous' : 'défis manquants');
     return r.join('|');
   }));
-  await test('Lot 5 : Stats — « Voir tous les défis » arrive avant 2 écrans, avec le rappel de sauvegarde', 'avant 2 écrans', () => avecStats(async () => {
+  await test('Lot 5 : Stats — « Voir tous les défis » arrive avant 2 écrans ; le rappel de sauvegarde n’y prend plus de bandeau (lot 36)', 'avant 2 écrans', () => avecStats(async () => {
     const l0 = prefs.lastBackup;
     try {
       prefs.lastBackup = undefined; paintNotice(); render(); scrollTo(0, 0);
       const s = $('#main .defis-tous > summary'); if (!s) return 'pas de « Voir tous »';
       const ecran = innerWidth < 340 ? 640 : 780, bas = s.getBoundingClientRect().bottom + scrollY;
-      return $('#notice').hidden ? 'pas de rappel' : bas <= 2 * ecran ? 'avant 2 écrans' : `bas à ${Math.round(bas)}, limite ${2 * ecran}`;
+      return !$('#notice').hidden ? 'bandeau inattendu' : bas <= 2 * ecran ? 'avant 2 écrans' : `bas à ${Math.round(bas)}, limite ${2 * ecran}`;
     } finally { prefs.lastBackup = l0; paintNotice(); }
   }));
   await test('Lot 5 : Éditorial — aucun émoji visible dans Stats, dans Réglages ni dans le rappel de sauvegarde', 'Stats : aucun|Réglages : aucun|rappel : aucun', () => avecStyle('editorial', 'light', () => avecStats(async () => {
@@ -3831,7 +3831,7 @@
         return b.textContent.trim().replace(/^\S+ (?=Clair|Sombre|Auto)/, '') + ':' + (ok ? 'ok' : `rayon ${Math.round(rad)}, marges ${Math.round(r.left - s.left)}/${Math.round(s.right - r.right)}/${Math.round(r.top - s.top)}`); }).join('|'); }
     finally { closeM(true); prefs.theme = th0; prefs.density = d0; prefs.animation = a0; applyTheme(); }
   }));
-  await test('Lot V3 : un seul bouton rose — « Sauvegarder » — dans les Stats et dans les Réglages', 'stats:Sauvegarder|réglages:Sauvegarder', async () => {
+  await test('Lot V3 : un seul bouton rose — « Sauvegarder » — dans les Réglages ; aucun dans le Ciel depuis le lot 36', 'stats:|réglages:Sauvegarder', async () => {
     const b0 = books, tab0 = ui.tab; books = livresV3();
     const roses = root => [...root.querySelectorAll('.btn.pri')].filter(b => b.checkVisibility()).map(b => b.textContent.trim().replace(/^[^A-Za-zÀ-ÿ]+/, '')).join(' + ');
     try { ui.tab = 'stats'; ui.statsDetail = true; render(); await pause(40); const r = ['stats:' + roses($('#main'))];
@@ -4109,7 +4109,7 @@
     return Object.keys(ko).map(f => !vus[f] ? f + ':introuvable' : f + ':' + (ko[f].length ? ko[f].join(',') : 'ok')).join('|');
   });
 
-  await test('Lot V5 : rappel de prêt — une ligne (deux au plus à 130 %), « en retard de 2 j », seulement dans la Bibliothèque ; alertes de sauvegarde partout', 'une ligne|textes|bibliothèque:oui|découvrir:non|carnet:non|stats:non|sauvegarde partout', async () => {
+  await test('Lot V5 : rappel de prêt — une ligne (deux au plus à 130 %), « en retard de 2 j », seulement dans la Bibliothèque ; rappel de sauvegarde : Bibliothèque seulement (lot 36)', 'une ligne|textes|bibliothèque:oui|découvrir:non|carnet:non|stats:non|sauvegarde : bibliothèque seulement', async () => {
     const b0 = books, tab0 = ui.tab, f0 = document.documentElement.style.fontSize, lb0 = prefs.lastBackup, r = [];
     const pret = j => [fiche('Les Furtifs', {possession: 'emprunte', pretRetour: addDays(j)})];
     try {
@@ -4125,8 +4125,8 @@
       books = pret(-2);
       for (const [tab, nom] of [['a_lire', 'bibliothèque'], ['decouvrir', 'découvrir'], ['notes', 'carnet'], ['stats', 'stats']]) { ui.tab = tab; render(); paintNotice(); await pause(20); r.push(nom + ':' + ($('#notice').hidden ? 'non' : 'oui')); }
       books = [1, 2, 3].map(i => fiche('V5 s' + i)); delete prefs.lastBackup; const ko = [];
-      for (const tab of ['a_lire', 'decouvrir', 'notes', 'stats']) { ui.tab = tab; render(); paintNotice(); if ($('#notice').hidden) ko.push(tab); }
-      r.push(ko.length ? 'sauvegarde absente : ' + ko.join(',') : 'sauvegarde partout');
+      for (const tab of ['a_lire', 'decouvrir', 'notes', 'stats']) { ui.tab = tab; render(); paintNotice(); if ($('#notice').hidden !== (tab !== 'a_lire')) ko.push(tab); }
+      r.push(ko.length ? 'sauvegarde mal placée : ' + ko.join(',') : 'sauvegarde : bibliothèque seulement');
       return r.join('|'); }
     finally { document.documentElement.style.fontSize = f0; if (lb0) prefs.lastBackup = lb0; else delete prefs.lastBackup; books = b0; ui.tab = tab0; render(); paintNotice(); }
   });
@@ -4325,7 +4325,7 @@
     r.push('chiffres:' + document.querySelectorAll('#main .ciel-chiffres > div').length);
     r.push($('#main .ciel-phrase') && $('#main .ciel-phrase').textContent.trim().length > 10 ? 'phrase:ok' : 'phrase:absente');
     const plus = $('#main details.stats-plus');
-    r.push(['Mon objectif', 'Pages lues par semaine', 'Livres finis par mois', 'Ma bibliothèque en détail', 'Exporter ma liste', 'Sauvegarde'].every(t => $('#main').textContent.includes(t)) ? 'blocs:ok' : 'blocs:manquants');
+    r.push(['Mon objectif', 'Pages lues par semaine', 'Livres finis par mois', 'Ma bibliothèque en détail', 'Mon année en détail', 'Sauvegarder ou exporter'].every(t => $('#main').textContent.includes(t)) ? 'blocs:ok' : 'blocs:manquants');
     r.push(plus && !plus.open ? 'plus:replié' : 'plus:ouvert');
     r.push('tuiles:' + plus.querySelectorAll('.tiles .tile').length);
     books = []; render(); await pause(20);
@@ -4622,14 +4622,14 @@
   const avecTetes = async fn => { const b0 = books;
     books = [fiche('Tête un', {statut: 'en_cours', dateDebut: addDays(-3)}), fiche('Tête deux', {statut: 'lu', dateFin: today()})];
     try { return await fn(); } finally { books = b0; ui.tab = 'en_cours'; render(); } };
-  await test('Lot 32 : ligne d’en-tête en Jardin sur 3 écrans — ours à gauche, ligne douce à droite, au-dessus du grand titre, filet dessous', 'decouvrir ok|notes ok|stats ok', () => avecTetes(() => avecStyle('jardin', 'dark', async () => {
+  await test('Lot 32 puis 36 : ligne d’en-tête en Jardin sur 3 écrans — grand titre à gauche, ligne douce à droite sur le même rang, filet dessous, plus d’ours', 'decouvrir ok|notes ok|stats ok', () => avecTetes(() => avecStyle('jardin', 'dark', async () => {
     const r = [];
     for (const [t, ours] of TETES.slice(1)) { await allerEcran(t);
       const o = document.querySelector('#main .ecran-ours'), l = document.querySelector('#main .ecran-ligne'), h = document.querySelector('#main .ecran-titre');
       if (!o || !l || !h) { r.push(t + ' absent'); continue; }
       const ro = o.getBoundingClientRect(), rl = l.getBoundingClientRect(), rh = h.getBoundingClientRect();
-      const ok = o.checkVisibility() && o.textContent === ours && Math.abs(ro.top - rl.top) < 4 && rl.left >= ro.right - 1 && ro.bottom <= rh.top
-        && rl.bottom <= rh.top && getComputedStyle(o.parentElement, '::after').borderBottomWidth === '1px';
+      const ok = !o.checkVisibility() && o.textContent === ours && rl.left >= rh.right - 1 && rl.top < rh.bottom && rh.top < rl.bottom
+        && rl.right <= innerWidth && getComputedStyle(o.parentElement, '::after').borderBottomWidth === '1px';
       r.push(t + (ok ? ' ok' : ` ko (ours ${Math.round(ro.top)}/${Math.round(ro.right)}, ligne ${Math.round(rl.top)}/${Math.round(rl.left)}, titre ${Math.round(rh.top)})`));
     }
     return r.join('|');
@@ -4665,8 +4665,8 @@
     const ko = []; document.documentElement.style.fontSize = '130%';
     try { for (const [t] of TETES) { await allerEcran(t);
       // (sur la Bibliothèque, c'est le titre du statut qui tient lieu d'ours — choix d'Elias du 12/11)
-      const el = [...document.querySelectorAll('#main .ecran-ours, #main .ecran-ligne, #main .library-intro .ecran-titre')].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
-      if (el.length < (t === 'stats' && innerWidth < 360 ? 1 : 2)) ko.push(t + ' : ligne d’en-tête absente');   // (Ciel très étroit : l'ours décoratif se retire, relecture du lot 32)
+      const el = [...document.querySelectorAll('#main .ecran-ours, #main .ecran-ligne, #main .ecran-titre')].filter(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
+      if (el.length < 2) ko.push(t + ' : ligne d’en-tête absente');   // (lot 36 : hors Bibliothèque, le grand titre tient lieu d'ours sur le rang de la ligne douce)
       for (const e of el) if (e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > innerWidth + .5) ko.push(t + ' ' + e.className); } }
     finally { document.documentElement.style.fontSize = ''; }
     return ko;
@@ -4711,7 +4711,9 @@
         const lignes = e => Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight));
         const ours = [...document.querySelectorAll('#main .ecran-ours, #main .library-intro .ecran-titre')].find(e => e.checkVisibility() && e.getBoundingClientRect().width > 1);
         const l = document.querySelector('#main .ecran-ligne');
-        if (!l || (!ours && t !== 'stats')) { ko.push(t + ' : tête absente'); continue; }   // (Ciel très étroit : l'ours décoratif peut se retirer)
+        if (!l || (!ours && STATUTS[t])) { ko.push(t + ' : tête absente'); continue; }   // (lot 36 : hors Bibliothèque, plus d'ours — le grand titre partage le rang de la ligne douce)
+        const gt = document.querySelector('#main .ecran-tete:not(.library-intro) .ecran-titre');
+        if (gt && seCoupent(gt.getBoundingClientRect(), l.getBoundingClientRect())) ko.push(t + ' : grand titre et ligne douce se chevauchent');
         if (ours && lignes(ours) > 1) ko.push(t + ' : ours sur ' + lignes(ours) + ' lignes');
         if (lignes(l) > 2) ko.push(t + ' : ligne douce sur ' + lignes(l) + ' lignes (« ' + l.textContent + ' »)');
         if (ours && ours.checkVisibility() && seCoupent(ours.getBoundingClientRect(), l.getBoundingClientRect())) ko.push(t + ' : ours et ligne douce se chevauchent');
@@ -5420,6 +5422,119 @@
     const colle = e => /p\. \d/.test(e.textContent) ? 'collé' : 'séparable';
     return ['exergue:' + colle($('#qlist .exergue .source')), 'article:' + colle($('#qlist .article .meta'))].join('|');
   }));
+  /* ---------- Lot 36 « De l'air » (audit du 14/11/2026) : têtes plus courtes, ＋ dans la barre, Ciel court, démarrage ---------- */
+  const haut36 = e => { const r = e.getBoundingClientRect(); return e.checkVisibility() && r.height > 1 && r.width > 1; };
+  await test('Lot 36 : tête d’écran du Jardin — « Mes lectures » n’est plus répété, titre et ligne sur un seul rang (Carnet, Ciel)', 'notes:1 rang|stats:1 rang', () => avecStyle('jardin', 'dark', async () => {
+    const r = [];
+    for (const t of ['notes', 'stats']) {
+      await allerEcran(t);
+      const o = $('#main .ecran-tete .ecran-ours'), h = $('#main .ecran-tete .ecran-titre').getBoundingClientRect(), l = $('#main .ecran-tete .ecran-ligne').getBoundingClientRect();
+      r.push(t + ':' + (o && haut36(o) ? 'ours visible' : l.top < h.bottom && h.top < l.bottom ? '1 rang' : '2 rangs'));
+    }
+    await allerEcran('en_cours'); return r.join('|');
+  }));
+  await test('Lot 36 : tête de Découvrir en Jardin — « Mes lectures » n’est plus répété', 'sans ours', () => avecStyle('jardin', 'dark', () => avecDecouvrir(async () => {
+    render(); await pause(40); const o = $('#main .ecran-tete .ecran-ours'); return o && haut36(o) ? 'ours visible' : 'sans ours';
+  })));
+  await test('Lot 36 : rappel de sauvegarde — bandeau dans la Bibliothèque seulement, point sur « Réglages » ailleurs', 'biblio:bandeau|carnet:point|ciel:point|nom:dit', async () => {
+    const b0 = books, l0 = prefs.lastBackup; const r = [];
+    try {
+      books = [fiche('Sauv A', {statut: 'en_cours'}), fiche('Sauv B', {}), fiche('Sauv C', {})]; prefs.lastBackup = '';
+      const etat = () => { const n = $('#notice'), p = $('#settingsBtn .point-rappel'); return !n.hidden && n.classList.contains('rappel') ? 'bandeau' : p && haut36(p) ? 'point' : 'rien'; };
+      await allerEcran('a_lire'); r.push('biblio:' + etat());
+      await allerEcran('notes'); r.push('carnet:' + etat());
+      await allerEcran('stats'); r.push('ciel:' + etat());
+      r.push('nom:' + (/sauvegarde/i.test($('#settingsBtn').getAttribute('aria-label')) ? 'dit' : 'muet'));
+    } finally { books = b0; prefs.lastBackup = l0; await allerEcran('en_cours'); }
+    return r.join('|');
+  });
+  await test('Lot 36 : sans rappel de sauvegarde, pas de point sur « Réglages »', 'sans point|Réglages', async () => {
+    const b0 = books; try { books = []; await allerEcran('notes'); const p = $('#settingsBtn .point-rappel');
+      return (p && haut36(p) ? 'point' : 'sans point') + '|' + $('#settingsBtn').getAttribute('aria-label'); } finally { books = b0; await allerEcran('en_cours'); }
+  });
+  await test('Lot 36 : accueil « Ce soir » — la ligne de comptage laisse la place au jardin, elle reste dans « À lire »', 'accueil:cachée|à lire:visible', () => avecCeSoir(jardinType(), async () => {
+    const r = ['accueil:' + (haut36($('#main .library-intro')) ? 'visible' : 'cachée')];
+    await allerEcran('a_lire'); r.push('à lire:' + (haut36($('#main .library-intro')) ? 'visible' : 'cachée'));
+    return r.join('|');
+  }));
+  for (const st of ['jardin', 'editorial', 'actuel']) await test(`Lot 36 : le bouton ＋ est rangé dans la barre du bas, sans recouvrir d’onglet ni couper un nom (${st})`, 'dans la barre|onglets libres|noms entiers', () => avecCeSoir(jardinType(), async () => {
+    const f = $('#fab').getBoundingClientRect(), t = $('#tabs').getBoundingClientRect(), tabs = $$('#tabs .tab');
+    const dedans = f.top >= t.top - 1 && f.bottom <= t.bottom + 1 && f.right <= innerWidth && f.width >= 44 && f.height >= 44;
+    const libres = tabs.every(x => { const b = x.getBoundingClientRect(); return b.right <= f.left + 1 || b.left >= f.right - 1; });
+    const entiers = tabs.every(x => { const s = x.querySelector('span:not(.ico):not(.sr):not(.n)'); return !s || (s.scrollWidth <= s.clientWidth + 1 && s.getBoundingClientRect().right <= x.getBoundingClientRect().right + 1 && s.getBoundingClientRect().left >= x.getBoundingClientRect().left - 1); });
+    return [dedans ? 'dans la barre' : `hors barre (${Math.round(f.top)} / ${Math.round(t.top)})`, libres ? 'onglets libres' : 'onglet recouvert', entiers ? 'noms entiers' : 'nom coupé'].join('|');
+  }, st, 'dark'));
+  await test('Lot 36 : bibliothèque vide — pas de ＋, les onglets reprennent toute la barre', 'sans ＋|toute la barre', async () => {
+    const b0 = books; try { books = []; await allerEcran('en_cours'); const d = $$('#tabs .tab').pop().getBoundingClientRect();
+      return ($('#fab').hidden ? 'sans ＋' : '＋ visible') + '|' + (innerWidth - d.right < 24 ? 'toute la barre' : 'trou de ' + Math.round(innerWidth - d.right) + ' px'); } finally { books = b0; await allerEcran('en_cours'); }
+  });
+  const hautDessin36 = () => Math.min(...$$('#main .parterre svg *').map(e => e.getBoundingClientRect()).filter(r => r.height > 0).map(r => r.top));
+  await test('Lot 36 : parterre — plus d’espace vide au-dessus des jeunes plantes ; une fleur garde sa place', 'jeunes:serré|fleur:sans chevauchement', async () => {
+    const r = [];
+    await avecCeSoir([fiche('Jeune A', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 20}), fiche('Jeune B', {statut: 'en_cours', pagesTotal: 200, pageActuelle: 0}), fiche('Gr', {})], async () => {
+      const e = hautDessin36() - $('#main .ce-soir-jardin .titre-s').getBoundingClientRect().bottom; r.push('jeunes:' + (e >= 0 && e <= 30 ? 'serré' : Math.round(e) + ' px')); });
+    await avecCeSoir(jardinType(), async () => {
+      const e = hautDessin36() - $('#main .ce-soir-jardin .titre-s').getBoundingClientRect().bottom; r.push('fleur:' + (e >= 0 ? 'sans chevauchement' : 'chevauche de ' + Math.round(-e) + ' px')); });
+    return r.join('|');
+  });
+  for (const th of ['light', 'dark']) await test(`Lot 36 : « Place libre » plus discrète qu’un titre, et lisible (${th === 'dark' ? 'Nuit' : 'Jour'})`, 'discrète|lisible', () => avecCeSoir(jardinType(), async () => {
+    const p = $('#main .pousse.libre'), t = p.querySelector('.t'), s = p.querySelector('small');
+    let op = 1; for (let e = s; e && e !== document.body; e = e.parentElement) op *= +getComputedStyle(e).opacity;
+    const c = contraste(getComputedStyle(s).color, getComputedStyle(document.body).backgroundColor);
+    return [+getComputedStyle(t).fontWeight < 700 ? 'discrète' : 'aussi grasse qu’un titre', op === 1 && c >= 4.5 ? 'lisible' : `contraste ${c.toFixed(2)} × opacité ${op}`].join('|');
+  }, 'jardin', th));
+  await test('Lot 36 : Ciel — sauvegarde et export rangés dans les Réglages, avec un renvoi', 'ciel:sans doublon|renvoi|réglages:excel+pdf+sauvegarde', () => avecStats(async () => {
+    const titres = $$('#main h3').map(h => h.textContent), r = [];
+    r.push('ciel:' + (titres.some(t => /Exporter ma liste|Sauvegarde et partage/.test(t)) ? 'doublon' : 'sans doublon'));
+    const v = $('#main #versReglages'); r.push(v && haut36(v) ? 'renvoi' : 'sans renvoi');
+    if (v) v.click(); else openSettings(); await pause(60);
+    r.push('réglages:' + ['excel', 'pdf', 'backup'].map(k => $(`#modal [data-export="${k}"]`) ? {excel: 'excel', pdf: 'pdf', backup: 'sauvegarde'}[k] : 'manque ' + k).join('+'));
+    closeM(); await pause(60); return r.join('|');
+  }));
+  await test('Lot 36 : Ciel — calendrier et livres par mois repliés sous « Mon année en détail »', 'replié|2 blocs dedans|état retenu', () => avecStats(async () => {
+    const o0 = ui.statsAnnee; try {
+      ui.statsAnnee = false; render(); const d = $('#main details.stats-annee'); if (!d) return 'pas de volet';
+      const r = [d.open ? 'ouvert' : 'replié', d.querySelectorAll('.chart, .cal, .calendrier, [class*=cal]').length >= 2 ? '2 blocs dedans' : 'blocs manquants'];
+      d.open = true; d.dispatchEvent(new Event('toggle')); render(); r.push($('#main details.stats-annee').open ? 'état retenu' : 'état perdu');
+      return r.join('|'); } finally { ui.statsAnnee = o0; }
+  }));
+  await test('Lot 36 : nouvelle version — un message propose « Recharger », une seule fois', 'message|Recharger|rechargé 1 fois|pas de second message', async () => {
+    const t = $('#toast'); let n = 0; annoncerMaj.fait = false; const r = [];
+    try {
+      annoncerMaj(() => n++); r.push(t.classList.contains('show') && /version/i.test(t.textContent) ? 'message' : 'pas de message');
+      const b = $('#toastBtn'); r.push(b ? b.textContent : 'pas de bouton'); if (b) b.click(); r.push('rechargé ' + n + ' fois');
+      t.classList.remove('show', 'act'); annoncerMaj(() => n++); r.push(t.classList.contains('show') ? 'second message' : 'pas de second message');
+    } finally { annoncerMaj.fait = false; t.classList.remove('show', 'act'); clearTimeout(t._h); }
+    return r.join('|');
+  });
+  await test('Lot 36 : couleurs de démarrage alignées sur le bleu nuit du Jardin (manifest)', '#0D1020|#0D1020', async () => {
+    const m = await (await fetch('manifest.webmanifest', {cache: 'no-store'})).json(); return m.theme_color + '|' + m.background_color;
+  });
+  await test('Lot 36 : premier lancement — un jardin nu en Jardin, pas de dessin ailleurs ; le premier pas ne change pas', 'jardin:dessin|editorial:sans dessin|Ajouter mon premier livre', async () => {
+    const b0 = books, r = []; try { books = [];
+      for (const st of ['jardin', 'editorial']) await avecStyle(st, 'dark', async () => { await allerEcran('en_cours'); const d = $('#main .onboarding .jardin-vide'); r.push(st + ':' + (d && haut36(d) ? 'dessin' : 'sans dessin')); });
+      await allerEcran('en_cours'); r.push(/Ajouter mon premier livre/.test(($('#main .onboarding .btn.pri') || {textContent: '?'}).textContent) ? 'Ajouter mon premier livre' : 'libellé changé');
+    } finally { books = b0; await allerEcran('en_cours'); }
+    return r.join('|');
+  });
+  await test('Lot 36 : session calme — le départ est centré dans la hauteur (plus de moitié basse vide)', 'centré', () => avecCalme(async b => {
+    ouvrirCalme(b); await pause(60);
+    const z = $('#timerModal .zone').getBoundingClientRect(), h = $('#timerModal .haut').getBoundingClientRect(), c = $('#timerModal .cercle').getBoundingClientRect(), d = $('#timerModal .zone > :last-child').getBoundingClientRect();
+    const dessus = c.top - h.bottom, dessous = z.bottom - d.bottom;
+    return Math.abs(dessus - dessous) <= 48 ? 'centré' : `dessus ${Math.round(dessus)} px, dessous ${Math.round(dessous)} px`;
+  }));
+  await test('Lot 36 : fin de séance calme — un seul bouton plein à la fois', 'avant:J\'ai fini de lire|après:Enregistrer la séance', () => avecCalme(async b => {
+    ouvrirCalme(b); await pause(40); lancerLecture(); await pause(60);
+    const pleins = () => $$('#timerModal .btn.pri').filter(haut36).map(x => x.textContent.trim()).join('+');
+    const r = ['avant:' + pleins()]; $('#t_stop').click(); await pause(40); r.push('après:' + pleins()); return r.join('|');
+  }));
+  await test('Lot 36 : Réglages — « Actuel » et « Android moderne » rangés sous « Anciens styles » (ouvert si l’un d’eux est choisi)', 'jardin:replié, 3 en vue, 2 rangés|actuel:ouvert', async () => {
+    const r = [];
+    await avecStyle('jardin', 'dark', async () => { openSettings(); await pause(60); const d = $('#modal details.anciens-styles');
+      r.push('jardin:' + (!d ? 'pas de volet' : `${d.open ? 'ouvert' : 'replié'}, ${$$('#modal #st_style > [data-st]').length} en vue, ${d.querySelectorAll('[data-st]').length} rangés`)); closeM(); await pause(60); });
+    await avecStyle('actuel', 'dark', async () => { openSettings(); await pause(60); const d = $('#modal details.anciens-styles'); r.push('actuel:' + (d && d.open ? 'ouvert' : 'replié')); closeM(); await pause(60); });
+    return r.join('|');
+  });
   /* ---------- Fin : on remet la mémoire de test à zéro et on affiche le bilan ---------- */
   window.confirm = vraiConfirm;
   await vider(); try { await Store.set('avant-restauration', null); } catch (e) {}

@@ -307,8 +307,8 @@ input[aria-invalid=true]{border:2px solid var(--danger)}
 .panel{background:var(--carte);border:var(--bordure-carte) solid var(--trait);border-radius:var(--r-m);box-shadow:var(--ombre-1);padding:var(--e-4);margin-bottom:var(--e-3)}
 .panel.encadre{background:var(--surface);border:1px solid var(--trait);box-shadow:none}
 /* (lot V3, P-c : « Ma bibliothèque en détail » — les panneaux du volet perdent leur cadre) */
-.stats-detail > summary{font-weight:700}.stats-detail[open] > summary{margin-bottom:var(--e-3)}
-.stats-detail .panel{background:none;border:0;box-shadow:none;padding:var(--e-3) 0 0;margin:0;border-top:1px solid var(--trait);border-radius:0}
+.stats-detail > summary,.stats-annee > summary{font-weight:700}.stats-detail[open] > summary,.stats-annee[open] > summary{margin-bottom:var(--e-3)}
+.stats-detail .panel,.stats-annee .panel{background:none;border:0;box-shadow:none;padding:var(--e-3) 0 0;margin:0;border-top:1px solid var(--trait);border-radius:0}
 .panel h3{margin:0 0 var(--e-3);font-size:var(--t-s);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--texte)}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--e-3);margin-bottom:var(--e-3)}
 @media(min-width:600px){.tiles{grid-template-columns:repeat(3,1fr)}}
@@ -959,6 +959,19 @@ button{-webkit-touch-callout:none}
 /* (relecture du lot 32) Tête très étroite (320 px avec texte agrandi) : l'ours, décoratif et caché aux lecteurs d'écran,
    se retire pour que la ligne douce tienne sur 2 lignes au plus */
 @container (max-width: 15em){[data-style=jardin] .ecran-tete:not(.library-intro):has(> select) > div > p.ecran-ours{display:none}[data-style=jardin] .ecran-tete:has(> select) .ecran-ligne{grid-column:1/-1;text-align:left}}
+/* (lot 36, audit du 14/11) « Mes lectures » est déjà écrit dans l'en-tête de l'appli : l'ours ne se répète plus sur Découvrir,
+   Carnet et Ciel ; le grand titre monte sur le rang de la ligne douce, le filet reste dessous */
+[data-style=jardin] .ecran-tete:not(.library-intro) > div > p.ecran-ours{display:none}
+[data-style=jardin] .ecran-tete:not(.library-intro) .ecran-titre{grid-row:1;grid-column:1}
+[data-style=jardin] .ecran-tete:not(.library-intro):has(> select) .ecran-ligne{grid-column:2}
+[data-style=jardin] .ecran-tete:not(.library-intro):has(> select) > select{grid-row:1}
+@container (max-width: 15em){[data-style=jardin] .ecran-tete:not(.library-intro):has(> select) .ecran-ligne{grid-row:3;grid-column:1/-1;text-align:left}}
+/* (lot 36) Le rappel de sauvegarde ne prend plus un bandeau sur tous les écrans : un point sur « Réglages » */
+#settingsBtn{position:relative}
+.point-rappel{position:absolute;top:9px;right:9px;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--barre)}
+/* (lot 36) Le ＋ est rangé au bout de la barre du bas : il ne recouvre plus le contenu (graines, « Toutes », « Valider »…) */
+.fab{right:max(var(--e-2),env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom) + (var(--barre-bas) - 48px) / 2);width:48px;height:48px;border-radius:var(--r-m);box-shadow:none;z-index:21}
+body:has(#fab:not([hidden])) .tabs{padding-right:calc(48px + 2 * var(--e-2) + env(safe-area-inset-right))}
 /* (choix d'Elias du 12/11, « Titre dans la ligne ») Bibliothèque : le titre du statut devient la ligne d'en-tête, sans grand
    titre dessous — sinon, avec le rappel de sauvegarde, le premier livre passait sous la barre. « Ma bibliothèque » reste
    masqué à l'œil et lu, comme en Éditorial. */
@@ -1038,7 +1051,30 @@ button{-webkit-touch-callout:none}
 [data-style=jardin] .pousse .nom{display:block;max-width:100%;text-align:center;margin-top:var(--e-1);font:700 var(--t-xs)/1.2 var(--police-titres)}
 [data-style=jardin] .pousse .nom .t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 [data-style=jardin] .pousse .nom small{display:block;font:500 var(--t-xs)/1.3 var(--police-texte);color:var(--texte-doux)}
-[data-style=jardin] .pousse.libre{opacity:.7}
+[data-style=jardin] .pousse.libre{color:var(--texte-doux)}
+/* (lot 36) « Place libre » n'est pas un titre : texte courant, sans atténuation (3,24 en Jour avec l'ancienne opacité) */
+[data-style=jardin] .pousse.libre svg{opacity:.7}
+[data-style=jardin] .pousse.libre .nom .t{font:500 var(--t-s)/1.25 var(--police-texte)}
+/* (lot 36) Le dessin réserve 80 px pour une plante en fleur : sans grande plante, le parterre remonte sous son titre */
+[data-style=jardin] .parterre:is([data-haut="0"],[data-haut="1"]) svg{margin-top:-50px}
+[data-style=jardin] .parterre[data-haut="2"] svg{margin-top:-34px}
+[data-style=jardin] .library-intro.retiree{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* (lot 36) Premier lancement : un jardin nu, en Jardin seulement */
+.jardin-vide{display:none}
+[data-style=jardin] .jardin-vide{display:block;margin:0 0 var(--e-3)}
+[data-style=jardin] .onboarding:has(.jardin-vide){margin-top:var(--e-2);padding-top:var(--e-2)}   /* (le dessin ne doit pas pousser « Ajouter mon premier livre » sous la barre à 320 × 640) */
+[data-style=jardin] .jardin-vide svg{display:block;width:100%;max-width:280px;height:auto;overflow:visible}
+[data-style=jardin] .jardin-vide .sol{fill:none;stroke:var(--trait-champ);stroke-width:1;stroke-linecap:round}
+[data-style=jardin] .jardin-vide .tige{fill:none;stroke:var(--sauge);stroke-width:2;stroke-linecap:round}
+[data-style=jardin] .jardin-vide .feuille{fill:var(--sauge)}
+/* (lot 36) Session calme : le contenu se centre dans la hauteur (la moitié basse restait vide, loin du pouce) */
+[data-style=jardin] #timerOv.calme .haut{margin-bottom:auto}
+[data-style=jardin] #timerOv.calme .zone > :last-child:not(.mfoot){margin-bottom:auto}
+/* (lot 36) Réglages : les deux styles d'avant la refonte sont rangés dans un volet */
+.anciens-styles{grid-column:1/-1}
+.seg.styles .anciens-styles button:first-child{grid-column:auto}
+.anciens-styles > summary{min-height:var(--toucher);display:flex;align-items:center;cursor:pointer;color:var(--texte-doux);font-size:var(--t-s);font-weight:600}
+.anciens-styles > div{display:grid;grid-template-columns:1fr 1fr;gap:var(--e-2)}
 [data-style=jardin] .ciel-horizon{opacity:.55}
 [data-style=jardin] .ciel-horizon .tige{fill:none;stroke:var(--sauge);stroke-width:1.5;vector-effect:non-scaling-stroke}
 [data-style=jardin] .ciel-horizon .feuille{fill:var(--sauge)}
@@ -1105,7 +1141,7 @@ button{-webkit-touch-callout:none}
   <div class="top">
     <h1><span class="ico i-livre" aria-hidden="true">📚</span> Mes lectures</h1>
     <button type="button" class="flame" id="flame" hidden title="Jours de lecture d'affilée"></button>
-    <button class="icon" id="settingsBtn" title="Réglages" aria-label="Réglages"><span class="ico i-reglages" aria-hidden="true">⚙️</span></button>
+    <button class="icon" id="settingsBtn" title="Réglages" aria-label="Réglages"><span class="ico i-reglages" aria-hidden="true">⚙️</span><i class="point-rappel" aria-hidden="true" hidden></i></button>
   </div>
   <nav class="tabs" id="tabs" aria-label="Espaces de l’application"></nav>
 </div></header>
@@ -1166,7 +1202,7 @@ button{-webkit-touch-callout:none}
    Mes lectures : l'appli
    ===================================================================== */
 // Numéro de version : le même dans index.html, recherche.js et taxonomie.js (sinon, la mise en ligne est incomplète)
-const VERSION = '2026.11.13-1';
+const VERSION = '2026.11.14-1';
 // Format des données enregistrées (3 : classification fine, notes, citations avec identifiant)
 const SCHEMA = 3;
 const STATUTS = {en_cours: 'En cours', a_lire: 'À lire', lu: 'Lus', abandon: 'Abandonnés'};
@@ -1199,7 +1235,9 @@ const ETATS = {
     actions: '<button class="btn" type="button" data-tab="en_cours">Voir mes lectures en cours</button>'})
 };
 // Bibliothèque complètement vide (premier lancement, réinstallation, nouveau téléphone) : récupérer une sauvegarde en un geste
-const accueil = () => `<section class="onboarding" aria-labelledby="onboardingTitre"><p class="eyebrow">Mes lectures</p>
+const accueil = () => `<section class="onboarding" aria-labelledby="onboardingTitre">
+  <div class="jardin-vide" aria-hidden="true"><svg viewBox="0 0 280 48"><path class="sol" d="M4 44 C70 40 140 46 276 42"/><ellipse class="graine-pl" cx="96" cy="41" rx="3" ry="4"/><ellipse class="graine-pl" cx="188" cy="41" rx="3" ry="4"/><path class="tige" d="M140 43 C140 34 142 28 139 20"/><path class="feuille" d="M140 32c-6-1-10-5-10-10 6 0 10 4 10 10Z"/></svg></div>
+  <p class="eyebrow">Mes lectures</p>
   <h2 id="onboardingTitre">Un endroit pour garder la trace de ce qui te lit.</h2>
   <p class="onboarding-lead">Commence simplement par un livre. Tu pourras ajouter tes notes, citations et envies à ton rythme.</p>
   <ol class="onboarding-steps"><li><b>Ajoute un premier livre</b> — un titre suffit.</li><li><b>Choisis où le ranger</b> — à lire, en cours, lu ou abandonné.</li><li><b>Garde une trace</b> — seulement quand tu en as envie.</li></ol>
@@ -1929,7 +1967,7 @@ function renderTout() {
   if (ui.tab === 'decouvrir') return renderDecouvrir();
   // (bibliothèque vide : la page de bienvenue d'abord ; statuts, recherche et filtres reviennent avec le premier livre)
   if (!books.length) { $('#main').innerHTML = '<div class="list" id="list"></div>'; return renderCards(); }
-  const libraryNav = `<div class="library-intro ecran-tete"><div><p class="ecran-ours">Ma bibliothèque</p><h2 class="ecran-titre">${STATUTS[ui.tab]}</h2><p class="ecran-ligne">${plural(c[ui.tab] || 0, 'livre')} · ${total} en tout</p></div></div><nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
+  const libraryNav = `<div class="library-intro ecran-tete${ceSoirActif() ? ' retiree' : ''}"><div><p class="ecran-ours">Ma bibliothèque</p><h2 class="ecran-titre">${STATUTS[ui.tab]}</h2><p class="ecran-ligne">${plural(c[ui.tab] || 0, 'livre')} · ${total} en tout</p></div></div><nav class="subtabs library-nav" aria-label="Statuts de la bibliothèque">${Object.keys(STATUTS).map(k => `<button class="subtab ${ui.tab === k ? 'on' : ''}" type="button" data-tab="${k}" aria-pressed="${ui.tab === k}">${STATUTS[k]} <span class="n">${c[k]}</span></button>`).join('')}</nav>`;
   // (lot 33 : en Jardin, l'onglet En cours devient l'accueil « Ce soir » — mêmes livres, autre mise en page)
   const cs = ceSoirActif(), enCours = cs ? enCoursTries() : [];
   // (graines : les épinglés d'abord, comme dans « À lire », puis les plus récentes — elles remplacent la rangée « Épinglés pour la suite »)
@@ -1974,7 +2012,7 @@ function renderTout() {
     : enJardin() && REPRISE && ui.tab === 'en_cours' && ui.listeEnCours ? '<div class="ce-soir-retour"><button class="btn" type="button" data-ce-soir="jardin">Revenir au jardin</button></div>' : '';
   const ceSoirBas = cs ? `<section class="ce-soir ce-soir-jardin" aria-label="Mon jardin">
       <div class="titre-s"><h3>En pousse</h3>${enCours.length ? `<button type="button" class="lien" data-ce-soir="liste">${plural(enCours.length, 'livre')} · en liste</button>` : ''}</div>
-      <ul class="parterre">${enCours.slice(0, 6).map(plante).join('')}${libre}</ul>
+      <ul class="parterre" data-haut="${Math.max(0, ...enCours.slice(0, 6).map(b => stadePlante(b).stade))}">${enCours.slice(0, 6).map(plante).join('')}${libre}</ul>
       ${graines.length ? `<div class="titre-s"><h3>Graines · à lire</h3><button type="button" class="lien" data-ce-soir="graines">Toutes (${graines.length})</button></div>
       <ul class="sommaire">${graines.slice(0, 3).map(b => `<li><button type="button" data-open="${esc(b.id)}"><i aria-hidden="true"></i><span class="t">${esc(b.titre)}</span>${+b.pagesTotal ? `<span class="p">${b.pagesSource === 'estimation' ? '≈ ' : ''}${esc(b.pagesTotal)} p.</span>` : ''}</button></li>`).join('')}</ul>` : ''}
     </section>` : '';
@@ -3052,8 +3090,12 @@ function garderEntree(type, id) {
 }
 
 /* ---------- Bandeau d'alerte (retours de prêt, sauvegarde) ---------- */
+function pointRappel(oui) {
+  const b = $('#settingsBtn'), p = b.querySelector('.point-rappel'); if (p) p.hidden = !oui;
+  b.setAttribute('aria-label', oui ? 'Réglages (sauvegarde à faire)' : 'Réglages');
+}
 function paintNotice() {
-  const bar = $('#notice');
+  const bar = $('#notice'); pointRappel(false);
   if (Store.bloque) {
     bar.innerHTML = `${ico('alerte', '⚠️')} <b>Tes livres ne peuvent pas être lus pour l'instant</b> : rien n'est enregistré tant que ce n'est pas réparé (pour ne rien écraser).
       Ferme complètement l'appli et rouvre-la. <button class="btn pri small" type="button" onclick="location.reload()"><span class="ico i-relire" aria-hidden="true">🔄</span> Réessayer</button>`;
@@ -3075,13 +3117,15 @@ function paintNotice() {
   // Rappel : jamais sauvegardé, ou dernière sauvegarde de plus d'une semaine ET des changements depuis
   // (les livres ne vivent que dans la mémoire de Chrome : effacer ses données les effacerait)
   const last = prefs.lastBackup, late = books.length >= 3 && (!last || (Date.now() - new Date(last) > 7 * 864e5 && Store.vu > last));
+  // (lot 36 : le rappel de sauvegarde n'a son bandeau que dans la Bibliothèque ; partout, un point sur « Réglages » le signale)
+  pointRappel(late);
   if (due) {
     // (une seule ligne : seul le titre se coupe avec « … » ; l'écart en jours et « Voir » restent visibles — lot V5, U4)
     const ecart = Math.round((new Date(due.pretRetour + 'T12:00') - new Date(today() + 'T12:00')) / 864e5);
     const quand = ecart < 0 ? `en retard de ${-ecart} j` : !ecart ? 'à rendre aujourd’hui' : ecart === 1 ? 'à rendre demain' : `à rendre dans ${ecart} j`;
     bar.innerHTML = `<span class="notice-txt">${ico('emprunt', '📥')} <b class="notice-titre">${esc(due.titre)}</b><span class="notice-quand"> · ${quand}</span></span><button class="btn small" data-open="${esc(due.id)}">Voir</button>`;
     bar.className = 'notice alerte court'; bar.hidden = false;
-  } else if (late) {
+  } else if (late && STATUTS[ui.tab]) {
     bar.innerHTML = `<span class="rappel-txt">${ico('sauver', '💾')} <span class="long">${last ? 'Tu as modifié tes livres depuis ta dernière sauvegarde (il y a plus d\'une semaine).' : 'Pense à sauvegarder tes livres.'}</span><span class="bref">${last ? 'Sauvegarde à refaire.' : 'Pense à sauvegarder.'}</span></span> <button class="btn pri small" data-export="backup">Sauvegarder</button>`;
     bar.className = 'notice rappel'; bar.hidden = false;
   } else bar.hidden = true;
@@ -3376,10 +3420,12 @@ function renderStatsTout() {
       <div class="a sous-titre">Cette semaine : <b>${plural(thisWeek.n, 'page')}</b>${thisWeek.min ? ` en ${fdur(thisWeek.min)}` : ''}${thisWeek.n ? ` · ${Math.round(thisWeek.n / ((new Date().getDay() + 6) % 7 + 1))} par jour en moyenne` : ''}</div>
       <div class="chart green">${weeks.map(w => `<div><div class="col"><em>${w.n || ''}</em><i style="height:${w.n / wmax * 100}%"></i></div>${w.start.getDate()}/${w.start.getMonth() + 1}</div>`).join('')}</div>
       <div class="a petit mt-2">Compté avec « Où j'en suis » et « ${ico('chrono', '⏱️')} Lire ».</div></div>
+    <details class="panel stats-annee"${ui.statsAnnee ? ' open' : ''}><summary>Mon année en détail</summary>
     ${calendarPanel(y)}
     <div class="panel"><h3>Livres finis par mois</h3><div class="chart">${perM.map((n, i) =>
       `<div><div class="col"><em>${n || ''}</em><i style="height:${n / max * 100}%"></i></div>${MOIS[i]}</div>`).join('')}</div></div>
-    <details class="panel stats-detail"${ui.statsDetail ? ' open' : ''}><summary>Ma bibliothèque en détail</summary>
+    </details>
+    <details class="panel stats-detail stats-biblio"${ui.statsDetail ? ' open' : ''}><summary>Ma bibliothèque en détail</summary>
     <div class="panel"><h3>Genre indiqué sur la fiche</h3><p class="a petit">Ce champ ancien peut provenir d’un catalogue et rester à confirmer.</p>${gl.length ? gl.map(([k, n]) =>
       `<div class="hb"><span>${esc(k)}</span><div class="bar"><i style="width:${n / gl[0][1] * 100}%"></i></div><span>${n}</span></div>`).join('')
       : `<div class="a">Aucun livre fini en ${y}.</div>`}</div>
@@ -3390,13 +3436,12 @@ function renderStatsTout() {
     </details>
     ${loansPanel()}
     ${bilan(y, ly)}
-    <div class="panel"><h3>Exporter ma liste</h3><div class="a mb-3">Tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
-      <div class="acts"><button class="btn" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
-    <div class="panel"><h3>${ico('sauver', '💾')} Sauvegarde et partage</h3><div class="a mb-3">Tes livres sont gardés sur cet appareil. Fais une sauvegarde de temps en temps
-      (et avant de changer de téléphone) : tu pourras tout récupérer avec « Restaurer ».<br>${backupInfo()}</div>
-      ${sauvegardeEtPartage()}</div>`;
+    <div class="acts ciel-renvoi"><button class="btn" type="button" id="versReglages">${ico('sauver', '💾')} Sauvegarder ou exporter mes livres</button></div>`;
+  // (lot 36 : la sauvegarde, le partage et l'export vivent dans les Réglages — un seul endroit, le Ciel reste court)
+  $('#versReglages').onclick = openSettings;
   // (le volet « Ma bibliothèque en détail » garde son état d'un rendu à l'autre)
-  $('#main .stats-detail').ontoggle = e => { ui.statsDetail = e.target.open; };
+  $('#main .stats-biblio').ontoggle = e => { ui.statsDetail = e.target.open; };
+  $('#main .stats-annee').ontoggle = e => { ui.statsAnnee = e.target.open; };
   // (la liste « Les livres de mon ciel » ne se construit qu'à l'ouverture du volet : une grande année coûterait sinon à chaque affichage)
   $('#main .stats-plus').ontoggle = e => {
     ui.statsPlus = e.target.open; const l = $('#main .ciel-liste');
@@ -3598,6 +3643,11 @@ function checkBadges(silent) {
   d.filter(x => x.ok && !before.includes(x.id)).forEach((x, i) => toastLater(`🏆 Défi réussi : ${x.e} ${x.nom} !`, 1400 + i * 2600));
 }
 // Attend que le message en cours (avec bouton) soit fini avant d'en afficher un autre
+// (lot 36) Une version plus récente attend : un message, une seule fois par ouverture ; rien n'est rechargé sans le geste
+function annoncerMaj(recharger = () => location.reload()) {
+  if (annoncerMaj.fait) return; annoncerMaj.fait = true;
+  toast('Nouvelle version prête', {label: 'Recharger', fn: recharger});
+}
 function toastLater(msg, delay) {
   setTimeout(function tryShow() { if ($('#toast').classList.contains('act')) return setTimeout(tryShow, 1500); toast(msg); }, delay || 1000);
 }
@@ -5755,7 +5805,7 @@ function brancherChrono(b, repeindre) {
     if (x.running) { x.acc += Date.now() - x.start; x.running = false; } else { x.start = Date.now(); x.running = true; }
     savePrefs(); repeindre();
   };
-  $('#t_stop').onclick = () => { const x = prefs.timer; if (x.running) { x.acc += Date.now() - x.start; x.running = false; savePrefs(); } $('#t_end').hidden = false; $('#t_page').focus(); $('#t_page').select(); };
+  $('#t_stop').onclick = () => { const x = prefs.timer; if (x.running) { x.acc += Date.now() - x.start; x.running = false; savePrefs(); } $('#t_end').hidden = false; $('#t_stop').classList.remove('pri'); $('#t_page').focus(); $('#t_page').select(); };
   $('#t_save').onclick = () => enregistrerSeance(b, parseInt($('#t_page').value, 10));
   $('#t_cancel').onclick = () => { prefs.timer = null; savePrefs(); fermerChrono(); toast('Chrono annulé'); };
   $('#t_hide').onclick = fermerChrono;
@@ -5819,10 +5869,12 @@ function openTimer() {
 $('#timerPill').onclick = openTimer;
 
 /* ---------- Réglages ---------- */
+// (lot 36 : « Android moderne » et « Actuel » n'ont pas reçu l'accueil, la session calme ni le Carnet du Jardin — rangés, pas retirés)
+const STYLES_ANCIENS = ['android', 'actuel'];
+const carteStyle = k => `<button type="button" data-st="${k}" aria-pressed="${document.documentElement.dataset.style === k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${STYLES[k]}</button>`;
 function openSettings() {
   $('#modal').innerHTML = `<h2>${ico('reglages', '⚙️')} Réglages</h2>
-    <div class="f"><label>Style</label><div class="seg styles" id="st_style">${Object.entries(STYLES).map(([k, v]) =>
-      `<button type="button" data-st="${k}" aria-pressed="${document.documentElement.dataset.style === k}" class="${document.documentElement.dataset.style === k ? 'on' : ''}"><span class="apercu" data-style="${k}" data-theme="${document.documentElement.dataset.theme}" aria-hidden="true"><i></i><b></b></span>${v}</button>`).join('')}</div></div>
+    <div class="f"><label>Style</label><div class="seg styles" id="st_style">${['jardin', 'editorial', 'carnet'].map(carteStyle).join('')}<details class="anciens-styles"${STYLES_ANCIENS.includes(document.documentElement.dataset.style) ? ' open' : ''}><summary>Anciens styles</summary><div>${STYLES_ANCIENS.map(carteStyle).join('')}</div></details></div></div>
     <div class="f"><label>Thème</label><div class="seg" id="st_theme">${[['auto', 'Auto'], ['light', ico('soleil', '☀️') + ' Clair'], ['dark', ico('lune', '🌙') + ' Sombre']].map(([k, v]) => `<button data-th="${k}" class="${prefs.theme === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
     <div class="f"><label>Densité</label><div class="seg" id="st_density">${Object.entries(DENSITES).map(([k, v]) => `<button data-density="${k}" class="${prefs.density === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <p class="a petit">Confortable laisse respirer la bibliothèque. Compact montre plus de livres. Concentration simplifie le cadre pendant la consultation d’un livre, sans retirer ses actions.</p></div>
@@ -5848,7 +5900,9 @@ function openSettings() {
       Seules les cases vides sont remplies, et seulement si le titre et l'auteur correspondent bien.</div>
       <div class="acts"><button class="btn" id="st_fill"><span class="ico i-etincelle" aria-hidden="true">✨</span> Compléter (${plural(books.filter(needsFill).length, 'livre')})</button></div><div class="a moyen mt-2" id="st_fillres"></div></div>
     <div class="panel encadre"><h3>${ico('sauver', '💾')} Sauvegarde et partage</h3><div class="a moyen mb-2">${backupInfo()}</div>
-      ${sauvegardeEtPartage()}</div>
+      ${sauvegardeEtPartage()}
+      <div class="a moyen mt-3 mb-2"><b>Exporter ma liste</b> : tous tes livres (et tes citations dans le PDF), à garder ou à imprimer.</div>
+      <div class="acts"><button class="btn" data-export="excel"><span class="ico i-tableau" aria-hidden="true">📊</span> Excel</button><button class="btn" data-export="pdf"><span class="ico i-document" aria-hidden="true">📄</span> PDF</button></div></div>
     <div class="a petit">Mémoire : ${Store.fallback ? 'simple (limitée)' : 'grande capacité ✓'} · ${plural(books.length, 'livre')}<span id="st_mem"></span><br>Version de l'appli : ${VERSION}</div>
     <div class="mfoot"><span class="sp"></span><button class="btn" id="st_ok">Fermer</button></div>`;
   showM();
@@ -6304,7 +6358,13 @@ function goTab(dir) {
       <button class="btn pri" type="button" onclick="location.reload()"><span class="ico i-relire" aria-hidden="true">🔄</span> Réessayer</button></div>`;
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-  if ('serviceWorker' in navigator && location.protocol !== 'file:' && !ESSAI) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:' && !ESSAI) {
+    // (lot 36 : l'appli s'ouvre tout de suite sur sa copie ; quand une version plus récente est rangée, on le dit)
+    const dejaServie = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'maj-prete') annoncerMaj(); });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (dejaServie) annoncerMaj(); });
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
   // Page de tests : index.html?tests (mémoire séparée)
   if (ESSAI) { const t = document.createElement('script'); t.src = 'tests-appli.js?' + Date.now(); document.body.appendChild(t); }
 })();
